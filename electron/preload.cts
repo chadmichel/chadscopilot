@@ -23,13 +23,73 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke('dialog:select-directory'),
 
-  // Database — projects
+  // --- Projects ---
   getProjects: (): Promise<any[]> =>
     ipcRenderer.invoke('db:get-projects'),
 
   addProject: (id: string, name: string, folderPath: string): Promise<any> =>
     ipcRenderer.invoke('db:add-project', id, name, folderPath),
 
+  updateProject: (id: string, fields: Record<string, any>): Promise<void> =>
+    ipcRenderer.invoke('db:update-project', id, fields),
+
   removeProject: (id: string): Promise<void> =>
     ipcRenderer.invoke('db:remove-project', id),
+
+  // --- Tools ---
+  getTools: (): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-tools'),
+
+  getTool: (id: string): Promise<any> =>
+    ipcRenderer.invoke('db:get-tool', id),
+
+  getToolsByType: (toolType: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-tools-by-type', toolType),
+
+  addTool: (tool: Record<string, any>): Promise<any> =>
+    ipcRenderer.invoke('db:add-tool', tool),
+
+  updateTool: (id: string, fields: Record<string, any>): Promise<void> =>
+    ipcRenderer.invoke('db:update-tool', id, fields),
+
+  removeTool: (id: string): Promise<void> =>
+    ipcRenderer.invoke('db:remove-tool', id),
+
+  // --- Tasks ---
+  getTasks: (): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-tasks'),
+
+  getTask: (id: string): Promise<any> =>
+    ipcRenderer.invoke('db:get-task', id),
+
+  getTasksByProject: (projectId: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-tasks-by-project', projectId),
+
+  addTask: (task: Record<string, any>): Promise<any> =>
+    ipcRenderer.invoke('db:add-task', task),
+
+  updateTask: (id: string, fields: Record<string, any>): Promise<void> =>
+    ipcRenderer.invoke('db:update-task', id, fields),
+
+  removeTask: (id: string): Promise<void> =>
+    ipcRenderer.invoke('db:remove-task', id),
+
+  // --- Editor services ---
+  vscodeFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>
+    ipcRenderer.invoke('editor:vscode-find'),
+
+  vscodeOpen: (folderPath: string, cliPath?: string): Promise<boolean> =>
+    ipcRenderer.invoke('editor:vscode-open', folderPath, cliPath),
+
+  cursorFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>
+    ipcRenderer.invoke('editor:cursor-find'),
+
+  cursorOpen: (folderPath: string, cliPath?: string): Promise<boolean> =>
+    ipcRenderer.invoke('editor:cursor-open', folderPath, cliPath),
+
+  antigravityFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>
+    ipcRenderer.invoke('editor:antigravity-find'),
+
+  antigravityOpen: (folderPath: string, cliPath?: string): Promise<boolean> =>
+    ipcRenderer.invoke('editor:antigravity-open', folderPath, cliPath),
 });

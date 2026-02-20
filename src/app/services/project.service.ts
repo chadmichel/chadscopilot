@@ -4,6 +4,12 @@ export interface Project {
   id: string;
   name: string;
   folderPath: string;
+  description: string;
+  editorToolId: string;
+  taskToolId: string;
+  taskToolExternalId: string;
+  tools: string;
+  extra: string;
 }
 
 @Injectable({
@@ -23,6 +29,12 @@ export class ProjectService {
         id: r.id,
         name: r.name,
         folderPath: r.folderPath,
+        description: r.description || '',
+        editorToolId: r.editorToolId || '',
+        taskToolId: r.taskToolId || '',
+        taskToolExternalId: r.taskToolExternalId || '',
+        tools: r.tools || '[]',
+        extra: r.extra || '{}',
       }));
     }
   }
@@ -34,13 +46,27 @@ export class ProjectService {
       await this.electron.addProject(id, name, folderPath);
     }
 
-    const project: Project = { id, name, folderPath };
+    const project: Project = {
+      id, name, folderPath,
+      description: '', editorToolId: '', taskToolId: '',
+      taskToolExternalId: '', tools: '[]', extra: '{}',
+    };
     this.projects.push(project);
     return project;
   }
 
   getProject(id: string): Project | undefined {
     return this.projects.find((p) => p.id === id);
+  }
+
+  async updateProject(id: string, fields: Partial<Omit<Project, 'id'>>): Promise<void> {
+    if (this.electron?.updateProject) {
+      await this.electron.updateProject(id, fields);
+    }
+    const idx = this.projects.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      this.projects[idx] = { ...this.projects[idx], ...fields };
+    }
   }
 
   async removeProject(id: string): Promise<void> {

@@ -4,6 +4,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { CopilotService } from './copilot.service.js';
 import { DatabaseService } from './database.service.js';
+import { ToolSettingsService } from './tool-settings.service.js';
+import { TasksService } from './tasks.service.js';
+import { VsCodeService } from './vscode.service.js';
+import { CursorService } from './cursor.service.js';
+import { GoogleAntigravityService } from './google-antigravity.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +32,11 @@ const appIcon = nativeImage.createFromPath(
 let mainWindow: BrowserWindow | null = null;
 let copilotService: CopilotService | null = null;
 let databaseService: DatabaseService | null = null;
+let toolSettingsService: ToolSettingsService | null = null;
+let tasksService: TasksService | null = null;
+const vsCodeService = new VsCodeService();
+const cursorService = new CursorService();
+const antigravityService = new GoogleAntigravityService();
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -60,7 +70,7 @@ function createWindow(): void {
 }
 
 function setupIPC(): void {
-  // Copilot chat — now project-scoped
+  // Copilot chat — project-scoped
   ipcMain.handle(
     'copilot:send-message',
     async (event, projectId: string, message: string, folderPath?: string) => {
@@ -102,7 +112,7 @@ function setupIPC(): void {
     }
   });
 
-  // Database — projects CRUD
+  // --- Projects CRUD ---
   ipcMain.handle('db:get-projects', () => {
     if (!databaseService) return [];
     return databaseService.getAllProjects();
@@ -113,15 +123,109 @@ function setupIPC(): void {
     return databaseService.addProject(id, name, folderPath);
   });
 
+  ipcMain.handle('db:update-project', (_event, id: string, fields: Record<string, unknown>) => {
+    if (!databaseService) throw new Error('Database not initialized');
+    databaseService.updateProject(id, fields);
+  });
+
   ipcMain.handle('db:remove-project', (_event, id: string) => {
     if (!databaseService) throw new Error('Database not initialized');
     databaseService.removeProject(id);
   });
+
+  // --- Tools CRUD ---
+  ipcMain.handle('db:get-tools', () => {
+    if (!toolSettingsService) return [];
+    return toolSettingsService.getAll();
+  });
+
+  ipcMain.handle('db:get-tool', (_event, id: string) => {
+    if (!toolSettingsService) return null;
+    return toolSettingsService.getById(id);
+  });
+
+  ipcMain.handle('db:get-tools-by-type', (_event, toolType: string) => {
+    if (!toolSettingsService) return [];
+    return toolSettingsService.getByType(toolType);
+  });
+
+  ipcMain.handle('db:add-tool', (_event, tool: Record<string, unknown>) => {
+    if (!toolSettingsService) throw new Error('Tool settings not initialized');
+    return toolSettingsService.add(tool as any);
+  });
+
+  ipcMain.handle('db:update-tool', (_event, id: string, fields: Record<string, unknown>) => {
+    if (!toolSettingsService) throw new Error('Tool settings not initialized');
+    toolSettingsService.update(id, fields as any);
+  });
+
+  ipcMain.handle('db:remove-tool', (_event, id: string) => {
+    if (!toolSettingsService) throw new Error('Tool settings not initialized');
+    toolSettingsService.remove(id);
+  });
+
+  // --- Tasks CRUD ---
+  ipcMain.handle('db:get-tasks', () => {
+    if (!tasksService) return [];
+    return tasksService.getAll();
+  });
+
+  ipcMain.handle('db:get-task', (_event, id: string) => {
+    if (!tasksService) return null;
+    return tasksService.getById(id);
+  });
+
+  ipcMain.handle('db:get-tasks-by-project', (_event, projectId: string) => {
+    if (!tasksService) return [];
+    return tasksService.getByProject(projectId);
+  });
+
+  ipcMain.handle('db:add-task', (_event, task: Record<string, unknown>) => {
+    if (!tasksService) throw new Error('Tasks service not initialized');
+    return tasksService.add(task as any);
+  });
+
+  ipcMain.handle('db:update-task', (_event, id: string, fields: Record<string, unknown>) => {
+    if (!tasksService) throw new Error('Tasks service not initialized');
+    tasksService.update(id, fields as any);
+  });
+
+  ipcMain.handle('db:remove-task', (_event, id: string) => {
+    if (!tasksService) throw new Error('Tasks service not initialized');
+    tasksService.remove(id);
+  });
+
+  // --- Editor services ---
+  ipcMain.handle('editor:vscode-find', () => {
+    return vsCodeService.findInstallation();
+  });
+
+  ipcMain.handle('editor:vscode-open', (_event, folderPath: string, cliPath?: string) => {
+    return vsCodeService.open(folderPath, cliPath);
+  });
+
+  ipcMain.handle('editor:cursor-find', () => {
+    return cursorService.findInstallation();
+  });
+
+  ipcMain.handle('editor:cursor-open', (_event, folderPath: string, cliPath?: string) => {
+    return cursorService.open(folderPath, cliPath);
+  });
+
+  ipcMain.handle('editor:antigravity-find', () => {
+    return antigravityService.findInstallation();
+  });
+
+  ipcMain.handle('editor:antigravity-open', (_event, folderPath: string, cliPath?: string) => {
+    return antigravityService.open(folderPath, cliPath);
+  });
 }
 
 app.whenReady().then(async () => {
-  // Initialize database
+  // Initialize database + services
   databaseService = new DatabaseService();
+  toolSettingsService = new ToolSettingsService(databaseService.getDb());
+  tasksService = new TasksService(databaseService.getDb());
   console.log('Database initialized');
 
   // Initialize Copilot
