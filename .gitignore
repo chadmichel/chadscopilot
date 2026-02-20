@@ -82,6 +82,12 @@ out
 .nuxt
 dist
 
+# Electron compiled output
+dist-electron
+
+# Angular output
+out-tsc
+
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js

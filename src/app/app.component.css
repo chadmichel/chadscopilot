@@ -1,0 +1,37 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #1e1e1e;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  -webkit-app-region: drag;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  color: #569cd6;
+}
+
+.app-header h1 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cccccc;
+  letter-spacing: 0.3px;
+}
+
+.app-main {
+  flex: 1;
+  overflow: hidden;
+}
