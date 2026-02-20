@@ -18,29 +18,8 @@
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 10px;
-  border-bottom: 1px solid var(--app-border);
-  min-height: 48px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.brand-icon {
-  flex-shrink: 0;
-  color: var(--theme-primary);
-}
-
-.brand-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--app-text);
-  white-space: nowrap;
+  justify-content: flex-end;
+  padding: 8px 10px;
 }
 
 .toggle-btn {
@@ -65,7 +44,7 @@
 
 .collapsed .sidebar-header {
   justify-content: center;
-  padding: 12px 0;
+  padding: 8px 0;
 }
 
 /* Content */

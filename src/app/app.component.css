@@ -1,6 +1,45 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  background-color: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.header-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.header-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--app-text);
+  letter-spacing: 0.3px;
+}
+
 .app-container {
   display: flex;
-  height: 100vh;
+  flex: 1;
+  overflow: hidden;
   background-color: var(--app-background);
 }
 

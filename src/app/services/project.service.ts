@@ -48,5 +48,8 @@ export class ProjectService {
       await this.electron.removeProject(id);
     }
     this.projects = this.projects.filter((p) => p.id !== id);
+    if (localStorage.getItem('chadscopilot_last_project_id') === id) {
+      localStorage.removeItem('chadscopilot_last_project_id');
+    }
   }
 }

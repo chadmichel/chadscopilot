@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { CopilotService } from './copilot.service.js';
@@ -7,6 +7,22 @@ import { DatabaseService } from './database.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Hot reload in dev: restart Electron when dist-electron files change
+if (!app.isPackaged) {
+  import('electron-reload').then((mod: any) => {
+    mod.default(__dirname, {
+      electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
+      forceHardReset: true,
+    });
+  }).catch(() => {
+    // electron-reload not available, skip
+  });
+}
+
+const appIcon = nativeImage.createFromPath(
+  path.join(__dirname, '..', 'chadscopilot.png')
+);
 
 let mainWindow: BrowserWindow | null = null;
 let copilotService: CopilotService | null = null;
@@ -23,6 +39,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
     },
+    icon: appIcon,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#1a1a1a',
   });
@@ -117,6 +134,11 @@ app.whenReady().then(async () => {
     console.error(
       'Make sure the GitHub Copilot CLI is installed and authenticated.'
     );
+  }
+
+  // Set dock icon on macOS
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(appIcon);
   }
 
   setupIPC();

@@ -23,24 +23,31 @@ interface NavSection {
 export class SidebarComponent {
   collapsed = false;
 
-  sections: NavSection[] = [
-    {
-      title: 'Main',
-      items: [
-        { label: 'Agent', route: '/agent', icon: 'agent' },
-        { label: 'Tasks', route: '/tasks', icon: 'tasks' },
-        { label: 'Projects', route: '/projects', icon: 'projects' },
-        { label: 'Calendar', route: '/calendar', icon: 'calendar' },
-      ],
-    },
-    {
-      title: 'Settings',
-      items: [
-        { label: 'Tools', route: '/tools', icon: 'tools' },
-        { label: 'Preferences', route: '/preferences', icon: 'preferences' },
-      ],
-    },
-  ];
+  get sections(): NavSection[] {
+    const lastProjectId = localStorage.getItem('chadscopilot_last_project_id');
+    return [
+      {
+        title: 'Main',
+        items: [
+          { label: 'Agent', route: '/agent', icon: 'agent' },
+          { label: 'Tasks', route: '/tasks', icon: 'tasks' },
+          {
+            label: 'Projects',
+            route: lastProjectId ? `/projects/${lastProjectId}` : '/projects',
+            icon: 'projects',
+          },
+          { label: 'Calendar', route: '/calendar', icon: 'calendar' },
+        ],
+      },
+      {
+        title: 'Settings',
+        items: [
+          { label: 'Tools', route: '/tools', icon: 'tools' },
+          { label: 'Preferences', route: '/preferences', icon: 'preferences' },
+        ],
+      },
+    ];
+  }
 
   toggle(): void {
     this.collapsed = !this.collapsed;
