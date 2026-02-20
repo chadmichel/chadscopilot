@@ -21,6 +21,7 @@
     "@angular/forms": "^19.0.0",
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
+    "@angular/router": "^19.2.18",
     "@github/copilot-sdk": "latest",
     "dotenv": "^17.3.1",
     "marked": "^15.0.0",
