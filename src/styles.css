@@ -1,3 +1,55 @@
+/* Global Theme Definitions */
+:root {
+  /* Default variables (Midnight) */
+  --theme-primary: #8b5cf6;
+  --theme-primary-hover: #a78bfa;
+  --app-background: #1a1a1a;
+  --app-surface: #2d2d2d;
+  --app-border: #404040;
+  --app-text: #e0e0e0;
+  --app-text-muted: #9ca3af;
+}
+
+[data-theme='light'] {
+  --theme-primary: #0d9488;
+  --theme-primary-hover: #14b8a6;
+  --app-background: #f8fafc;
+  --app-surface: #ffffff;
+  --app-border: #e2e8f0;
+  --app-text: #1e293b;
+  --app-text-muted: #64748b;
+}
+
+[data-theme='midnight'] {
+  --theme-primary: #8b5cf6;
+  --theme-primary-hover: #a78bfa;
+  --app-background: #1a1a1a;
+  --app-surface: #2d2d2d;
+  --app-border: #404040;
+  --app-text: #e0e0e0;
+  --app-text-muted: #9ca3af;
+}
+
+[data-theme='arcade80s'] {
+  --theme-primary: #ff4fd8;
+  --theme-primary-hover: #f472b6;
+  --app-background: #0b0616;
+  --app-surface: #140a2a;
+  --app-border: #2a1b4d;
+  --app-text: #fdf4ff;
+  --app-text-muted: #c084fc;
+}
+
+[data-theme='grunge90s'] {
+  --theme-primary: #c08457;
+  --theme-primary-hover: #d9a078;
+  --app-background: #241a14;
+  --app-surface: #2f221a;
+  --app-border: #4a3a30;
+  --app-text: #f3e9dc;
+  --app-text-muted: #a89080;
+}
+
 /* Global Reset & Base Styles */
 *,
 *::before,
@@ -12,12 +64,13 @@ body {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-  background-color: #1e1e1e;
-  color: #d4d4d4;
+  background-color: var(--app-background);
+  color: var(--app-text);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Markdown content styles for Copilot responses */
@@ -30,17 +83,17 @@ body {
 }
 
 .message-text code {
-  background-color: #2d2d2d;
+  background-color: var(--app-surface);
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
   font-size: 13px;
-  color: #ce9178;
+  color: var(--theme-primary);
 }
 
 .message-text pre {
-  background-color: #1a1a1a;
-  border: 1px solid #333;
+  background-color: var(--app-background);
+  border: 1px solid var(--app-border);
   border-radius: 8px;
   padding: 14px;
   margin: 10px 0;
@@ -50,7 +103,7 @@ body {
 .message-text pre code {
   background: transparent;
   padding: 0;
-  color: #d4d4d4;
+  color: var(--app-text);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -66,16 +119,16 @@ body {
 }
 
 .message-text blockquote {
-  border-left: 3px solid #569cd6;
+  border-left: 3px solid var(--theme-primary);
   padding-left: 12px;
   margin: 8px 0;
-  color: #999;
+  color: var(--app-text-muted);
 }
 
 .message-text h1,
 .message-text h2,
 .message-text h3 {
-  color: #e0e0e0;
+  color: var(--app-text);
   margin: 12px 0 6px;
 }
 
@@ -84,7 +137,7 @@ body {
 .message-text h3 { font-size: 15px; }
 
 .message-text a {
-  color: #569cd6;
+  color: var(--theme-primary);
   text-decoration: none;
 }
 
@@ -100,18 +153,18 @@ body {
 
 .message-text th,
 .message-text td {
-  border: 1px solid #333;
+  border: 1px solid var(--app-border);
   padding: 6px 12px;
   text-align: left;
 }
 
 .message-text th {
-  background-color: #2a2a2a;
+  background-color: var(--app-surface);
   font-weight: 600;
 }
 
 .message-text hr {
   border: none;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--app-border);
   margin: 12px 0;
 }

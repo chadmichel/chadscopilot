@@ -1,5 +1,6 @@
 import {
   Component,
+  Input,
   ViewChild,
   ElementRef,
   AfterViewChecked,
@@ -18,6 +19,8 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
 })
 export class ChatComponent implements AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  @Input() projectId: string = 'global';
+  @Input() folderPath: string = '';
 
   userInput = '';
   isLoading = false;
@@ -36,7 +39,7 @@ export class ChatComponent implements AfterViewChecked {
     this.isLoading = true;
 
     try {
-      await this.chatService.sendMessage(message);
+      await this.chatService.sendMessage(message, this.projectId, this.folderPath || undefined);
     } finally {
       this.isLoading = false;
     }

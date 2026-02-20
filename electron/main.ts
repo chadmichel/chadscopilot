@@ -1,14 +1,16 @@
 import 'dotenv/config';
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { CopilotService } from './copilot.service.js';
+import { DatabaseService } from './database.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
 let copilotService: CopilotService | null = null;
+let databaseService: DatabaseService | null = null;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -22,7 +24,7 @@ function createWindow(): void {
       nodeIntegration: false,
     },
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#1e1e1e',
+    backgroundColor: '#1a1a1a',
   });
 
   const isDev = !app.isPackaged;
@@ -41,38 +43,72 @@ function createWindow(): void {
 }
 
 function setupIPC(): void {
+  // Copilot chat — now project-scoped
   ipcMain.handle(
     'copilot:send-message',
-    async (event, message: string) => {
+    async (event, projectId: string, message: string, folderPath?: string) => {
       if (!copilotService) {
-        event.sender.send('copilot:error', 'Copilot service not initialized');
+        event.sender.send('copilot:error', projectId, 'Copilot service not initialized');
         return;
       }
 
       try {
-        await copilotService.sendMessage(message, {
+        await copilotService.sendMessage(projectId, message, folderPath, {
           onDelta: (delta: string) => {
-            event.sender.send('copilot:message-delta', delta);
+            event.sender.send('copilot:message-delta', projectId, delta);
           },
           onComplete: () => {
-            event.sender.send('copilot:message-complete');
+            event.sender.send('copilot:message-complete', projectId);
           },
           onError: (error: string) => {
-            event.sender.send('copilot:error', error);
+            event.sender.send('copilot:error', projectId, error);
           },
         });
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : 'Unknown error';
-        event.sender.send('copilot:error', errorMessage);
+        event.sender.send('copilot:error', projectId, errorMessage);
       }
     }
   );
+
+  // Directory picker
+  ipcMain.handle('dialog:select-directory', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory']
+    });
+    if (result.canceled) {
+      return null;
+    } else {
+      return result.filePaths[0];
+    }
+  });
+
+  // Database — projects CRUD
+  ipcMain.handle('db:get-projects', () => {
+    if (!databaseService) return [];
+    return databaseService.getAllProjects();
+  });
+
+  ipcMain.handle('db:add-project', (_event, id: string, name: string, folderPath: string) => {
+    if (!databaseService) throw new Error('Database not initialized');
+    return databaseService.addProject(id, name, folderPath);
+  });
+
+  ipcMain.handle('db:remove-project', (_event, id: string) => {
+    if (!databaseService) throw new Error('Database not initialized');
+    databaseService.removeProject(id);
+  });
 }
 
 app.whenReady().then(async () => {
-  copilotService = new CopilotService();
+  // Initialize database
+  databaseService = new DatabaseService();
+  console.log('Database initialized');
 
+  // Initialize Copilot
+  copilotService = new CopilotService();
   try {
     await copilotService.initialize();
     console.log('Copilot SDK initialized successfully');
@@ -96,6 +132,9 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', async () => {
   if (copilotService) {
     await copilotService.stop();
+  }
+  if (databaseService) {
+    databaseService.close();
   }
   if (process.platform !== 'darwin') {
     app.quit();

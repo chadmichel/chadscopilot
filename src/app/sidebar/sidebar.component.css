@@ -3,9 +3,9 @@
   flex-direction: column;
   width: 220px;
   height: 100%;
-  background-color: #1b1b1b;
-  border-right: 1px solid #2d2d2d;
-  transition: width 0.2s ease;
+  background-color: var(--app-surface);
+  border-right: 1px solid var(--app-border);
+  transition: width 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -20,7 +20,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 10px;
-  border-bottom: 1px solid #2d2d2d;
+  border-bottom: 1px solid var(--app-border);
   min-height: 48px;
 }
 
@@ -33,13 +33,13 @@
 
 .brand-icon {
   flex-shrink: 0;
-  color: #569cd6;
+  color: var(--theme-primary);
 }
 
 .brand-name {
   font-size: 13px;
   font-weight: 600;
-  color: #cccccc;
+  color: var(--app-text);
   white-space: nowrap;
 }
 
@@ -52,15 +52,15 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #808080;
+  color: var(--app-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   transition: background-color 0.15s, color 0.15s;
 }
 
 .toggle-btn:hover {
-  background-color: #2a2a2a;
-  color: #cccccc;
+  background-color: var(--app-background);
+  color: var(--app-text);
 }
 
 .collapsed .sidebar-header {
@@ -80,7 +80,7 @@
 }
 
 .sidebar-content::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--app-border);
   border-radius: 2px;
 }
 
@@ -95,7 +95,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: #606060;
+  color: var(--app-text-muted);
+  opacity: 0.6;
   white-space: nowrap;
 }
 
@@ -107,7 +108,7 @@
   padding: 7px 14px;
   margin: 1px 6px;
   border-radius: 6px;
-  color: #999;
+  color: var(--app-text-muted);
   text-decoration: none;
   font-size: 13px;
   cursor: pointer;
@@ -116,17 +117,17 @@
 }
 
 .nav-item:hover {
-  background-color: #252525;
-  color: #d4d4d4;
+  background-color: var(--app-background);
+  color: var(--app-text);
 }
 
 .nav-item.active {
-  background-color: #2a2d35;
-  color: #d4d4d4;
+  background-color: color-mix(in srgb, var(--theme-primary), transparent 85%);
+  color: var(--theme-primary);
 }
 
 .nav-item.active .nav-icon {
-  color: #569cd6;
+  color: var(--theme-primary);
 }
 
 .nav-icon {

@@ -7,6 +7,11 @@ export interface MessageCallbacks {
   onError: (error: string) => void;
 }
 
+interface SessionEntry {
+  session: any;
+  callbacks: MessageCallbacks | null;
+}
+
 /**
  * Build provider config from environment variables.
  *
@@ -16,7 +21,7 @@ export interface MessageCallbacks {
  *   COPILOT_BASE_URL       - API base URL (default depends on provider)
  *   COPILOT_MODEL          - Model to use (default: "gpt-4.1")
  */
-function buildSessionConfig(): SessionConfig {
+function buildSessionConfig(workingDirectory?: string): SessionConfig {
   const apiKey = process.env['COPILOT_API_KEY'];
   const model = process.env['COPILOT_MODEL'] || 'gpt-4.1';
 
@@ -24,6 +29,10 @@ function buildSessionConfig(): SessionConfig {
     model,
     streaming: true,
   };
+
+  if (workingDirectory) {
+    config.workingDirectory = workingDirectory;
+  }
 
   if (apiKey) {
     const providerType =
@@ -46,7 +55,7 @@ function buildSessionConfig(): SessionConfig {
     };
 
     console.log(
-      `Using BYOK provider: ${providerType}, model: ${model}`
+      `Using BYOK provider: ${providerType}, model: ${model}${workingDirectory ? `, workingDirectory: ${workingDirectory}` : ''}`
     );
   } else {
     console.log(
@@ -59,44 +68,62 @@ function buildSessionConfig(): SessionConfig {
 
 export class CopilotService {
   private client: CopilotClient | null = null;
-  private session: any = null;
-  private currentCallbacks: MessageCallbacks | null = null;
+  private sessions: Map<string, SessionEntry> = new Map();
 
   async initialize(): Promise<void> {
     this.client = new CopilotClient();
-    this.session = await this.client.createSession(buildSessionConfig());
+  }
 
-    this.session.on((event: any) => {
-      if (!this.currentCallbacks) return;
+  private async getOrCreateSession(projectId: string, folderPath?: string): Promise<SessionEntry> {
+    const existing = this.sessions.get(projectId);
+    if (existing) return existing;
 
+    if (!this.client) {
+      throw new Error('CopilotClient not initialized');
+    }
+
+    const workingDirectory = folderPath || undefined;
+    const session = await this.client.createSession(buildSessionConfig(workingDirectory));
+
+    const entry: SessionEntry = { session, callbacks: null };
+
+    session.on((event: any) => {
+      if (!entry.callbacks) return;
       if (event.type === 'assistant.message_delta') {
-        this.currentCallbacks.onDelta(event.data.deltaContent);
+        entry.callbacks.onDelta(event.data.deltaContent);
       }
     });
+
+    this.sessions.set(projectId, entry);
+    return entry;
   }
 
   async sendMessage(
+    projectId: string,
     message: string,
+    folderPath: string | undefined,
     callbacks: MessageCallbacks
   ): Promise<void> {
-    if (!this.session) {
-      callbacks.onError(
-        'Copilot session not initialized. Check your API key or Copilot auth.'
-      );
+    let entry: SessionEntry;
+    try {
+      entry = await this.getOrCreateSession(projectId, folderPath);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
+      callbacks.onError(errorMessage);
       return;
     }
 
-    this.currentCallbacks = callbacks;
+    entry.callbacks = callbacks;
 
     try {
-      await this.session.sendAndWait({ prompt: message });
+      await entry.session.sendAndWait({ prompt: message });
       callbacks.onComplete();
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to send message';
       callbacks.onError(errorMessage);
     } finally {
-      this.currentCallbacks = null;
+      entry.callbacks = null;
     }
   }
 
@@ -104,7 +131,7 @@ export class CopilotService {
     if (this.client) {
       await this.client.stop();
       this.client = null;
-      this.session = null;
+      this.sessions.clear();
     }
   }
 }
