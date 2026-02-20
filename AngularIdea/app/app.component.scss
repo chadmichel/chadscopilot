@@ -1,0 +1,253 @@
+// Layout variables
+$sidebar-width: 260px;
+$sidebar-collapsed-width: 72px;
+$header-height: 56px;
+$footer-height: 48px;
+
+// Main layout container
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  /* Let the body wallpaper (when active) show through */
+  background-color: transparent;
+}
+
+// Main content area
+.main-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-left: $sidebar-width;
+  min-height: 100vh;
+  transition: margin-left 0.3s ease;
+
+  &.no-sidebar {
+    margin-left: 0;
+  }
+}
+
+.sidebar-collapsed .main-area {
+  margin-left: $sidebar-collapsed-width;
+}
+
+// Mobile header (only visible on mobile)
+.mobile-header {
+  display: none;
+  align-items: center;
+  gap: 1rem;
+  height: $header-height;
+  padding: 0 1rem;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--app-border);
+  box-shadow: var(--header-shadow);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.mobile-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.mobile-sync {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--app-text-muted);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface), transparent 10%);
+  max-width: 55vw;
+  overflow: hidden;
+}
+
+.mobile-sync .label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-sync .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.mobile-sync.state-ok .dot {
+  background: #22c55e;
+}
+.mobile-sync.state-pending .dot {
+  background: #f59e0b;
+}
+.mobile-sync.state-syncing .dot {
+  background: #38bdf8;
+  animation: pulseSync 1s ease-in-out infinite;
+}
+.mobile-sync.state-offline .dot {
+  background: #94a3b8;
+}
+.mobile-sync.state-error .dot {
+  background: #ef4444;
+}
+.mobile-sync.state-mock .dot {
+  background: #a78bfa;
+}
+
+@keyframes pulseSync {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+}
+
+.mobile-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--app-text-muted);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--app-surface-muted);
+    color: var(--app-text);
+  }
+
+  i {
+    font-size: 1.25rem;
+  }
+}
+
+// Page content
+.page-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+// Footer
+.app-footer {
+  padding: 1rem 1.5rem;
+  background: var(--app-surface);
+  border-top: 1px solid var(--app-border);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--app-text-muted);
+}
+
+.version {
+  color: color-mix(in srgb, var(--app-text-muted), transparent 35%);
+}
+
+// Responsive styles
+@media (max-width: 1024px) {
+  .main-area {
+    margin-left: $sidebar-collapsed-width;
+  }
+
+  .sidebar-collapsed .main-area {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-area {
+    margin-left: 0;
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
+  .page-content {
+    padding: 1rem;
+    padding-top: calc(#{$header-height} + 1rem);
+  }
+}
+
+// Mobile drawer sidebar
+.mobile-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1500;
+}
+
+.mobile-drawer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: $sidebar-width;
+  z-index: 1600;
+  animation: slideIn 0.18s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-12px);
+    opacity: 0.95;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// Animation for sidebar toggle
+.app-layout {
+  &.sidebar-collapsed {
+    .main-area {
+      margin-left: $sidebar-collapsed-width;
+    }
+  }
+}
+
+// Ensure content doesn't overflow
+.page-content {
+  > * {
+    max-width: 100%;
+  }
+}
+
+// Override PrimeNG component backgrounds for consistency
+:host ::ng-deep {
+  .p-card {
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .p-datatable {
+    .p-datatable-header {
+      background: transparent;
+      border: none;
+    }
+  }
+}
