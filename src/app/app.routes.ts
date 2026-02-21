@@ -1,19 +1,21 @@
 import { Routes } from '@angular/router';
 import { ChatComponent } from './chat/chat.component';
 import { TasksComponent } from './pages/tasks.component';
-import { ProjectsComponent } from './pages/projects.component';
-import { ProjectDetailComponent } from './pages/project-detail.component';
+import { WorkspacesComponent } from './pages/workspaces.component';
+import { WorkspaceDetailComponent } from './pages/workspace-detail.component';
 import { CalendarComponent } from './pages/calendar.component';
 import { ToolsComponent } from './pages/tools.component';
+import { ToolConfigureComponent } from './pages/tool-configure.component';
 import { PreferencesComponent } from './pages/preferences.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'agent', pathMatch: 'full' },
   { path: 'agent', component: ChatComponent },
   { path: 'tasks', component: TasksComponent },
-  { path: 'projects', component: ProjectsComponent },
-  { path: 'projects/:id', component: ProjectDetailComponent },
+  { path: 'workspaces', component: WorkspacesComponent },
+  { path: 'workspaces/:id', component: WorkspaceDetailComponent },
   { path: 'calendar', component: CalendarComponent },
   { path: 'tools', component: ToolsComponent },
+  { path: 'tools/:id', component: ToolConfigureComponent },
   { path: 'preferences', component: PreferencesComponent },
 ];

@@ -1,6 +1,6 @@
 <div class="chat-container">
   <div class="messages" #messagesContainer>
-    @if (chatService.getMessages(projectId).length === 0) {
+    @if (chatService.getMessages(workspaceId).length === 0) {
       <div class="empty-state">
         <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -10,7 +10,7 @@
       </div>
     }
 
-    @for (msg of chatService.getMessages(projectId); track $index) {
+    @for (msg of chatService.getMessages(workspaceId); track $index) {
       <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
         <div class="message-avatar" [class.user-avatar]="msg.role === 'user'" [class.assistant-avatar]="msg.role === 'assistant'">
           @if (msg.role === 'user') {
@@ -33,7 +33,7 @@
       </div>
     }
 
-    @if (isLoading && !chatService.getIsStreaming(projectId)) {
+    @if (isLoading && !chatService.getIsStreaming(workspaceId)) {
       <div class="message assistant">
         <div class="message-avatar assistant-avatar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

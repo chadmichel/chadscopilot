@@ -11,7 +11,7 @@ export interface Task {
   status: string;
   notes: string;
   lastUpdatedAt: string;
-  projectId: string;
+  workspaceId: string;
   extra: string;
 }
 
@@ -25,7 +25,7 @@ function rowToTask(row: TaskRow): Task {
     status: row.status,
     notes: row.notes,
     lastUpdatedAt: row.lastUpdatedAt,
-    projectId: row.projectId,
+    workspaceId: row.workspaceId,
     extra: row.extra,
   };
 }
@@ -48,16 +48,16 @@ export class TasksService {
     return row ? rowToTask(row) : null;
   }
 
-  getByProject(projectId: string): Task[] {
-    const stmt = this.db.prepare('SELECT * FROM tasks WHERE projectId = ? ORDER BY lastUpdatedAt DESC');
-    return (stmt.all(projectId) as unknown as TaskRow[]).map(rowToTask);
+  getByWorkspace(workspaceId: string): Task[] {
+    const stmt = this.db.prepare('SELECT * FROM tasks WHERE workspaceId = ? ORDER BY lastUpdatedAt DESC');
+    return (stmt.all(workspaceId) as unknown as TaskRow[]).map(rowToTask);
   }
 
   add(task: Omit<Task, 'id' | 'lastUpdatedAt'>): Task {
     const id = crypto.randomUUID();
     const lastUpdatedAt = new Date().toISOString();
     const stmt = this.db.prepare(
-      `INSERT INTO tasks (id, title, description, externalId, toolId, status, notes, lastUpdatedAt, projectId, extra)
+      `INSERT INTO tasks (id, title, description, externalId, toolId, status, notes, lastUpdatedAt, workspaceId, extra)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     stmt.run(
@@ -69,7 +69,7 @@ export class TasksService {
       task.status,
       task.notes,
       lastUpdatedAt,
-      task.projectId,
+      task.workspaceId,
       task.extra,
     );
     return { id, lastUpdatedAt, ...task };
@@ -78,7 +78,7 @@ export class TasksService {
   update(id: string, fields: Partial<Omit<Task, 'id'>>): void {
     const allowed = [
       'title', 'description', 'externalId', 'toolId',
-      'status', 'notes', 'projectId', 'extra',
+      'status', 'notes', 'workspaceId', 'extra',
     ];
     const updates: string[] = ['lastUpdatedAt = ?'];
     const values: (string | number | null)[] = [new Date().toISOString()];
@@ -97,7 +97,7 @@ export class TasksService {
     this.db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
   }
 
-  removeByProject(projectId: string): void {
-    this.db.prepare('DELETE FROM tasks WHERE projectId = ?').run(projectId);
+  removeByWorkspace(workspaceId: string): void {
+    this.db.prepare('DELETE FROM tasks WHERE workspaceId = ?').run(workspaceId);
   }
 }

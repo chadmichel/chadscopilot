@@ -9,7 +9,7 @@ export interface Task {
   status: string;
   notes: string;
   lastUpdatedAt: string;
-  projectId: string;
+  workspaceId: string;
   extra: string;
 }
 
@@ -36,11 +36,11 @@ export class TasksService {
     return this.tasks.find((t) => t.id === id) ?? null;
   }
 
-  async getByProject(projectId: string): Promise<Task[]> {
-    if (this.electron?.getTasksByProject) {
-      return await this.electron.getTasksByProject(projectId);
+  async getByWorkspace(workspaceId: string): Promise<Task[]> {
+    if (this.electron?.getTasksByWorkspace) {
+      return await this.electron.getTasksByWorkspace(workspaceId);
     }
-    return this.tasks.filter((t) => t.projectId === projectId);
+    return this.tasks.filter((t) => t.workspaceId === workspaceId);
   }
 
   async addTask(task: Omit<Task, 'id' | 'lastUpdatedAt'>): Promise<Task> {

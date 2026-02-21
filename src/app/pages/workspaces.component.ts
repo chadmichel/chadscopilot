@@ -2,37 +2,38 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ProjectService } from '../services/project.service';
+import { WorkspaceService, Workspace } from '../services/workspace.service';
+import { ToolSettingsService, Tool } from '../services/tool-settings.service';
 
 @Component({
-  selector: 'app-projects',
+  selector: 'app-workspaces',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
     <div class="page">
       <div class="page-header">
-        <h2>Projects</h2>
+        <h2>Workspaces</h2>
         <button class="add-btn" (click)="showAddForm = true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2.5">
             <path d="M12 5v14M5 12h14"/>
           </svg>
-          New Project
+          New Workspace
         </button>
       </div>
 
       @if (showAddForm) {
         <div class="modal-overlay" (click)="closeModal()">
           <div class="modal" (click)="$event.stopPropagation()">
-            <h3>New Project</h3>
+            <h3>New Workspace</h3>
             <div class="form-group">
-              <label for="projectName">Project Name</label>
+              <label for="workspaceName">Workspace Name</label>
               <input
-                id="projectName"
+                id="workspaceName"
                 type="text"
                 [(ngModel)]="newName"
-                placeholder="My Project"
-                (keydown.enter)="addProject()"
+                placeholder="My Workspace"
+                (keydown.enter)="addWorkspace()"
                 autofocus
               />
             </div>
@@ -43,8 +44,8 @@ import { ProjectService } from '../services/project.service';
                   id="folderPath"
                   type="text"
                   [(ngModel)]="newFolderPath"
-                  placeholder="/path/to/project"
-                  (keydown.enter)="addProject()"
+                  placeholder="/path/to/workspace"
+                  (keydown.enter)="addWorkspace()"
                 />
                 <button type="button" class="browse-btn" (click)="pickFolder()">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -59,7 +60,7 @@ import { ProjectService } from '../services/project.service';
               <button class="cancel-btn" (click)="closeModal()">Cancel</button>
               <button
                 class="confirm-btn"
-                (click)="addProject()"
+                (click)="addWorkspace()"
                 [disabled]="!newName.trim() || !newFolderPath.trim()"
               >Add</button>
             </div>
@@ -67,27 +68,78 @@ import { ProjectService } from '../services/project.service';
         </div>
       }
 
-      @if (projectService.projects.length === 0 && !showAddForm) {
+      <!-- Configure workspace modal -->
+      @if (configWorkspace) {
+        <div class="modal-overlay" (click)="closeConfig()">
+          <div class="modal" (click)="$event.stopPropagation()">
+            <h3>Configure {{ configWorkspace.name }}</h3>
+            <div class="form-group">
+              <label>Editor Tool</label>
+              <select
+                [ngModel]="configWorkspace.editorToolId"
+                (ngModelChange)="configWorkspace.editorToolId = $event; configDirty = true"
+              >
+                <option value="">None</option>
+                @for (tool of editorTools; track tool.id) {
+                  <option [value]="tool.id">{{ tool.title }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Task Tool</label>
+              <select
+                [ngModel]="configWorkspace.taskToolId"
+                (ngModelChange)="configWorkspace.taskToolId = $event; configDirty = true"
+              >
+                <option value="">None</option>
+                @for (tool of taskTools; track tool.id) {
+                  <option [value]="tool.id">{{ tool.title }}</option>
+                }
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button class="cancel-btn" (click)="closeConfig()">Cancel</button>
+              <button
+                class="confirm-btn"
+                (click)="saveConfig()"
+                [disabled]="!configDirty"
+              >Save</button>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (workspaceService.workspaces.length === 0 && !showAddForm) {
         <div class="empty-state">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="1.5">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
           </svg>
-          <p>No projects yet</p>
-          <span class="empty-hint">Create a project to get started with a scoped Copilot agent.</span>
+          <p>No workspaces yet</p>
+          <span class="empty-hint">Create a workspace to get started with a scoped Copilot agent.</span>
         </div>
       } @else {
-        <div class="project-list">
-          @for (project of projectService.projects; track project.id) {
-            <div class="project-row" (click)="openProject(project.id)">
-              <svg class="row-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-              </svg>
-              <span class="row-name">{{ project.name }}</span>
-              <span class="row-path">{{ project.folderPath }}</span>
+        <div class="workspace-list">
+          @for (workspace of workspaceService.workspaces; track workspace.id) {
+            <div class="workspace-row">
+              <div class="row-main" (click)="openWorkspace(workspace.id)">
+                <svg class="row-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span class="row-name">{{ workspace.name }}</span>
+                <span class="row-path">{{ workspace.folderPath }}</span>
+              </div>
+              <button class="gear-btn" (click)="openConfig(workspace)" aria-label="Configure workspace">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
               <svg class="row-chevron" width="14" height="14" viewBox="0 0 24 24"
-                   fill="none" stroke="currentColor" stroke-width="2">
+                   fill="none" stroke="currentColor" stroke-width="2"
+                   (click)="openWorkspace(workspace.id)">
                 <path d="M9 18l6-6-6-6"/>
               </svg>
             </div>
@@ -184,7 +236,8 @@ import { ProjectService } from '../services/project.service';
         color: var(--app-text-muted);
         margin-bottom: 6px;
       }
-      .form-group input {
+      .form-group input,
+      .form-group select {
         width: 100%;
         padding: 10px 12px;
         background: var(--app-background);
@@ -200,9 +253,22 @@ import { ProjectService } from '../services/project.service';
         color: var(--app-text-muted);
         opacity: 0.4;
       }
-      .form-group input:focus {
+      .form-group input:focus,
+      .form-group select:focus {
         border-color: var(--theme-primary);
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary), transparent 85%);
+      }
+      .form-group select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+        cursor: pointer;
+      }
+      .form-group select option {
+        background: var(--app-surface);
+        color: var(--app-text);
       }
 
       .input-with-button {
@@ -299,23 +365,31 @@ import { ProjectService } from '../services/project.service';
         color: var(--app-text-muted);
       }
 
-      /* Project list */
-      .project-list {
+      /* Workspace list */
+      .workspace-list {
         display: flex;
         flex-direction: column;
         gap: 2px;
       }
-      .project-row {
+      .workspace-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 12px 0 0;
+        border-radius: 8px;
+        transition: background-color 0.12s;
+      }
+      .workspace-row:hover {
+        background: var(--app-surface);
+      }
+      .row-main {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 12px;
-        border-radius: 8px;
+        flex: 1;
+        min-width: 0;
+        padding: 10px 0 10px 12px;
         cursor: pointer;
-        transition: background-color 0.12s;
-      }
-      .project-row:hover {
-        background: var(--app-surface);
       }
       .row-icon {
         flex-shrink: 0;
@@ -338,41 +412,80 @@ import { ProjectService } from '../services/project.service';
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
+      /* Gear button */
+      .gear-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        flex-shrink: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--app-text-muted);
+        opacity: 0;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .workspace-row:hover .gear-btn {
+        opacity: 0.5;
+      }
+      .gear-btn:hover {
+        opacity: 1 !important;
+        color: var(--theme-primary);
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+      }
+
       .row-chevron {
         flex-shrink: 0;
         color: var(--app-text-muted);
         opacity: 0.3;
+        cursor: pointer;
       }
-      .project-row:hover .row-chevron {
+      .workspace-row:hover .row-chevron {
         opacity: 0.6;
       }
     `,
   ],
 })
-export class ProjectsComponent implements OnInit {
+export class WorkspacesComponent implements OnInit {
   showAddForm = false;
   newName = '';
   newFolderPath = '';
 
+  // Configure modal
+  configWorkspace: Workspace | null = null;
+  configDirty = false;
+  editorTools: Tool[] = [];
+  taskTools: Tool[] = [];
+
   constructor(
-    public projectService: ProjectService,
+    public workspaceService: WorkspaceService,
+    private toolSettingsService: ToolSettingsService,
     private router: Router
   ) {
-    this.projectService.loadProjects();
+    this.workspaceService.loadWorkspaces();
   }
 
-  ngOnInit(): void {
-    localStorage.removeItem('chadscopilot_last_project_id');
+  async ngOnInit(): Promise<void> {
+    localStorage.removeItem('chadscopilot_last_workspace_id');
+    await this.toolSettingsService.loadTools();
+    this.editorTools = this.toolSettingsService.tools.filter(t => t.toolType === 'editor');
+    this.taskTools = this.toolSettingsService.tools.filter(
+      t => t.toolType === 'project management' || t.toolType === 'repository'
+    );
   }
 
-  async addProject(): Promise<void> {
+  async addWorkspace(): Promise<void> {
     const name = this.newName.trim();
     const folderPath = this.newFolderPath.trim();
     if (!name || !folderPath) return;
 
-    const project = await this.projectService.addProject(name, folderPath);
+    const workspace = await this.workspaceService.addWorkspace(name, folderPath);
     this.closeModal();
-    this.router.navigate(['/projects', project.id]);
+    this.router.navigate(['/workspaces', workspace.id]);
   }
 
   async pickFolder(): Promise<void> {
@@ -381,7 +494,6 @@ export class ProjectsComponent implements OnInit {
       const path = await electronAPI.selectDirectory();
       if (path) {
         this.newFolderPath = path;
-        // If name is empty, try to auto-populate from folder name
         if (!this.newName.trim()) {
           const parts = path.split(/[/\\]/);
           const folderName = parts[parts.length - 1] || parts[parts.length - 2];
@@ -390,8 +502,6 @@ export class ProjectsComponent implements OnInit {
           }
         }
       }
-    } else {
-      console.warn('Electron API or selectDirectory not available');
     }
   }
 
@@ -401,7 +511,26 @@ export class ProjectsComponent implements OnInit {
     this.newFolderPath = '';
   }
 
-  openProject(id: string): void {
-    this.router.navigate(['/projects', id]);
+  openWorkspace(id: string): void {
+    this.router.navigate(['/workspaces', id]);
+  }
+
+  openConfig(workspace: Workspace): void {
+    this.configWorkspace = { ...workspace };
+    this.configDirty = false;
+  }
+
+  closeConfig(): void {
+    this.configWorkspace = null;
+    this.configDirty = false;
+  }
+
+  async saveConfig(): Promise<void> {
+    if (!this.configWorkspace || !this.configDirty) return;
+    await this.workspaceService.updateWorkspace(this.configWorkspace.id, {
+      editorToolId: this.configWorkspace.editorToolId,
+      taskToolId: this.configWorkspace.taskToolId,
+    });
+    this.closeConfig();
   }
 }

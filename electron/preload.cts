@@ -1,40 +1,40 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Copilot chat — project-scoped
-  sendMessage: (projectId: string, message: string, folderPath?: string): Promise<void> =>
-    ipcRenderer.invoke('copilot:send-message', projectId, message, folderPath),
+  // Copilot chat — workspace-scoped
+  sendMessage: (workspaceId: string, message: string, folderPath?: string): Promise<void> =>
+    ipcRenderer.invoke('copilot:send-message', workspaceId, message, folderPath),
 
-  onMessageDelta: (callback: (projectId: string, delta: string) => void): void => {
-    ipcRenderer.on('copilot:message-delta', (_event, projectId, delta) =>
-      callback(projectId, delta)
+  onMessageDelta: (callback: (workspaceId: string, delta: string) => void): void => {
+    ipcRenderer.on('copilot:message-delta', (_event, workspaceId, delta) =>
+      callback(workspaceId, delta)
     );
   },
 
-  onMessageComplete: (callback: (projectId: string) => void): void => {
-    ipcRenderer.on('copilot:message-complete', (_event, projectId) => callback(projectId));
+  onMessageComplete: (callback: (workspaceId: string) => void): void => {
+    ipcRenderer.on('copilot:message-complete', (_event, workspaceId) => callback(workspaceId));
   },
 
-  onError: (callback: (projectId: string, error: string) => void): void => {
-    ipcRenderer.on('copilot:error', (_event, projectId, error) => callback(projectId, error));
+  onError: (callback: (workspaceId: string, error: string) => void): void => {
+    ipcRenderer.on('copilot:error', (_event, workspaceId, error) => callback(workspaceId, error));
   },
 
   // Directory picker
   selectDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke('dialog:select-directory'),
 
-  // --- Projects ---
-  getProjects: (): Promise<any[]> =>
-    ipcRenderer.invoke('db:get-projects'),
+  // --- Workspaces ---
+  getWorkspaces: (): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-workspaces'),
 
-  addProject: (id: string, name: string, folderPath: string): Promise<any> =>
-    ipcRenderer.invoke('db:add-project', id, name, folderPath),
+  addWorkspace: (id: string, name: string, folderPath: string): Promise<any> =>
+    ipcRenderer.invoke('db:add-workspace', id, name, folderPath),
 
-  updateProject: (id: string, fields: Record<string, any>): Promise<void> =>
-    ipcRenderer.invoke('db:update-project', id, fields),
+  updateWorkspace: (id: string, fields: Record<string, any>): Promise<void> =>
+    ipcRenderer.invoke('db:update-workspace', id, fields),
 
-  removeProject: (id: string): Promise<void> =>
-    ipcRenderer.invoke('db:remove-project', id),
+  removeWorkspace: (id: string): Promise<void> =>
+    ipcRenderer.invoke('db:remove-workspace', id),
 
   // --- Tools ---
   getTools: (): Promise<any[]> =>
@@ -62,8 +62,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTask: (id: string): Promise<any> =>
     ipcRenderer.invoke('db:get-task', id),
 
-  getTasksByProject: (projectId: string): Promise<any[]> =>
-    ipcRenderer.invoke('db:get-tasks-by-project', projectId),
+  getTasksByWorkspace: (workspaceId: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-tasks-by-workspace', workspaceId),
 
   addTask: (task: Record<string, any>): Promise<any> =>
     ipcRenderer.invoke('db:add-task', task),
@@ -73,6 +73,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   removeTask: (id: string): Promise<void> =>
     ipcRenderer.invoke('db:remove-task', id),
+
+  // --- Projects ---
+  getProjects: (): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-projects'),
+
+  getProjectsByTool: (toolId: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-projects-by-tool', toolId),
+
+  getProjectsByOrg: (organizationId: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-projects-by-org', organizationId),
+
+  addProject: (project: Record<string, any>): Promise<any> =>
+    ipcRenderer.invoke('db:add-project', project),
+
+  updateProject: (id: string, fields: Record<string, any>): Promise<void> =>
+    ipcRenderer.invoke('db:update-project', id, fields),
+
+  removeProject: (id: string): Promise<void> =>
+    ipcRenderer.invoke('db:remove-project', id),
+
+  // --- GitHub ---
+  githubCheckConnectivity: (token: string): Promise<{ ok: boolean; login: string; error?: string }> =>
+    ipcRenderer.invoke('github:check-connectivity', token),
+
+  githubGetOrgs: (token: string): Promise<{ id: number; login: string; avatar_url: string }[]> =>
+    ipcRenderer.invoke('github:get-orgs', token),
 
   // --- Editor services ---
   vscodeFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>

@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { app } from 'electron';
 import path from 'path';
 
-export interface ProjectRow {
+export interface WorkspaceRow {
   id: string;
   name: string;
   folderPath: string;
@@ -37,8 +37,19 @@ export interface TaskRow {
   status: string;
   notes: string;
   lastUpdatedAt: string;
-  projectId: string;
+  workspaceId: string;
   extra: string;
+}
+
+export interface ProjectRow {
+  id: string;
+  name: string;
+  externalId: string;
+  toolId: string;
+  type: string;
+  lastSync: string;
+  organizationId: string;
+  organizationName: string;
 }
 
 export class DatabaseService {
@@ -56,27 +67,37 @@ export class DatabaseService {
   }
 
   private initialize(): void {
-    // Projects table
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        folderPath TEXT NOT NULL,
-        createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
+    // Check if workspaces table already exists (legacy migration already ran)
+    const hasWorkspaces = this.db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='workspaces'"
+    ).get();
 
-    // Migrate projects table — add new columns
-    const projectMigrations = [
-      "ALTER TABLE projects ADD COLUMN description TEXT DEFAULT ''",
-      "ALTER TABLE projects ADD COLUMN editorToolId TEXT DEFAULT ''",
-      "ALTER TABLE projects ADD COLUMN taskToolId TEXT DEFAULT ''",
-      "ALTER TABLE projects ADD COLUMN taskToolExternalId TEXT DEFAULT ''",
-      "ALTER TABLE projects ADD COLUMN tools TEXT DEFAULT '[]'",
-      "ALTER TABLE projects ADD COLUMN extra TEXT DEFAULT '{}'",
-    ];
-    for (const sql of projectMigrations) {
-      try { this.db.exec(sql); } catch { /* column already exists */ }
+    if (!hasWorkspaces) {
+      // Legacy projects table (created if fresh DB, will be renamed below)
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          folderPath TEXT NOT NULL,
+          createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      // Migrate projects table — add new columns (before rename)
+      const columnMigrations = [
+        "ALTER TABLE projects ADD COLUMN description TEXT DEFAULT ''",
+        "ALTER TABLE projects ADD COLUMN editorToolId TEXT DEFAULT ''",
+        "ALTER TABLE projects ADD COLUMN taskToolId TEXT DEFAULT ''",
+        "ALTER TABLE projects ADD COLUMN taskToolExternalId TEXT DEFAULT ''",
+        "ALTER TABLE projects ADD COLUMN tools TEXT DEFAULT '[]'",
+        "ALTER TABLE projects ADD COLUMN extra TEXT DEFAULT '{}'",
+      ];
+      for (const sql of columnMigrations) {
+        try { this.db.exec(sql); } catch { /* column already exists */ }
+      }
+
+      // Rename projects → workspaces
+      try { this.db.exec('ALTER TABLE projects RENAME TO workspaces'); } catch { /* already renamed */ }
     }
 
     // Tools table
@@ -106,27 +127,49 @@ export class DatabaseService {
         status TEXT DEFAULT 'pending',
         notes TEXT DEFAULT '',
         lastUpdatedAt TEXT NOT NULL DEFAULT (datetime('now')),
-        projectId TEXT DEFAULT '',
+        workspaceId TEXT DEFAULT '',
         extra TEXT DEFAULT '{}'
+      )
+    `);
+
+    // Migrate tasks.projectId → tasks.workspaceId
+    try { this.db.exec('ALTER TABLE tasks RENAME COLUMN projectId TO workspaceId'); } catch { /* already renamed or column doesn't exist */ }
+
+    // Projects table (external project integrations)
+    // Drop if it exists with wrong schema (from legacy migration bug)
+    const projectsCols = this.db.prepare("PRAGMA table_info(projects)").all() as unknown as { name: string }[];
+    if (projectsCols.length > 0 && !projectsCols.some((c) => c.name === 'toolId')) {
+      this.db.exec('DROP TABLE projects');
+    }
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        externalId TEXT DEFAULT '',
+        toolId TEXT DEFAULT '',
+        type TEXT NOT NULL DEFAULT '',
+        lastSync TEXT DEFAULT '',
+        organizationId TEXT DEFAULT '',
+        organizationName TEXT DEFAULT ''
       )
     `);
   }
 
-  // --- Projects ---
+  // --- Workspaces ---
 
-  getAllProjects(): ProjectRow[] {
+  getAllWorkspaces(): WorkspaceRow[] {
     const stmt = this.db.prepare(
       `SELECT id, name, folderPath, description, editorToolId, taskToolId,
               taskToolExternalId, tools, extra, createdAt
-       FROM projects ORDER BY createdAt DESC`
+       FROM workspaces ORDER BY createdAt DESC`
     );
-    return stmt.all() as unknown as ProjectRow[];
+    return stmt.all() as unknown as WorkspaceRow[];
   }
 
-  addProject(id: string, name: string, folderPath: string): ProjectRow {
+  addWorkspace(id: string, name: string, folderPath: string): WorkspaceRow {
     const createdAt = new Date().toISOString();
     const stmt = this.db.prepare(
-      'INSERT INTO projects (id, name, folderPath, createdAt) VALUES (?, ?, ?, ?)'
+      'INSERT INTO workspaces (id, name, folderPath, createdAt) VALUES (?, ?, ?, ?)'
     );
     stmt.run(id, name, folderPath, createdAt);
     return {
@@ -136,7 +179,7 @@ export class DatabaseService {
     };
   }
 
-  updateProject(id: string, fields: Partial<Omit<ProjectRow, 'id' | 'createdAt'>>): void {
+  updateWorkspace(id: string, fields: Partial<Omit<WorkspaceRow, 'id' | 'createdAt'>>): void {
     const allowed = [
       'name', 'folderPath', 'description', 'editorToolId',
       'taskToolId', 'taskToolExternalId', 'tools', 'extra',
@@ -152,13 +195,13 @@ export class DatabaseService {
     if (updates.length === 0) return;
     values.push(id);
     const stmt = this.db.prepare(
-      `UPDATE projects SET ${updates.join(', ')} WHERE id = ?`
+      `UPDATE workspaces SET ${updates.join(', ')} WHERE id = ?`
     );
     stmt.run(...values);
   }
 
-  removeProject(id: string): void {
-    const stmt = this.db.prepare('DELETE FROM projects WHERE id = ?');
+  removeWorkspace(id: string): void {
+    const stmt = this.db.prepare('DELETE FROM workspaces WHERE id = ?');
     stmt.run(id);
   }
 

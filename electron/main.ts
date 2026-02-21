@@ -6,6 +6,8 @@ import { CopilotService } from './copilot.service.js';
 import { DatabaseService } from './database.service.js';
 import { ToolSettingsService } from './tool-settings.service.js';
 import { TasksService } from './tasks.service.js';
+import { ProjectsService } from './projects.service.js';
+import { GitHubService } from './github.service.js';
 import { VsCodeService } from './vscode.service.js';
 import { CursorService } from './cursor.service.js';
 import { GoogleAntigravityService } from './google-antigravity.service.js';
@@ -26,7 +28,7 @@ if (!app.isPackaged) {
 }
 
 const appIcon = nativeImage.createFromPath(
-  path.join(__dirname, '..', 'chadscopilot.png')
+  path.join(__dirname, '..', 'logo.png')
 );
 
 let mainWindow: BrowserWindow | null = null;
@@ -34,6 +36,8 @@ let copilotService: CopilotService | null = null;
 let databaseService: DatabaseService | null = null;
 let toolSettingsService: ToolSettingsService | null = null;
 let tasksService: TasksService | null = null;
+let projectsService: ProjectsService | null = null;
+const gitHubService = new GitHubService();
 const vsCodeService = new VsCodeService();
 const cursorService = new CursorService();
 const antigravityService = new GoogleAntigravityService();
@@ -70,31 +74,31 @@ function createWindow(): void {
 }
 
 function setupIPC(): void {
-  // Copilot chat — project-scoped
+  // Copilot chat — workspace-scoped
   ipcMain.handle(
     'copilot:send-message',
-    async (event, projectId: string, message: string, folderPath?: string) => {
+    async (event, workspaceId: string, message: string, folderPath?: string) => {
       if (!copilotService) {
-        event.sender.send('copilot:error', projectId, 'Copilot service not initialized');
+        event.sender.send('copilot:error', workspaceId, 'Copilot service not initialized');
         return;
       }
 
       try {
-        await copilotService.sendMessage(projectId, message, folderPath, {
+        await copilotService.sendMessage(workspaceId, message, folderPath, {
           onDelta: (delta: string) => {
-            event.sender.send('copilot:message-delta', projectId, delta);
+            event.sender.send('copilot:message-delta', workspaceId, delta);
           },
           onComplete: () => {
-            event.sender.send('copilot:message-complete', projectId);
+            event.sender.send('copilot:message-complete', workspaceId);
           },
           onError: (error: string) => {
-            event.sender.send('copilot:error', projectId, error);
+            event.sender.send('copilot:error', workspaceId, error);
           },
         });
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : 'Unknown error';
-        event.sender.send('copilot:error', projectId, errorMessage);
+        event.sender.send('copilot:error', workspaceId, errorMessage);
       }
     }
   );
@@ -112,25 +116,25 @@ function setupIPC(): void {
     }
   });
 
-  // --- Projects CRUD ---
-  ipcMain.handle('db:get-projects', () => {
+  // --- Workspaces CRUD ---
+  ipcMain.handle('db:get-workspaces', () => {
     if (!databaseService) return [];
-    return databaseService.getAllProjects();
+    return databaseService.getAllWorkspaces();
   });
 
-  ipcMain.handle('db:add-project', (_event, id: string, name: string, folderPath: string) => {
+  ipcMain.handle('db:add-workspace', (_event, id: string, name: string, folderPath: string) => {
     if (!databaseService) throw new Error('Database not initialized');
-    return databaseService.addProject(id, name, folderPath);
+    return databaseService.addWorkspace(id, name, folderPath);
   });
 
-  ipcMain.handle('db:update-project', (_event, id: string, fields: Record<string, unknown>) => {
+  ipcMain.handle('db:update-workspace', (_event, id: string, fields: Record<string, unknown>) => {
     if (!databaseService) throw new Error('Database not initialized');
-    databaseService.updateProject(id, fields);
+    databaseService.updateWorkspace(id, fields);
   });
 
-  ipcMain.handle('db:remove-project', (_event, id: string) => {
+  ipcMain.handle('db:remove-workspace', (_event, id: string) => {
     if (!databaseService) throw new Error('Database not initialized');
-    databaseService.removeProject(id);
+    databaseService.removeWorkspace(id);
   });
 
   // --- Tools CRUD ---
@@ -175,9 +179,9 @@ function setupIPC(): void {
     return tasksService.getById(id);
   });
 
-  ipcMain.handle('db:get-tasks-by-project', (_event, projectId: string) => {
+  ipcMain.handle('db:get-tasks-by-workspace', (_event, workspaceId: string) => {
     if (!tasksService) return [];
-    return tasksService.getByProject(projectId);
+    return tasksService.getByWorkspace(workspaceId);
   });
 
   ipcMain.handle('db:add-task', (_event, task: Record<string, unknown>) => {
@@ -193,6 +197,46 @@ function setupIPC(): void {
   ipcMain.handle('db:remove-task', (_event, id: string) => {
     if (!tasksService) throw new Error('Tasks service not initialized');
     tasksService.remove(id);
+  });
+
+  // --- Projects CRUD ---
+  ipcMain.handle('db:get-projects', () => {
+    if (!projectsService) return [];
+    return projectsService.getAll();
+  });
+
+  ipcMain.handle('db:get-projects-by-tool', (_event, toolId: string) => {
+    if (!projectsService) return [];
+    return projectsService.getByToolId(toolId);
+  });
+
+  ipcMain.handle('db:get-projects-by-org', (_event, organizationId: string) => {
+    if (!projectsService) return [];
+    return projectsService.getByOrg(organizationId);
+  });
+
+  ipcMain.handle('db:add-project', (_event, project: Record<string, unknown>) => {
+    if (!projectsService) throw new Error('Projects service not initialized');
+    return projectsService.add(project as any);
+  });
+
+  ipcMain.handle('db:update-project', (_event, id: string, fields: Record<string, unknown>) => {
+    if (!projectsService) throw new Error('Projects service not initialized');
+    projectsService.update(id, fields as any);
+  });
+
+  ipcMain.handle('db:remove-project', (_event, id: string) => {
+    if (!projectsService) throw new Error('Projects service not initialized');
+    projectsService.remove(id);
+  });
+
+  // --- GitHub ---
+  ipcMain.handle('github:check-connectivity', (_event, token: string) => {
+    return gitHubService.checkConnectivity(token);
+  });
+
+  ipcMain.handle('github:get-orgs', (_event, token: string) => {
+    return gitHubService.getOrganizations(token);
   });
 
   // --- Editor services ---
@@ -226,6 +270,7 @@ app.whenReady().then(async () => {
   databaseService = new DatabaseService();
   toolSettingsService = new ToolSettingsService(databaseService.getDb());
   tasksService = new TasksService(databaseService.getDb());
+  projectsService = new ProjectsService(databaseService.getDb());
   console.log('Database initialized');
 
   // Initialize Copilot

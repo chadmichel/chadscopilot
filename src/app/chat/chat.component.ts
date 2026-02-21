@@ -19,7 +19,7 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
 })
 export class ChatComponent implements AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
-  @Input() projectId: string = 'global';
+  @Input() workspaceId: string = 'global';
   @Input() folderPath: string = '';
 
   userInput = '';
@@ -39,7 +39,7 @@ export class ChatComponent implements AfterViewChecked {
     this.isLoading = true;
 
     try {
-      await this.chatService.sendMessage(message, this.projectId, this.folderPath || undefined);
+      await this.chatService.sendMessage(message, this.workspaceId, this.folderPath || undefined);
     } finally {
       this.isLoading = false;
     }

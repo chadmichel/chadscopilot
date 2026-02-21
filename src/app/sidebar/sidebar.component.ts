@@ -24,7 +24,7 @@ export class SidebarComponent {
   collapsed = false;
 
   get sections(): NavSection[] {
-    const lastProjectId = localStorage.getItem('chadscopilot_last_project_id');
+    const lastWorkspaceId = localStorage.getItem('chadscopilot_last_workspace_id');
     return [
       {
         title: 'Main',
@@ -32,9 +32,9 @@ export class SidebarComponent {
           { label: 'Agent', route: '/agent', icon: 'agent' },
           { label: 'Tasks', route: '/tasks', icon: 'tasks' },
           {
-            label: 'Projects',
-            route: lastProjectId ? `/projects/${lastProjectId}` : '/projects',
-            icon: 'projects',
+            label: 'Workspaces',
+            route: lastWorkspaceId ? `/workspaces/${lastWorkspaceId}` : '/workspaces',
+            icon: 'workspaces',
           },
           { label: 'Calendar', route: '/calendar', icon: 'calendar' },
         ],

@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
-import { ProjectService, Project } from '../services/project.service';
+import { WorkspaceService, Workspace } from '../services/workspace.service';
+import { ToolSettingsService, Tool } from '../services/tool-settings.service';
 
 type TabId = 'plan' | 'design' | 'tasks';
 
@@ -12,28 +13,38 @@ interface Tab {
 }
 
 @Component({
-  selector: 'app-project-detail',
+  selector: 'app-workspace-detail',
   standalone: true,
   imports: [CommonModule, ChatComponent],
   template: `
-    @if (project) {
+    @if (workspace) {
       <div class="detail-container">
         <div class="detail-header">
-          <button class="back-btn" (click)="goBack()" aria-label="Back to projects">
+          <button class="back-btn" (click)="goBack()" aria-label="Back to workspaces">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2">
               <path d="M19 12H5"/>
               <path d="M12 19l-7-7 7-7"/>
             </svg>
           </button>
-          <h2>{{ project.name }}</h2>
-          <span class="path-badge">{{ project.folderPath }}</span>
+          <h2>{{ workspace.name }}</h2>
+          <span class="path-badge">{{ workspace.folderPath }}</span>
+          @if (editorTool) {
+            <button class="editor-btn" (click)="openEditor()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                <path d="m15 5 4 4"/>
+              </svg>
+              {{ editorTool.title }}
+            </button>
+          }
         </div>
 
         <div class="split-layout">
           <div class="agent-panel" [class.collapsed]="agentCollapsed">
             @if (!agentCollapsed) {
-              <app-chat [projectId]="project.id" [folderPath]="project.folderPath"></app-chat>
+              <app-chat [workspaceId]="workspace.id" [folderPath]="workspace.folderPath"></app-chat>
             } @else {
               <div class="collapsed-label">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -118,9 +129,9 @@ interface Tab {
       </div>
     } @else {
       <div class="not-found">
-        <h2>Project not found</h2>
-        <p>This project may have been removed.</p>
-        <button class="back-link" (click)="goBack()">Back to Projects</button>
+        <h2>Workspace not found</h2>
+        <p>This workspace may have been removed.</p>
+        <button class="back-link" (click)="goBack()">Back to Workspaces</button>
       </div>
     }
   `,
@@ -175,6 +186,28 @@ interface Tab {
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 300px;
+      }
+
+      /* Editor button */
+      .editor-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        padding: 6px 14px;
+        background: transparent;
+        color: var(--theme-primary);
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .editor-btn:hover {
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        border-color: var(--theme-primary);
       }
 
       /* Split layout */
@@ -349,11 +382,12 @@ interface Tab {
     `,
   ],
 })
-export class ProjectDetailComponent implements OnInit {
-  project: Project | undefined;
+export class WorkspaceDetailComponent implements OnInit {
+  workspace: Workspace | undefined;
   activeTab: TabId = 'plan';
   agentCollapsed = false;
   tabsCollapsed = false;
+  editorTool: Tool | null = null;
 
   tabs: Tab[] = [
     { id: 'plan', label: 'Plan' },
@@ -364,22 +398,50 @@ export class ProjectDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private projectService: ProjectService
-  ) { }
+    private workspaceService: WorkspaceService,
+    private toolSettingsService: ToolSettingsService
+  ) {}
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.project = this.projectService.getProject(id);
-      if (this.project) {
-        localStorage.setItem('chadscopilot_last_project_id', id);
+      this.workspace = this.workspaceService.getWorkspace(id);
+      if (this.workspace) {
+        localStorage.setItem('chadscopilot_last_workspace_id', id);
+        await this.loadEditorTool();
       } else {
-        localStorage.removeItem('chadscopilot_last_project_id');
+        localStorage.removeItem('chadscopilot_last_workspace_id');
       }
     }
   }
 
+  private async loadEditorTool(): Promise<void> {
+    if (!this.workspace?.editorToolId) return;
+    if (this.toolSettingsService.tools.length === 0) {
+      await this.toolSettingsService.loadTools();
+    }
+    this.editorTool = this.toolSettingsService.tools.find(
+      (t) => t.id === this.workspace!.editorToolId
+    ) ?? null;
+  }
+
+  async openEditor(): Promise<void> {
+    if (!this.editorTool || !this.workspace) return;
+    const electron = (window as any).electronAPI;
+    const title = this.editorTool.title.toLowerCase();
+    const folderPath = this.workspace.folderPath;
+    const cliPath = this.editorTool.localPath || undefined;
+
+    if (title.includes('vs code') || title.includes('vscode') || title.includes('visual studio code')) {
+      await electron?.vscodeOpen?.(folderPath, cliPath);
+    } else if (title.includes('cursor')) {
+      await electron?.cursorOpen?.(folderPath, cliPath);
+    } else if (title.includes('antigravity')) {
+      await electron?.antigravityOpen?.(folderPath, cliPath);
+    }
+  }
+
   goBack(): void {
-    this.router.navigate(['/projects']);
+    this.router.navigate(['/workspaces']);
   }
 }

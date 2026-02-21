@@ -8,14 +8,14 @@ export interface ChatMessage {
 declare global {
   interface Window {
     electronAPI?: {
-      sendMessage: (projectId: string, message: string, folderPath?: string) => Promise<void>;
-      onMessageDelta: (callback: (projectId: string, delta: string) => void) => void;
-      onMessageComplete: (callback: (projectId: string) => void) => void;
-      onError: (callback: (projectId: string, error: string) => void) => void;
+      sendMessage: (workspaceId: string, message: string, folderPath?: string) => Promise<void>;
+      onMessageDelta: (callback: (workspaceId: string, delta: string) => void) => void;
+      onMessageComplete: (callback: (workspaceId: string) => void) => void;
+      onError: (callback: (workspaceId: string, error: string) => void) => void;
       selectDirectory: () => Promise<string | null>;
-      getProjects: () => Promise<any[]>;
-      addProject: (id: string, name: string, folderPath: string) => Promise<any>;
-      removeProject: (id: string) => Promise<void>;
+      getWorkspaces: () => Promise<any[]>;
+      addWorkspace: (id: string, name: string, folderPath: string) => Promise<any>;
+      removeWorkspace: (id: string) => Promise<void>;
     };
   }
 }
@@ -35,26 +35,26 @@ export class ChatService {
     this.setupElectronListeners();
   }
 
-  getMessages(projectId: string = 'global'): ChatMessage[] {
-    let messages = this.messagesMap.get(projectId);
+  getMessages(workspaceId: string = 'global'): ChatMessage[] {
+    let messages = this.messagesMap.get(workspaceId);
     if (!messages) {
       messages = [];
-      this.messagesMap.set(projectId, messages);
+      this.messagesMap.set(workspaceId, messages);
     }
     return messages;
   }
 
-  getIsStreaming(projectId: string = 'global'): boolean {
-    return this.streamingMap.get(projectId) ?? false;
+  getIsStreaming(workspaceId: string = 'global'): boolean {
+    return this.streamingMap.get(workspaceId) ?? false;
   }
 
   private setupElectronListeners(): void {
     if (!this.electron) return;
 
-    this.electron.onMessageDelta((projectId: string, delta: string) => {
+    this.electron.onMessageDelta((workspaceId: string, delta: string) => {
       this.ngZone.run(() => {
-        this.streamingMap.set(projectId, true);
-        const messages = this.getMessages(projectId);
+        this.streamingMap.set(workspaceId, true);
+        const messages = this.getMessages(workspaceId);
         const lastMessage = messages[messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           lastMessage.content += delta;
@@ -64,16 +64,16 @@ export class ChatService {
       });
     });
 
-    this.electron.onMessageComplete((projectId: string) => {
+    this.electron.onMessageComplete((workspaceId: string) => {
       this.ngZone.run(() => {
-        this.streamingMap.set(projectId, false);
+        this.streamingMap.set(workspaceId, false);
       });
     });
 
-    this.electron.onError((projectId: string, error: string) => {
+    this.electron.onError((workspaceId: string, error: string) => {
       this.ngZone.run(() => {
-        this.streamingMap.set(projectId, false);
-        const messages = this.getMessages(projectId);
+        this.streamingMap.set(workspaceId, false);
+        const messages = this.getMessages(workspaceId);
         messages.push({
           role: 'assistant',
           content: `Error: ${error}`,
@@ -82,12 +82,12 @@ export class ChatService {
     });
   }
 
-  async sendMessage(content: string, projectId: string = 'global', folderPath?: string): Promise<void> {
-    const messages = this.getMessages(projectId);
+  async sendMessage(content: string, workspaceId: string = 'global', folderPath?: string): Promise<void> {
+    const messages = this.getMessages(workspaceId);
     messages.push({ role: 'user', content });
 
     if (this.electron) {
-      await this.electron.sendMessage(projectId, content, folderPath);
+      await this.electron.sendMessage(workspaceId, content, folderPath);
     } else {
       // Browser-only fallback for development without Electron
       messages.push({

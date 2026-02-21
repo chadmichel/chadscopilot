@@ -74,8 +74,8 @@ export class CopilotService {
     this.client = new CopilotClient();
   }
 
-  private async getOrCreateSession(projectId: string, folderPath?: string): Promise<SessionEntry> {
-    const existing = this.sessions.get(projectId);
+  private async getOrCreateSession(workspaceId: string, folderPath?: string): Promise<SessionEntry> {
+    const existing = this.sessions.get(workspaceId);
     if (existing) return existing;
 
     if (!this.client) {
@@ -94,19 +94,19 @@ export class CopilotService {
       }
     });
 
-    this.sessions.set(projectId, entry);
+    this.sessions.set(workspaceId, entry);
     return entry;
   }
 
   async sendMessage(
-    projectId: string,
+    workspaceId: string,
     message: string,
     folderPath: string | undefined,
     callbacks: MessageCallbacks
   ): Promise<void> {
     let entry: SessionEntry;
     try {
-      entry = await this.getOrCreateSession(projectId, folderPath);
+      entry = await this.getOrCreateSession(workspaceId, folderPath);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
       callbacks.onError(errorMessage);
