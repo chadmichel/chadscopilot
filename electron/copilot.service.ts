@@ -1,5 +1,5 @@
 import { CopilotClient } from '@github/copilot-sdk';
-import type { SessionConfig } from '@github/copilot-sdk';
+import type { SessionConfig, GetAuthStatusResponse } from '@github/copilot-sdk';
 
 export interface MessageCallbacks {
   onDelta: (delta: string) => void;
@@ -124,6 +124,15 @@ export class CopilotService {
       callbacks.onError(errorMessage);
     } finally {
       entry.callbacks = null;
+    }
+  }
+
+  async getAuthStatus(): Promise<GetAuthStatusResponse | null> {
+    if (!this.client) return null;
+    try {
+      return await this.client.getAuthStatus();
+    } catch {
+      return null;
     }
   }
 

@@ -51,6 +51,12 @@ export class ProjectsService {
     return (stmt.all(toolId) as unknown as ProjectRow[]).map(rowToProject);
   }
 
+  getByExternalIdAndTool(externalId: string, toolId: string): Project | null {
+    const stmt = this.db.prepare('SELECT * FROM projects WHERE externalId = ? AND toolId = ?');
+    const row = stmt.get(externalId, toolId) as unknown as ProjectRow | undefined;
+    return row ? rowToProject(row) : null;
+  }
+
   getByOrg(organizationId: string): Project[] {
     const stmt = this.db.prepare('SELECT * FROM projects WHERE organizationId = ? ORDER BY name ASC');
     return (stmt.all(organizationId) as unknown as ProjectRow[]).map(rowToProject);

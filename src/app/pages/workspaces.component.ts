@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { WorkspaceService, Workspace } from '../services/workspace.service';
 import { ToolSettingsService, Tool } from '../services/tool-settings.service';
+import { ProjectsService } from '../services/projects.service';
 
 @Component({
   selector: 'app-workspaces',
@@ -89,7 +90,7 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
               <label>Task Tool</label>
               <select
                 [ngModel]="configWorkspace.taskToolId"
-                (ngModelChange)="configWorkspace.taskToolId = $event; configDirty = true"
+                (ngModelChange)="onTaskToolChange($event)"
               >
                 <option value="">None</option>
                 @for (tool of taskTools; track tool.id) {
@@ -97,6 +98,20 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
                 }
               </select>
             </div>
+            @if (configWorkspace.taskToolId && configOrganizations.length > 0) {
+              <div class="form-group">
+                <label>Organization</label>
+                <select
+                  [ngModel]="configWorkspace.taskOrganization"
+                  (ngModelChange)="configWorkspace.taskOrganization = $event; configDirty = true"
+                >
+                  <option value="">None</option>
+                  @for (org of configOrganizations; track org) {
+                    <option [value]="org">{{ org }}</option>
+                  }
+                </select>
+              </div>
+            }
             <div class="modal-actions">
               <button class="cancel-btn" (click)="closeConfig()">Cancel</button>
               <button
@@ -460,10 +475,12 @@ export class WorkspacesComponent implements OnInit {
   configDirty = false;
   editorTools: Tool[] = [];
   taskTools: Tool[] = [];
+  configOrganizations: string[] = [];
 
   constructor(
     public workspaceService: WorkspaceService,
     private toolSettingsService: ToolSettingsService,
+    private projectsService: ProjectsService,
     private router: Router
   ) {
     this.workspaceService.loadWorkspaces();
@@ -515,14 +532,46 @@ export class WorkspacesComponent implements OnInit {
     this.router.navigate(['/workspaces', id]);
   }
 
-  openConfig(workspace: Workspace): void {
+  async openConfig(workspace: Workspace): Promise<void> {
     this.configWorkspace = { ...workspace };
     this.configDirty = false;
+    this.configOrganizations = [];
+    if (workspace.taskToolId) {
+      await this.loadOrganizationsForTool(workspace.taskToolId);
+    }
   }
 
   closeConfig(): void {
     this.configWorkspace = null;
     this.configDirty = false;
+    this.configOrganizations = [];
+  }
+
+  async onTaskToolChange(toolId: string): Promise<void> {
+    if (!this.configWorkspace) return;
+    this.configWorkspace.taskToolId = toolId;
+    this.configWorkspace.taskOrganization = '';
+    this.configDirty = true;
+    this.configOrganizations = [];
+    if (toolId) {
+      await this.loadOrganizationsForTool(toolId);
+      // Auto-select if only one org
+      if (this.configOrganizations.length === 1) {
+        this.configWorkspace.taskOrganization = this.configOrganizations[0];
+      }
+    }
+  }
+
+  private async loadOrganizationsForTool(toolId: string): Promise<void> {
+    const projects = await this.projectsService.getByToolId(toolId);
+    const orgs = new Set<string>();
+    for (const p of projects) {
+      if (p.organizationId) orgs.add(p.organizationId);
+    }
+    // Also check the tool's own organization field
+    const tool = this.taskTools.find(t => t.id === toolId);
+    if (tool?.organization) orgs.add(tool.organization);
+    this.configOrganizations = [...orgs];
   }
 
   async saveConfig(): Promise<void> {
@@ -530,6 +579,7 @@ export class WorkspacesComponent implements OnInit {
     await this.workspaceService.updateWorkspace(this.configWorkspace.id, {
       editorToolId: this.configWorkspace.editorToolId,
       taskToolId: this.configWorkspace.taskToolId,
+      taskOrganization: this.configWorkspace.taskOrganization,
     });
     this.closeConfig();
   }

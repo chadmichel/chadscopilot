@@ -100,6 +100,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
   githubGetOrgs: (token: string): Promise<{ id: number; login: string; avatar_url: string }[]> =>
     ipcRenderer.invoke('github:get-orgs', token),
 
+  githubGetOrgProjects: (token: string, org: string): Promise<{ id: string; title: string; number: number; url: string; closed: boolean }[]> =>
+    ipcRenderer.invoke('github:get-org-projects', token, org),
+
+  githubSyncProject: (
+    token: string, projectId: string, projectTitle: string,
+    projectNumber: number, toolId: string, organization: string
+  ): Promise<{ created: number; updated: number; total: number }> =>
+    ipcRenderer.invoke('github:sync-project', token, projectId, projectTitle, projectNumber, toolId, organization),
+
+  githubUnsyncProject: (projectExternalId: string, toolId: string): Promise<void> =>
+    ipcRenderer.invoke('github:unsync-project', projectExternalId, toolId),
+
+  // --- Sync Log ---
+  getSyncLogs: (toolId: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-sync-logs', toolId),
+
+  clearSyncLogs: (toolId: string): Promise<void> =>
+    ipcRenderer.invoke('db:clear-sync-logs', toolId),
+
+  githubCheckConnectivityCli: (): Promise<{ ok: boolean; login: string; error?: string }> =>
+    ipcRenderer.invoke('github:check-connectivity-cli'),
+
+  githubGetOrgsCli: (): Promise<{ id: number; login: string; avatar_url: string }[]> =>
+    ipcRenderer.invoke('github:get-orgs-cli'),
+
+  // --- Copilot ---
+  copilotGetAuthStatus: (): Promise<any> =>
+    ipcRenderer.invoke('copilot:auth-status'),
+
   // --- Editor services ---
   vscodeFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>
     ipcRenderer.invoke('editor:vscode-find'),

@@ -13,20 +13,21 @@ export interface Tool {
   localPath: string;
   token: string;
   useGitHubToken: boolean;
+  organization: string;
   extra: string;
 }
 
 const SEED_TOOLS: Omit<Tool, 'id'>[] = [
-  { title: 'VS Code', description: 'Visual Studio Code editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'Cursor', description: 'Cursor AI editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'Google Antigravity', description: 'Google Antigravity editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'MCP', description: 'Model Context Protocol server', isEnabled: false, toolType: 'mcp', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'RAG', description: 'Retrieval-Augmented Generation', isEnabled: false, toolType: 'rag', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'Github Repo', description: 'GitHub repository integration', isEnabled: false, toolType: 'repository', prompt: '', localPath: '', token: '', useGitHubToken: true, extra: '{}' },
-  { title: 'Github Project', description: 'GitHub project management', isEnabled: false, toolType: 'project management', prompt: '', localPath: '', token: '', useGitHubToken: true, extra: '{}' },
-  { title: 'Project Design', description: 'Project design documentation', isEnabled: true, toolType: 'project design', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'System Design', description: 'System design documentation', isEnabled: true, toolType: 'system design', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
-  { title: 'UX Design', description: 'UX design documentation', isEnabled: true, toolType: 'ux design', prompt: '', localPath: '', token: '', useGitHubToken: false, extra: '{}' },
+  { title: 'VS Code', description: 'Visual Studio Code editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'Cursor', description: 'Cursor AI editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'Google Antigravity', description: 'Google Antigravity editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'MCP', description: 'Model Context Protocol server', isEnabled: false, toolType: 'mcp', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'RAG', description: 'Retrieval-Augmented Generation', isEnabled: false, toolType: 'rag', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'Github Repo', description: 'GitHub repository integration', isEnabled: false, toolType: 'repository', prompt: '', localPath: '', token: '', useGitHubToken: true, organization: '', extra: '{}' },
+  { title: 'Github Project', description: 'GitHub project management', isEnabled: false, toolType: 'project management', prompt: '', localPath: '', token: '', useGitHubToken: true, organization: '', extra: '{}' },
+  { title: 'Project Design', description: 'Project design documentation', isEnabled: true, toolType: 'project design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'System Design', description: 'System design documentation', isEnabled: true, toolType: 'system design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'UX Design', description: 'UX design documentation', isEnabled: true, toolType: 'ux design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
 ];
 
 function rowToTool(row: ToolRow): Tool {
@@ -40,6 +41,7 @@ function rowToTool(row: ToolRow): Tool {
     localPath: row.localPath,
     token: decrypt(row.token),
     useGitHubToken: row.useGitHubToken === 1,
+    organization: row.organization,
     extra: row.extra,
   };
 }
@@ -57,8 +59,8 @@ export class ToolSettingsService {
     if (count.cnt > 0) return;
 
     const stmt = this.db.prepare(
-      `INSERT INTO tools (id, title, description, isEnabled, toolType, prompt, localPath, token, useGitHubToken, extra)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tools (id, title, description, isEnabled, toolType, prompt, localPath, token, useGitHubToken, organization, extra)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     for (const tool of SEED_TOOLS) {
       stmt.run(
@@ -71,6 +73,7 @@ export class ToolSettingsService {
         tool.localPath,
         encrypt(tool.token),
         tool.useGitHubToken ? 1 : 0,
+        tool.organization,
         tool.extra,
       );
     }
@@ -97,8 +100,8 @@ export class ToolSettingsService {
   add(tool: Omit<Tool, 'id'>): Tool {
     const id = crypto.randomUUID();
     const stmt = this.db.prepare(
-      `INSERT INTO tools (id, title, description, isEnabled, toolType, prompt, localPath, token, useGitHubToken, extra)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tools (id, title, description, isEnabled, toolType, prompt, localPath, token, useGitHubToken, organization, extra)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     stmt.run(
       id,
@@ -110,6 +113,7 @@ export class ToolSettingsService {
       tool.localPath,
       encrypt(tool.token),
       tool.useGitHubToken ? 1 : 0,
+      tool.organization,
       tool.extra,
     );
     return { id, ...tool };
@@ -118,7 +122,7 @@ export class ToolSettingsService {
   update(id: string, fields: Partial<Omit<Tool, 'id'>>): void {
     const allowed = [
       'title', 'description', 'isEnabled', 'toolType', 'prompt',
-      'localPath', 'token', 'useGitHubToken', 'extra',
+      'localPath', 'token', 'useGitHubToken', 'organization', 'extra',
     ];
     const updates: string[] = [];
     const values: (string | number | null)[] = [];

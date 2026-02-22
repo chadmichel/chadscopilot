@@ -8,6 +8,7 @@ export interface Workspace {
   editorToolId: string;
   taskToolId: string;
   taskToolExternalId: string;
+  taskOrganization: string;
   tools: string;
   extra: string;
 }
@@ -33,6 +34,7 @@ export class WorkspaceService {
         editorToolId: r.editorToolId || '',
         taskToolId: r.taskToolId || '',
         taskToolExternalId: r.taskToolExternalId || '',
+        taskOrganization: r.taskOrganization || '',
         tools: r.tools || '[]',
         extra: r.extra || '{}',
       }));
@@ -49,7 +51,7 @@ export class WorkspaceService {
     const workspace: Workspace = {
       id, name, folderPath,
       description: '', editorToolId: '', taskToolId: '',
-      taskToolExternalId: '', tools: '[]', extra: '{}',
+      taskToolExternalId: '', taskOrganization: '', tools: '[]', extra: '{}',
     };
     this.workspaces.push(workspace);
     return workspace;

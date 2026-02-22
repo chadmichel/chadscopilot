@@ -4,6 +4,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
 import { WorkspaceService, Workspace } from '../services/workspace.service';
 import { ToolSettingsService, Tool } from '../services/tool-settings.service';
+import { TasksService, Task } from '../services/tasks.service';
+import { ProjectsService, Project } from '../services/projects.service';
 
 type TabId = 'plan' | 'design' | 'tasks';
 
@@ -94,9 +96,77 @@ interface Tab {
                     </div>
                   }
                   @case ('tasks') {
-                    <div class="placeholder">
-                      <p>Tasks view coming soon.</p>
-                    </div>
+                    @if (workspaceTasks.length === 0) {
+                      <div class="placeholder">
+                        @if (!workspace.taskToolId) {
+                          <p>No task tool configured. Use the gear icon on the Workspaces page to set one.</p>
+                        } @else if (!workspace.taskOrganization) {
+                          <p>No organization selected. Configure one in workspace settings.</p>
+                        } @else {
+                          <p>No active tasks for this organization.</p>
+                        }
+                      </div>
+                    } @else {
+                      <div class="task-board">
+                        <div class="task-column">
+                          <div class="task-col-header">
+                            <span class="task-col-title">Backlog</span>
+                            <span class="task-col-count">{{ backlogTasks.length }}</span>
+                          </div>
+                          <div class="task-col-body">
+                            @for (task of backlogTasks; track task.id) {
+                              <div class="task-card pending">
+                                <div class="task-card-title">{{ task.title }}</div>
+                                @if (task.description) {
+                                  <div class="task-card-desc">{{ task.description }}</div>
+                                }
+                              </div>
+                            }
+                            @if (backlogTasks.length === 0) {
+                              <div class="task-col-empty">No tasks</div>
+                            }
+                          </div>
+                        </div>
+                        <div class="task-column">
+                          <div class="task-col-header">
+                            <span class="task-col-title">In Progress</span>
+                            <span class="task-col-count">{{ inProgressTasks.length }}</span>
+                          </div>
+                          <div class="task-col-body">
+                            @for (task of inProgressTasks; track task.id) {
+                              <div class="task-card in-progress">
+                                <div class="task-card-title">{{ task.title }}</div>
+                                @if (task.description) {
+                                  <div class="task-card-desc">{{ task.description }}</div>
+                                }
+                              </div>
+                            }
+                            @if (inProgressTasks.length === 0) {
+                              <div class="task-col-empty">No tasks</div>
+                            }
+                          </div>
+                        </div>
+                        <div class="task-column">
+                          <div class="task-col-header">
+                            <span class="task-col-title">Complete</span>
+                            <span class="task-col-count">{{ completeTasks.length }}</span>
+                          </div>
+                          <div class="task-col-body">
+                            @for (task of completeTasks; track task.id) {
+                              <div class="task-card done">
+                                <div class="task-card-title">{{ task.title }}</div>
+                                @if (task.description) {
+                                  <div class="task-card-desc">{{ task.description }}</div>
+                                }
+                              </div>
+                            }
+                            @if (completeTasks.length === 0) {
+                              <div class="task-col-empty">No tasks</div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    }
                   }
                 }
               </div>
@@ -347,6 +417,94 @@ interface Tab {
         font-size: 14px;
       }
 
+      /* Task board */
+      .task-board {
+        display: flex;
+        gap: 12px;
+        flex: 1;
+        overflow: hidden;
+        padding: 12px 16px;
+      }
+      .task-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        background: var(--app-background);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .task-col-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--app-border);
+        flex-shrink: 0;
+      }
+      .task-col-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--app-text);
+      }
+      .task-col-count {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--app-text-muted);
+        background: var(--app-surface);
+        padding: 1px 7px;
+        border-radius: 10px;
+        border: 1px solid var(--app-border);
+      }
+      .task-col-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .task-col-empty {
+        text-align: center;
+        padding: 20px 8px;
+        font-size: 11px;
+        color: var(--app-text-muted);
+        opacity: 0.5;
+      }
+      .task-card {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        border-left: 3px solid var(--app-text-muted);
+      }
+      .task-card.pending {
+        border-left-color: var(--app-text-muted);
+      }
+      .task-card.in-progress {
+        border-left-color: var(--theme-primary);
+      }
+      .task-card.done {
+        border-left-color: #22c55e;
+      }
+      .task-card-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--app-text);
+        line-height: 1.4;
+      }
+      .task-card-desc {
+        font-size: 11px;
+        color: var(--app-text-muted);
+        margin-top: 4px;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
       /* Not found */
       .not-found {
         display: flex;
@@ -389,6 +547,9 @@ export class WorkspaceDetailComponent implements OnInit {
   tabsCollapsed = false;
   editorTool: Tool | null = null;
 
+  // Tasks for this workspace
+  workspaceTasks: Task[] = [];
+
   tabs: Tab[] = [
     { id: 'plan', label: 'Plan' },
     { id: 'design', label: 'Design' },
@@ -399,7 +560,9 @@ export class WorkspaceDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private workspaceService: WorkspaceService,
-    private toolSettingsService: ToolSettingsService
+    private toolSettingsService: ToolSettingsService,
+    private tasksService: TasksService,
+    private projectsService: ProjectsService,
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -409,10 +572,23 @@ export class WorkspaceDetailComponent implements OnInit {
       if (this.workspace) {
         localStorage.setItem('chadscopilot_last_workspace_id', id);
         await this.loadEditorTool();
+        await this.loadWorkspaceTasks();
       } else {
         localStorage.removeItem('chadscopilot_last_workspace_id');
       }
     }
+  }
+
+  get backlogTasks(): Task[] {
+    return this.workspaceTasks.filter(t => t.status === 'pending');
+  }
+
+  get inProgressTasks(): Task[] {
+    return this.workspaceTasks.filter(t => t.status === 'in_progress');
+  }
+
+  get completeTasks(): Task[] {
+    return this.workspaceTasks.filter(t => t.status === 'done');
   }
 
   private async loadEditorTool(): Promise<void> {
@@ -423,6 +599,29 @@ export class WorkspaceDetailComponent implements OnInit {
     this.editorTool = this.toolSettingsService.tools.find(
       (t) => t.id === this.workspace!.editorToolId
     ) ?? null;
+  }
+
+  private async loadWorkspaceTasks(): Promise<void> {
+    if (!this.workspace?.taskToolId || !this.workspace?.taskOrganization) return;
+
+    // Load projects for this tool + organization
+    const projects = await this.projectsService.getByToolId(this.workspace.taskToolId);
+    const orgProjects = projects.filter(
+      p => p.organizationId === this.workspace!.taskOrganization
+    );
+    const projectExternalIds = new Set(orgProjects.map(p => p.externalId));
+
+    // Load all tasks and filter to this tool's projects
+    await this.tasksService.loadTasks();
+    this.workspaceTasks = this.tasksService.tasks.filter(task => {
+      if (task.toolId !== this.workspace!.taskToolId) return false;
+      try {
+        const extra = JSON.parse(task.extra);
+        return projectExternalIds.has(extra.githubProjectId);
+      } catch {
+        return false;
+      }
+    });
   }
 
   async openEditor(): Promise<void> {

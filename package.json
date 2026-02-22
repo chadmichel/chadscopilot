@@ -1,5 +1,6 @@
 {
-  "name": "chadscopilot",
+  "name": "what-is-done",
+  "productName": "What is Done",
   "version": "0.1.0",
   "description": "Desktop chat application powered by GitHub Copilot SDK, built with Electron and Angular",
   "main": "dist-electron/main.js",

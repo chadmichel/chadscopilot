@@ -21,7 +21,66 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
           </button>
           <h2>{{ tool.title }}</h2>
           <span class="type-badge">{{ tool.toolType }}</span>
+          @if (isGitHubTool()) {
+            <button class="sync-all-btn" (click)="syncAll()" [disabled]="syncAllRunning || syncedProjectIds.size === 0">
+              @if (syncAllRunning) {
+                <span class="spinner"></span>
+                Syncing...
+              } @else {
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6"/>
+                  <path d="M1 20v-6h6"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+                </svg>
+                Sync
+              }
+            </button>
+            <button class="log-btn" (click)="toggleLogPanel()" [class.active]="showLogPanel">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <line x1="10" y1="9" x2="8" y2="9"/>
+              </svg>
+              Log
+            </button>
+          }
         </div>
+
+        <!-- Log Panel -->
+        @if (showLogPanel) {
+          <div class="log-panel">
+            <div class="log-panel-header">
+              <span class="log-panel-title">Sync Log</span>
+              <div class="log-panel-actions">
+                <button class="log-action-btn" (click)="loadSyncLogs()">Refresh</button>
+                <button class="log-action-btn danger" (click)="clearSyncLogs()">Clear</button>
+                <button class="log-close-btn" (click)="showLogPanel = false">&times;</button>
+              </div>
+            </div>
+            <div class="log-panel-body">
+              @if (syncLogs.length === 0) {
+                <div class="log-empty">No sync logs yet. Try syncing a project.</div>
+              } @else {
+                @for (entry of syncLogs; track entry.id) {
+                  <div class="log-entry" [class]="'log-' + entry.level">
+                    <span class="log-time">{{ entry.createdAt | date:'short' }}</span>
+                    <span class="log-level">{{ entry.level }}</span>
+                    <span class="log-project">{{ entry.projectTitle }}</span>
+                    <span class="log-message">{{ entry.message }}</span>
+                    @if (entry.detail) {
+                      <div class="log-detail">{{ entry.detail }}</div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        }
 
         <div class="form-content">
           <!-- Enabled toggle -->
@@ -100,6 +159,23 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
             </div>
           }
 
+          <!-- Copilot GitHub Connection (auto-detected) -->
+          @if (isGitHubTool() && copilotAuthChecked && copilotAuthenticated) {
+            <div class="section-divider">
+              <span class="section-label">GitHub Connection (via Copilot)</span>
+            </div>
+
+            <div class="connectivity-row">
+              <span class="connectivity-result ok">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+                Connected as {{ copilotLogin }}
+              </span>
+            </div>
+          }
+
           <!-- Token -->
           @if (showField('token')) {
             <div class="form-group">
@@ -169,10 +245,23 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
             </div>
           }
 
-          <!-- GitHub Connectivity -->
+          <!-- Organization -->
+          @if (isGitHubTool()) {
+            <div class="form-group">
+              <label>Organization</label>
+              <input
+                type="text"
+                [(ngModel)]="tool.organization"
+                (ngModelChange)="markDirty(); loadProjects()"
+                placeholder="GitHub organization name (e.g. my-org)"
+              />
+            </div>
+          }
+
+          <!-- GitHub Connectivity (PAT) -->
           @if (isGitHubTool() && tool.token) {
             <div class="section-divider">
-              <span class="section-label">GitHub Connection</span>
+              <span class="section-label">PAT Connection</span>
             </div>
 
             <div class="connectivity-row">
@@ -213,27 +302,45 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
                 </span>
               }
             </div>
+          }
 
-            @if (organizations.length > 0) {
-              <div class="orgs-section">
-                <label>Organizations</label>
-                <div class="orgs-list">
-                  @for (org of organizations; track org.id) {
-                    <div class="org-row">
-                      <img
-                        [src]="org.avatar_url"
-                        [alt]="org.login"
-                        class="org-avatar"
-                        width="24"
-                        height="24"
-                      />
-                      <span class="org-name">{{ org.login }}</span>
-                      <span class="org-count">{{ getProjectCount(org.login) }} synced</span>
-                    </div>
-                  }
-                </div>
+          <!-- Projects for this organization -->
+          @if (isGitHubTool() && tool.organization && toolProjects.length > 0) {
+            <div class="orgs-section">
+              <label>Projects in {{ tool.organization }}</label>
+              <div class="orgs-list">
+                @for (project of toolProjects; track project.id) {
+                  <div class="project-row flat" [class.synced]="isSynced(project)">
+                    <span class="project-number">#{{ project.number }}</span>
+                    <span class="project-name">{{ project.title }}</span>
+                    @if (isSyncing(project)) {
+                      <span class="sync-status syncing">
+                        <span class="spinner"></span>
+                        Syncing...
+                      </span>
+                    } @else if (isSynced(project)) {
+                      <span class="sync-status synced-label">Synced</span>
+                    }
+                    <button
+                      class="toggle-btn"
+                      [class.enabled]="isSynced(project)"
+                      [disabled]="isSyncing(project)"
+                      (click)="toggleSync(project)"
+                    >
+                      <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                      </div>
+                    </button>
+                  </div>
+                }
               </div>
-            }
+              @if (syncError) {
+                <div class="sync-error">{{ syncError }}</div>
+              }
+              @if (syncResultMessage) {
+                <div class="sync-success">{{ syncResultMessage }}</div>
+              }
+            </div>
           }
 
           <!-- Prompt -->
@@ -751,6 +858,95 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
         border: 1px solid var(--app-border);
         white-space: nowrap;
       }
+      .project-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px 8px 48px;
+        background: var(--app-background);
+        border-bottom: 1px solid var(--app-border);
+      }
+      .project-row.flat {
+        padding-left: 14px;
+      }
+      .project-row:last-child {
+        border-bottom: none;
+      }
+      .project-row.synced {
+        background: color-mix(in srgb, var(--theme-primary), transparent 95%);
+      }
+      .project-row .toggle-btn {
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .project-row .toggle-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .sync-status {
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .sync-status.syncing {
+        color: var(--theme-primary);
+      }
+      .sync-status.synced-label {
+        color: #22c55e;
+      }
+      .project-number {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--app-text-muted);
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+        white-space: nowrap;
+      }
+      .project-type-badge {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--theme-primary);
+        background: color-mix(in srgb, var(--theme-primary), transparent 88%);
+        padding: 2px 7px;
+        border-radius: 3px;
+        white-space: nowrap;
+        text-transform: capitalize;
+      }
+      .project-name {
+        font-size: 12px;
+        color: var(--app-text);
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .project-sync {
+        font-size: 10px;
+        color: var(--app-text-muted);
+        white-space: nowrap;
+      }
+      .sync-error {
+        margin-top: 8px;
+        padding: 10px 14px;
+        background: color-mix(in srgb, #ef4444, transparent 90%);
+        border: 1px solid color-mix(in srgb, #ef4444, transparent 70%);
+        border-radius: 6px;
+        color: #ef4444;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .sync-success {
+        margin-top: 8px;
+        padding: 10px 14px;
+        background: color-mix(in srgb, #22c55e, transparent 90%);
+        border: 1px solid color-mix(in srgb, #22c55e, transparent 70%);
+        border-radius: 6px;
+        color: #22c55e;
+        font-size: 12px;
+        font-weight: 600;
+      }
 
       /* Actions */
       .form-actions {
@@ -776,6 +972,195 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
       }
       .save-btn:hover:not(:disabled) {
         background: var(--theme-primary-hover);
+      }
+
+      /* Sync all button */
+      .sync-all-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-left: auto;
+        padding: 5px 12px;
+        background: transparent;
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        color: var(--theme-primary);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .sync-all-btn:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        border-color: var(--theme-primary);
+      }
+      .sync-all-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* Log button */
+      .log-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        background: transparent;
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        color: var(--app-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .log-btn:hover, .log-btn.active {
+        color: var(--theme-primary);
+        border-color: var(--theme-primary);
+      }
+
+      /* Log panel */
+      .log-panel {
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+        background: var(--app-background);
+        margin-bottom: 20px;
+        overflow: hidden;
+        max-height: 400px;
+        display: flex;
+        flex-direction: column;
+      }
+      .log-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: var(--app-surface);
+        border-bottom: 1px solid var(--app-border);
+        flex-shrink: 0;
+      }
+      .log-panel-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--app-text);
+      }
+      .log-panel-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .log-action-btn {
+        padding: 3px 10px;
+        background: transparent;
+        border: 1px solid var(--app-border);
+        border-radius: 4px;
+        color: var(--app-text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .log-action-btn:hover {
+        color: var(--theme-primary);
+        border-color: var(--theme-primary);
+      }
+      .log-action-btn.danger:hover {
+        color: #ef4444;
+        border-color: #ef4444;
+      }
+      .log-close-btn {
+        background: none;
+        border: none;
+        color: var(--app-text-muted);
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+      }
+      .log-close-btn:hover {
+        color: var(--app-text);
+      }
+      .log-panel-body {
+        overflow-y: auto;
+        flex: 1;
+        padding: 4px 0;
+      }
+      .log-empty {
+        padding: 24px 14px;
+        text-align: center;
+        color: var(--app-text-muted);
+        font-size: 12px;
+      }
+      .log-entry {
+        padding: 6px 14px;
+        font-size: 12px;
+        line-height: 1.4;
+        border-bottom: 1px solid color-mix(in srgb, var(--app-border), transparent 50%);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: baseline;
+      }
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+      .log-time {
+        font-size: 10px;
+        color: var(--app-text-muted);
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+        white-space: nowrap;
+      }
+      .log-level {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 0 5px;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      .log-info .log-level {
+        color: var(--theme-primary);
+        background: color-mix(in srgb, var(--theme-primary), transparent 88%);
+      }
+      .log-warn .log-level {
+        color: #eab308;
+        background: color-mix(in srgb, #eab308, transparent 88%);
+      }
+      .log-error .log-level {
+        color: #ef4444;
+        background: color-mix(in srgb, #ef4444, transparent 88%);
+      }
+      .log-debug .log-level {
+        color: var(--app-text-muted);
+        background: var(--app-surface);
+      }
+      .log-project {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--theme-primary);
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        padding: 0 6px;
+        border-radius: 3px;
+        white-space: nowrap;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .log-message {
+        color: var(--app-text);
+        flex: 1;
+        min-width: 0;
+      }
+      .log-detail {
+        width: 100%;
+        font-size: 11px;
+        color: var(--app-text-muted);
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+        background: var(--app-surface);
+        padding: 4px 8px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        word-break: break-all;
       }
 
       /* Not found */
@@ -818,13 +1203,30 @@ export class ToolConfigureComponent implements OnInit {
   editorDetected: boolean | null = null;
   editorCliPath = '';
 
-  // GitHub connectivity
+  // GitHub connectivity (PAT)
   connectivityStatus: 'idle' | 'ok' | 'error' = 'idle';
   connectivityChecking = false;
   connectivityUser = '';
   connectivityError = '';
-  organizations: { id: number; login: string; avatar_url: string }[] = [];
-  projectCountMap = new Map<string, number>();
+  toolProjects: any[] = [];
+
+  // Project sync
+  syncedProjectIds = new Set<string>();
+  syncingProjectId: string | null = null;
+  syncError: string | null = null;
+  syncResultMessage: string | null = null;
+
+  // Sync all
+  syncAllRunning = false;
+
+  // Sync log panel
+  showLogPanel = false;
+  syncLogs: any[] = [];
+
+  // Copilot / gh CLI connectivity
+  copilotAuthChecked = false;
+  copilotAuthenticated = false;
+  copilotLogin = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -847,6 +1249,12 @@ export class ToolConfigureComponent implements OnInit {
 
       if (this.tool?.toolType === 'editor') {
         this.detectEditor();
+      }
+
+      if (this.tool && this.isGitHubTool()) {
+        this.checkCopilotAuth();
+        this.loadProjects();
+        this.loadSyncedProjects();
       }
     }
   }
@@ -949,29 +1357,12 @@ export class ToolConfigureComponent implements OnInit {
 
     this.connectivityChecking = true;
     this.connectivityStatus = 'idle';
-    this.organizations = [];
 
     try {
       const result = await electron.githubCheckConnectivity(this.tool.token);
       if (result.ok) {
         this.connectivityStatus = 'ok';
         this.connectivityUser = result.login;
-
-        // Load organizations
-        const orgs = await electron.githubGetOrgs?.(this.tool.token);
-        if (orgs) {
-          this.organizations = orgs;
-        }
-
-        // Load project counts per org for this tool
-        const projects = await electron.getProjectsByTool?.(this.tool.id);
-        this.projectCountMap.clear();
-        if (projects) {
-          for (const p of projects) {
-            const orgName = p.organizationName || '';
-            this.projectCountMap.set(orgName, (this.projectCountMap.get(orgName) || 0) + 1);
-          }
-        }
       } else {
         this.connectivityStatus = 'error';
         this.connectivityError = result.error || 'Connection failed';
@@ -984,8 +1375,162 @@ export class ToolConfigureComponent implements OnInit {
     }
   }
 
-  getProjectCount(orgLogin: string): number {
-    return this.projectCountMap.get(orgLogin) || 0;
+  async checkCopilotAuth(): Promise<void> {
+    const electron = (window as any).electronAPI;
+    if (!electron?.copilotGetAuthStatus) return;
+
+    try {
+      const status = await electron.copilotGetAuthStatus();
+      this.copilotAuthChecked = true;
+
+      if (status?.isAuthenticated) {
+        this.copilotAuthenticated = true;
+        this.copilotLogin = status.login || '';
+      }
+    } catch {
+      this.copilotAuthChecked = true;
+    }
+  }
+
+  async loadProjects(): Promise<void> {
+    if (!this.tool?.organization || !this.tool?.token) {
+      this.toolProjects = [];
+      return;
+    }
+    const electron = (window as any).electronAPI;
+    if (!electron?.githubGetOrgProjects) return;
+    const projects = await electron.githubGetOrgProjects(this.tool.token, this.tool.organization);
+    this.toolProjects = (projects || []).filter((p: any) => !p.closed);
+  }
+
+  async loadSyncedProjects(): Promise<void> {
+    if (!this.tool) return;
+    const electron = (window as any).electronAPI;
+    if (!electron?.getProjectsByTool) return;
+    const synced = await electron.getProjectsByTool(this.tool.id);
+    this.syncedProjectIds = new Set((synced || []).map((p: any) => p.externalId));
+  }
+
+  async toggleSync(project: any): Promise<void> {
+    if (!this.tool) return;
+    const electron = (window as any).electronAPI;
+    if (!electron) return;
+
+    const projectNodeId = project.id;
+
+    if (this.syncedProjectIds.has(projectNodeId)) {
+      await electron.githubUnsyncProject(projectNodeId, this.tool.id);
+      this.syncedProjectIds = new Set(this.syncedProjectIds);
+      this.syncedProjectIds.delete(projectNodeId);
+    } else {
+      this.syncingProjectId = projectNodeId;
+      this.syncError = null;
+      this.syncResultMessage = null;
+      try {
+        const result = await electron.githubSyncProject(
+          this.tool.token,
+          projectNodeId,
+          project.title,
+          project.number,
+          this.tool.id,
+          this.tool.organization,
+        );
+        if (result?.error) {
+          this.syncError = result.error;
+        }
+        if (result?.total > 0) {
+          this.syncedProjectIds = new Set(this.syncedProjectIds);
+          this.syncedProjectIds.add(projectNodeId);
+          this.syncResultMessage = `Synced ${result?.total || 0} items (${result?.created || 0} new, ${result?.updated || 0} updated)`;
+        }
+      } catch (err: any) {
+        this.syncError = err?.message || 'Sync failed';
+      } finally {
+        this.syncingProjectId = null;
+        if (this.showLogPanel) {
+          await this.loadSyncLogs();
+        }
+      }
+    }
+  }
+
+  isSynced(project: any): boolean {
+    return this.syncedProjectIds.has(project.id);
+  }
+
+  isSyncing(project: any): boolean {
+    return this.syncingProjectId === project.id;
+  }
+
+  async toggleLogPanel(): Promise<void> {
+    this.showLogPanel = !this.showLogPanel;
+    if (this.showLogPanel) {
+      await this.loadSyncLogs();
+    }
+  }
+
+  async loadSyncLogs(): Promise<void> {
+    if (!this.tool) return;
+    const electron = (window as any).electronAPI;
+    if (!electron?.getSyncLogs) return;
+    this.syncLogs = await electron.getSyncLogs(this.tool.id);
+  }
+
+  async clearSyncLogs(): Promise<void> {
+    if (!this.tool) return;
+    const electron = (window as any).electronAPI;
+    if (!electron?.clearSyncLogs) return;
+    await electron.clearSyncLogs(this.tool.id);
+    this.syncLogs = [];
+  }
+
+  async syncAll(): Promise<void> {
+    if (!this.tool || this.syncAllRunning) return;
+    const electron = (window as any).electronAPI;
+    if (!electron?.githubSyncProject) return;
+
+    this.syncAllRunning = true;
+    this.syncError = null;
+    this.syncResultMessage = null;
+
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    let totalItems = 0;
+    let errors: string[] = [];
+
+    // Sync each project that has a matching entry in toolProjects
+    const projectsToSync = this.toolProjects.filter((p: any) => this.syncedProjectIds.has(p.id));
+
+    for (const project of projectsToSync) {
+      try {
+        const result = await electron.githubSyncProject(
+          this.tool.token,
+          project.id,
+          project.title,
+          project.number,
+          this.tool.id,
+          this.tool.organization,
+        );
+        if (result?.error) {
+          errors.push(`${project.title}: ${result.error}`);
+        }
+        totalCreated += result?.created || 0;
+        totalUpdated += result?.updated || 0;
+        totalItems += result?.total || 0;
+      } catch (err: any) {
+        errors.push(`${project.title}: ${err?.message || 'Sync failed'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.syncError = errors.join('\n');
+    }
+    this.syncResultMessage = `Synced ${totalItems} items across ${projectsToSync.length} projects (${totalCreated} new, ${totalUpdated} updated)`;
+    this.syncAllRunning = false;
+
+    if (this.showLogPanel) {
+      await this.loadSyncLogs();
+    }
   }
 
   goBack(): void {

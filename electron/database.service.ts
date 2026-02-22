@@ -10,6 +10,7 @@ export interface WorkspaceRow {
   editorToolId: string;
   taskToolId: string;
   taskToolExternalId: string;
+  taskOrganization: string;
   tools: string;
   extra: string;
   createdAt: string;
@@ -25,6 +26,7 @@ export interface ToolRow {
   localPath: string;
   token: string;
   useGitHubToken: number;
+  organization: string;
   extra: string;
 }
 
@@ -50,6 +52,17 @@ export interface ProjectRow {
   lastSync: string;
   organizationId: string;
   organizationName: string;
+}
+
+export interface SyncLogRow {
+  id: string;
+  toolId: string;
+  projectExternalId: string;
+  projectTitle: string;
+  level: string;
+  message: string;
+  detail: string;
+  createdAt: string;
 }
 
 export class DatabaseService {
@@ -116,6 +129,12 @@ export class DatabaseService {
       )
     `);
 
+    // Migrate workspaces: add taskOrganization column
+    try { this.db.exec("ALTER TABLE workspaces ADD COLUMN taskOrganization TEXT DEFAULT ''"); } catch { /* already exists */ }
+
+    // Migrate tools: add organization column
+    try { this.db.exec("ALTER TABLE tools ADD COLUMN organization TEXT DEFAULT ''"); } catch { /* already exists */ }
+
     // Tasks table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
@@ -153,6 +172,20 @@ export class DatabaseService {
         organizationName TEXT DEFAULT ''
       )
     `);
+
+    // Sync log table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sync_log (
+        id TEXT PRIMARY KEY,
+        toolId TEXT DEFAULT '',
+        projectExternalId TEXT DEFAULT '',
+        projectTitle TEXT DEFAULT '',
+        level TEXT DEFAULT 'info',
+        message TEXT DEFAULT '',
+        detail TEXT DEFAULT '',
+        createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
   }
 
   // --- Workspaces ---
@@ -160,7 +193,7 @@ export class DatabaseService {
   getAllWorkspaces(): WorkspaceRow[] {
     const stmt = this.db.prepare(
       `SELECT id, name, folderPath, description, editorToolId, taskToolId,
-              taskToolExternalId, tools, extra, createdAt
+              taskToolExternalId, taskOrganization, tools, extra, createdAt
        FROM workspaces ORDER BY createdAt DESC`
     );
     return stmt.all() as unknown as WorkspaceRow[];
@@ -175,14 +208,14 @@ export class DatabaseService {
     return {
       id, name, folderPath, createdAt,
       description: '', editorToolId: '', taskToolId: '',
-      taskToolExternalId: '', tools: '[]', extra: '{}',
+      taskToolExternalId: '', taskOrganization: '', tools: '[]', extra: '{}',
     };
   }
 
   updateWorkspace(id: string, fields: Partial<Omit<WorkspaceRow, 'id' | 'createdAt'>>): void {
     const allowed = [
       'name', 'folderPath', 'description', 'editorToolId',
-      'taskToolId', 'taskToolExternalId', 'tools', 'extra',
+      'taskToolId', 'taskToolExternalId', 'taskOrganization', 'tools', 'extra',
     ];
     const updates: string[] = [];
     const values: (string | number | null)[] = [];

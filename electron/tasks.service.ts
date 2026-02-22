@@ -48,6 +48,12 @@ export class TasksService {
     return row ? rowToTask(row) : null;
   }
 
+  getByExternalIdAndTool(externalId: string, toolId: string): Task | null {
+    const stmt = this.db.prepare('SELECT * FROM tasks WHERE externalId = ? AND toolId = ?');
+    const row = stmt.get(externalId, toolId) as unknown as TaskRow | undefined;
+    return row ? rowToTask(row) : null;
+  }
+
   getByWorkspace(workspaceId: string): Task[] {
     const stmt = this.db.prepare('SELECT * FROM tasks WHERE workspaceId = ? ORDER BY lastUpdatedAt DESC');
     return (stmt.all(workspaceId) as unknown as TaskRow[]).map(rowToTask);

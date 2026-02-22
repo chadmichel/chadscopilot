@@ -10,6 +10,7 @@ export interface Tool {
   localPath: string;
   token: string;
   useGitHubToken: boolean;
+  organization: string;
   extra: string;
 }
 
