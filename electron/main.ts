@@ -9,6 +9,7 @@ import { TasksService } from './tasks.service.js';
 import { ProjectsService } from './projects.service.js';
 import { GitHubService } from './github.service.js';
 import { SyncLogService } from './sync-log.service.js';
+import { WorkspaceAgentsService } from './workspace-agents.service.js';
 import { VsCodeService } from './vscode.service.js';
 import { CursorService } from './cursor.service.js';
 import { GoogleAntigravityService } from './google-antigravity.service.js';
@@ -47,6 +48,7 @@ let toolSettingsService: ToolSettingsService | null = null;
 let tasksService: TasksService | null = null;
 let projectsService: ProjectsService | null = null;
 let syncLogService: SyncLogService | null = null;
+let workspaceAgentsService: WorkspaceAgentsService | null = null;
 const gitHubService = new GitHubService();
 const vsCodeService = new VsCodeService();
 const cursorService = new CursorService();
@@ -422,6 +424,35 @@ function setupIPC(): void {
     syncLogService.clearByTool(toolId);
   });
 
+  // --- Workspace Agents CRUD ---
+  ipcMain.handle('db:get-workspace-agents', (_event, workspaceId: string) => {
+    if (!workspaceAgentsService) return [];
+    return workspaceAgentsService.getByWorkspace(workspaceId);
+  });
+
+  ipcMain.handle('db:get-workspace-agent', (_event, id: string) => {
+    if (!workspaceAgentsService) return null;
+    return workspaceAgentsService.getById(id);
+  });
+
+  ipcMain.handle('db:add-workspace-agent', (_event, agent: Record<string, unknown>) => {
+    if (!workspaceAgentsService) throw new Error('Workspace agents service not initialized');
+    return workspaceAgentsService.add(agent as any);
+  });
+
+  ipcMain.handle(
+    'db:update-workspace-agent',
+    (_event, id: string, fields: Record<string, unknown>) => {
+      if (!workspaceAgentsService) throw new Error('Workspace agents service not initialized');
+      workspaceAgentsService.update(id, fields as any);
+    },
+  );
+
+  ipcMain.handle('db:remove-workspace-agent', (_event, id: string) => {
+    if (!workspaceAgentsService) throw new Error('Workspace agents service not initialized');
+    workspaceAgentsService.remove(id);
+  });
+
   ipcMain.handle('github:check-connectivity-cli', () => {
     return gitHubService.checkConnectivityViaCopilotToken();
   });
@@ -484,6 +515,7 @@ app.whenReady().then(async () => {
   tasksService = new TasksService(databaseService.getDb());
   projectsService = new ProjectsService(databaseService.getDb());
   syncLogService = new SyncLogService(databaseService.getDb());
+  workspaceAgentsService = new WorkspaceAgentsService(databaseService.getDb());
   console.log('Database initialized');
 
   // Initialize Copilot

@@ -93,6 +93,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeProject: (id: string): Promise<void> =>
     ipcRenderer.invoke('db:remove-project', id),
 
+  // --- Workspace Agents ---
+  getWorkspaceAgents: (workspaceId: string): Promise<any[]> =>
+    ipcRenderer.invoke('db:get-workspace-agents', workspaceId),
+
+  getWorkspaceAgent: (id: string): Promise<any> =>
+    ipcRenderer.invoke('db:get-workspace-agent', id),
+
+  addWorkspaceAgent: (agent: Record<string, any>): Promise<any> =>
+    ipcRenderer.invoke('db:add-workspace-agent', agent),
+
+  updateWorkspaceAgent: (id: string, fields: Record<string, any>): Promise<void> =>
+    ipcRenderer.invoke('db:update-workspace-agent', id, fields),
+
+  removeWorkspaceAgent: (id: string): Promise<void> =>
+    ipcRenderer.invoke('db:remove-workspace-agent', id),
+
   // --- GitHub ---
   githubCheckConnectivity: (token: string): Promise<{ ok: boolean; login: string; error?: string }> =>
     ipcRenderer.invoke('github:check-connectivity', token),

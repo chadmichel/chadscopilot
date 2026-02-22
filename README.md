@@ -2,7 +2,64 @@
 
 A desktop chat application built with **Electron**, **Angular**, and the **GitHub Copilot SDK**. This app provides a native desktop experience for conversing with GitHub Copilot through a clean, modern chat interface with real-time streaming responses.
 
-## Architecture
+## 🚀 Getting Started
+
+Follow these steps to get the application running on your machine.
+
+### 1. Prerequisites
+
+- **Node.js 20 or 22** (recommended)
+- **GitHub CLI (`gh`)** installed and authenticated.
+
+### 2. GitHub Copilot SDK Setup
+
+The SDK relies on your local GitHub CLI authentication. You must have an active Copilot subscription and the `gh-copilot` extension installed.
+
+```bash
+# 1. Install GitHub CLI if you haven't (macOS example)
+brew install gh
+
+# 2. Authenticate with GitHub
+gh auth login
+
+# 3. Install the GitHub Copilot extension
+gh extension install github/gh-copilot
+
+# 4. (Optional) Verify the SDK can see your session
+gh copilot --version
+```
+
+### 3. Installation & Running
+
+```bash
+# Clone the repository
+git clone <repo-url>
+cd chadscopilot
+
+# Install dependencies
+npm install
+
+# Start the development environment
+npm start
+```
+
+The `npm start` command will:
+1. Compile the Electron Main process (`typescript`)
+2. Boot the Angular development server (`http://localhost:4300`)
+3. Launch the Electron application window once the server is ready.
+
+## 🛠 Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm start` | **Default**: Starts both Angular and Electron in dev mode. |
+| `npm run start:angular` | Start only the Angular dev server. |
+| `npm run build:electron` | Compile Electron TypeScript files to `dist-electron/`. |
+| `npm run build` | Full production build of both Angular and Electron. |
+
+---
+
+## 🏗 Architecture
 
 The application is built on three layers:
 
@@ -46,57 +103,6 @@ The app follows Electron security best practices:
 - **`nodeIntegration: false`** — prevents the renderer from using `require()`
 - Communication happens exclusively through a typed **preload bridge** (`preload.ts`)
 - Only specific IPC channels are exposed to the renderer (`copilot:send-message`, `copilot:message-delta`, `copilot:message-complete`, `copilot:error`)
-
-## Prerequisites
-
-- **Node.js 18** or higher
-- **GitHub Copilot CLI** installed and authenticated
-
-  ```bash
-  # Install the GitHub Copilot CLI extension
-  gh extension install github/gh-copilot
-
-  # Verify installation
-  copilot --version
-  ```
-
-- A valid **GitHub Copilot subscription** (Individual, Business, or Enterprise)
-
-## Setup
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repo-url>
-   cd chadscopilot
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Start the development environment**
-
-   ```bash
-   npm start
-   ```
-
-   This command will:
-   - Compile the Electron TypeScript files to `dist-electron/`
-   - Start the Angular dev server on `http://localhost:4200`
-   - Wait for Angular to be ready, then launch the Electron window
-
-## Available Scripts
-
-| Command | Description |
-|---|---|
-| `npm start` | Start the full dev environment (Angular + Electron) |
-| `npm run start:angular` | Start only the Angular dev server |
-| `npm run build:electron` | Compile Electron TypeScript to `dist-electron/` |
-| `npm run build` | Production build of Angular + Electron |
-| `npm run build:prod` | Production-optimized build |
 
 ## Project Structure
 

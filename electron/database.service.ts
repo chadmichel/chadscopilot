@@ -54,6 +54,16 @@ export interface ProjectRow {
   organizationName: string;
 }
 
+export interface WorkspaceAgentRow {
+  id: string;
+  workspaceId: string;
+  name: string;
+  summary: string;
+  taskId: string;
+  taskName: string;
+  taskDescription: string;
+}
+
 export interface SyncLogRow {
   id: string;
   toolId: string;
@@ -184,6 +194,19 @@ export class DatabaseService {
         message TEXT DEFAULT '',
         detail TEXT DEFAULT '',
         createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Workspace agents table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS workspace_agents (
+        id TEXT PRIMARY KEY,
+        workspaceId TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT 'Agent',
+        summary TEXT DEFAULT '',
+        taskId TEXT DEFAULT '',
+        taskName TEXT DEFAULT '',
+        taskDescription TEXT DEFAULT ''
       )
     `);
   }

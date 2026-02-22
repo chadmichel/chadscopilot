@@ -2,10 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
+import { ChatService } from '../chat/chat.service';
 import { WorkspaceService, Workspace } from '../services/workspace.service';
 import { ToolSettingsService, Tool } from '../services/tool-settings.service';
 import { TasksService, Task } from '../services/tasks.service';
 import { ProjectsService, Project } from '../services/projects.service';
+import { WorkspaceAgentsService, WorkspaceAgent } from '../services/workspace-agents.service';
 
 type TabId = 'plan' | 'design' | 'tasks';
 
@@ -46,7 +48,39 @@ interface Tab {
         <div class="split-layout">
           <div class="agent-panel" [class.collapsed]="agentCollapsed">
             @if (!agentCollapsed) {
-              <app-chat [workspaceId]="workspace.id" [folderPath]="workspace.folderPath"></app-chat>
+              <div class="agent-header">
+                <select class="agent-select"
+                        [value]="activeAgentId"
+                        (change)="onAgentChange($any($event.target).value)">
+                  <option [value]="workspace.id">Default Agent</option>
+                  @for (agent of agents; track agent.id) {
+                    <option [value]="agent.id">{{ agent.name }}</option>
+                  }
+                </select>
+                <button class="agent-add-btn"
+                        (click)="createNewAgent()"
+                        [disabled]="agents.length >= 7"
+                        title="New agent">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14"/>
+                    <path d="M5 12h14"/>
+                  </svg>
+                </button>
+                @if (activeAgentId !== workspace.id) {
+                  <button class="agent-delete-btn"
+                          (click)="deleteActiveAgent()"
+                          title="Delete this agent">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18"/>
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                  </button>
+                }
+              </div>
+              <app-chat [workspaceId]="activeAgentId" [folderPath]="workspace.folderPath"></app-chat>
             } @else {
               <div class="collapsed-label">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -78,7 +112,7 @@ interface Tab {
                   <button
                     class="tab"
                     [class.active]="activeTab === tab.id"
-                    (click)="activeTab = tab.id"
+                    (click)="onTabClick(tab.id)"
                   >{{ tab.label }}</button>
                 }
               </div>
@@ -96,14 +130,46 @@ interface Tab {
                     </div>
                   }
                   @case ('tasks') {
-                    @if (workspaceTasks.length === 0) {
+                    @if (selectedTask) {
+                      <div class="task-detail">
+                        <button class="task-detail-back" (click)="closeTaskDetail()">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                               stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5"/>
+                            <path d="M12 19l-7-7 7-7"/>
+                          </svg>
+                          Back to tasks
+                        </button>
+                        <div class="task-detail-header">
+                          <h3>{{ selectedTask.title }}</h3>
+                          <span class="task-status-badge"
+                                [class.status-pending]="selectedTask.status === 'pending'"
+                                [class.status-in-progress]="selectedTask.status === 'in_progress'"
+                                [class.status-done]="selectedTask.status === 'done'">
+                            {{ selectedTask.status === 'in_progress' ? 'In Progress' : selectedTask.status === 'done' ? 'Done' : 'Backlog' }}
+                          </span>
+                        </div>
+                        @if (selectedTask.description) {
+                          <div class="task-detail-desc">{{ selectedTask.description }}</div>
+                        }
+                        <button class="start-work-btn" (click)="startWorkOnTask(selectedTask)">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                               stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                          </svg>
+                          Start Work on Task
+                        </button>
+                      </div>
+                    } @else if (workspaceTasks.length === 0) {
                       <div class="placeholder">
                         @if (!workspace.taskToolId) {
                           <p>No task tool configured. Use the gear icon on the Workspaces page to set one.</p>
                         } @else if (!workspace.taskOrganization) {
                           <p>No organization selected. Configure one in workspace settings.</p>
+                        } @else if (!workspace.taskToolExternalId) {
+                          <p>No project selected. Configure one in workspace settings.</p>
                         } @else {
-                          <p>No active tasks for this organization.</p>
+                          <p>No active tasks for this project.</p>
                         }
                       </div>
                     } @else {
@@ -115,7 +181,7 @@ interface Tab {
                           </div>
                           <div class="task-col-body">
                             @for (task of backlogTasks; track task.id) {
-                              <div class="task-card pending">
+                              <div class="task-card pending" (click)="selectTask(task)">
                                 <div class="task-card-title">{{ task.title }}</div>
                                 @if (task.description) {
                                   <div class="task-card-desc">{{ task.description }}</div>
@@ -134,7 +200,7 @@ interface Tab {
                           </div>
                           <div class="task-col-body">
                             @for (task of inProgressTasks; track task.id) {
-                              <div class="task-card in-progress">
+                              <div class="task-card in-progress" (click)="selectTask(task)">
                                 <div class="task-card-title">{{ task.title }}</div>
                                 @if (task.description) {
                                   <div class="task-card-desc">{{ task.description }}</div>
@@ -153,7 +219,7 @@ interface Tab {
                           </div>
                           <div class="task-col-body">
                             @for (task of completeTasks; track task.id) {
-                              <div class="task-card done">
+                              <div class="task-card done" (click)="selectTask(task)">
                                 <div class="task-card-title">{{ task.title }}</div>
                                 @if (task.description) {
                                   <div class="task-card-desc">{{ task.description }}</div>
@@ -293,6 +359,8 @@ interface Tab {
         overflow: hidden;
         position: relative;
         transition: flex 0.2s ease;
+        display: flex;
+        flex-direction: column;
       }
       .agent-panel.collapsed {
         flex: 0 0 44px;
@@ -311,6 +379,59 @@ interface Tab {
         flex: 0 0 44px;
         min-width: 44px;
         border-left: none;
+      }
+
+      /* Agent header bar */
+      .agent-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--app-border);
+        flex-shrink: 0;
+      }
+      .agent-select {
+        flex: 1;
+        min-width: 0;
+        padding: 5px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--app-text);
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 5px;
+        cursor: pointer;
+        outline: none;
+      }
+      .agent-select:focus {
+        border-color: var(--theme-primary);
+      }
+      .agent-add-btn,
+      .agent-delete-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--app-border);
+        border-radius: 5px;
+        background: var(--app-surface);
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .agent-add-btn:hover:not(:disabled) {
+        color: var(--theme-primary);
+        border-color: var(--theme-primary);
+      }
+      .agent-add-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .agent-delete-btn:hover {
+        color: #ef4444;
+        border-color: #ef4444;
       }
 
       /* Collapsed label */
@@ -478,6 +599,12 @@ interface Tab {
         border-radius: 6px;
         padding: 10px 12px;
         border-left: 3px solid var(--app-text-muted);
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .task-card:hover {
+        border-color: var(--theme-primary);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
       }
       .task-card.pending {
         border-left-color: var(--app-text-muted);
@@ -503,6 +630,87 @@ interface Tab {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+      }
+
+      /* Task detail view */
+      .task-detail {
+        padding: 20px 24px;
+        overflow-y: auto;
+        height: 100%;
+      }
+      .task-detail-back {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        color: var(--app-text-muted);
+        font-size: 12px;
+        cursor: pointer;
+        transition: color 0.15s;
+        margin-bottom: 16px;
+      }
+      .task-detail-back:hover {
+        color: var(--theme-primary);
+      }
+      .task-detail-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .task-detail-header h3 {
+        flex: 1;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--app-text);
+        margin: 0;
+        line-height: 1.4;
+      }
+      .task-status-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 12px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .task-status-badge.status-pending {
+        background: color-mix(in srgb, var(--app-text-muted), transparent 85%);
+        color: var(--app-text-muted);
+      }
+      .task-status-badge.status-in-progress {
+        background: color-mix(in srgb, var(--theme-primary), transparent 85%);
+        color: var(--theme-primary);
+      }
+      .task-status-badge.status-done {
+        background: color-mix(in srgb, #22c55e, transparent 85%);
+        color: #22c55e;
+      }
+      .task-detail-desc {
+        font-size: 13px;
+        color: var(--app-text-muted);
+        line-height: 1.6;
+        white-space: pre-wrap;
+        margin-bottom: 24px;
+      }
+      .start-work-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: var(--theme-primary);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.15s;
+      }
+      .start-work-btn:hover {
+        background: var(--theme-primary-hover);
       }
 
       /* Not found */
@@ -550,6 +758,13 @@ export class WorkspaceDetailComponent implements OnInit {
   // Tasks for this workspace
   workspaceTasks: Task[] = [];
 
+  // Agents
+  agents: WorkspaceAgent[] = [];
+  activeAgentId = '';
+
+  // Task detail
+  selectedTask: Task | null = null;
+
   tabs: Tab[] = [
     { id: 'plan', label: 'Plan' },
     { id: 'design', label: 'Design' },
@@ -563,6 +778,8 @@ export class WorkspaceDetailComponent implements OnInit {
     private toolSettingsService: ToolSettingsService,
     private tasksService: TasksService,
     private projectsService: ProjectsService,
+    private workspaceAgentsService: WorkspaceAgentsService,
+    private chatService: ChatService,
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -570,9 +787,11 @@ export class WorkspaceDetailComponent implements OnInit {
     if (id) {
       this.workspace = this.workspaceService.getWorkspace(id);
       if (this.workspace) {
+        this.activeAgentId = this.workspace.id;
         localStorage.setItem('chadscopilot_last_workspace_id', id);
         await this.loadEditorTool();
         await this.loadWorkspaceTasks();
+        await this.loadAgents();
       } else {
         localStorage.removeItem('chadscopilot_last_workspace_id');
       }
@@ -591,6 +810,80 @@ export class WorkspaceDetailComponent implements OnInit {
     return this.workspaceTasks.filter(t => t.status === 'done');
   }
 
+  onAgentChange(agentId: string): void {
+    this.activeAgentId = agentId;
+  }
+
+  async createNewAgent(): Promise<void> {
+    if (!this.workspace || this.agents.length >= 7) return;
+    const agent = await this.workspaceAgentsService.addAgent({
+      workspaceId: this.workspace.id,
+      name: `Agent ${this.agents.length + 1}`,
+      summary: '',
+      taskId: '',
+      taskName: '',
+      taskDescription: '',
+    });
+    this.agents.push(agent);
+    this.activeAgentId = agent.id;
+  }
+
+  async deleteActiveAgent(): Promise<void> {
+    if (!this.workspace || this.activeAgentId === this.workspace.id) return;
+    await this.workspaceAgentsService.removeAgent(this.activeAgentId);
+    this.agents = this.agents.filter(a => a.id !== this.activeAgentId);
+    this.activeAgentId = this.workspace.id;
+  }
+
+  selectTask(task: Task): void {
+    this.selectedTask = task;
+  }
+
+  closeTaskDetail(): void {
+    this.selectedTask = null;
+  }
+
+  onTabClick(tabId: TabId): void {
+    this.activeTab = tabId;
+    if (tabId !== 'tasks') {
+      this.selectedTask = null;
+    }
+  }
+
+  async startWorkOnTask(task: Task): Promise<void> {
+    if (!this.workspace) return;
+
+    // Check if we already have an agent for this task
+    const existingAgent = this.agents.find(a => a.taskId === task.id);
+    if (existingAgent) {
+      this.activeAgentId = existingAgent.id;
+      this.selectedTask = null;
+      this.agentCollapsed = false;
+      return;
+    }
+
+    // Enforce 7-agent limit
+    if (this.agents.length >= 7) return;
+
+    // Create new agent for this task
+    const agent = await this.workspaceAgentsService.addAgent({
+      workspaceId: this.workspace.id,
+      name: task.title,
+      summary: '',
+      taskId: task.id,
+      taskName: task.title,
+      taskDescription: task.description,
+    });
+    this.agents.push(agent);
+    this.activeAgentId = agent.id;
+    this.selectedTask = null;
+    this.agentCollapsed = false;
+
+    // Send initial message to the new agent's chat
+    const message = `I'm working on task: ${task.title}\n\nDescription: ${task.description || 'No description provided.'}\n\nHelp me plan and implement this task.`;
+    await this.chatService.sendMessage(message, agent.id, this.workspace.folderPath);
+  }
+
   private async loadEditorTool(): Promise<void> {
     if (!this.workspace?.editorToolId) return;
     if (this.toolSettingsService.tools.length === 0) {
@@ -602,16 +895,26 @@ export class WorkspaceDetailComponent implements OnInit {
   }
 
   private async loadWorkspaceTasks(): Promise<void> {
-    if (!this.workspace?.taskToolId || !this.workspace?.taskOrganization) return;
+    if (!this.workspace?.taskToolId) return;
 
-    // Load projects for this tool + organization
-    const projects = await this.projectsService.getByToolId(this.workspace.taskToolId);
-    const orgProjects = projects.filter(
-      p => p.organizationId === this.workspace!.taskOrganization
-    );
-    const projectExternalIds = new Set(orgProjects.map(p => p.externalId));
+    // Determine which project(s) to show
+    let projectExternalIds: Set<string>;
 
-    // Load all tasks and filter to this tool's projects
+    if (this.workspace.taskToolExternalId) {
+      // Specific project selected
+      projectExternalIds = new Set([this.workspace.taskToolExternalId]);
+    } else if (this.workspace.taskOrganization) {
+      // All projects for this org
+      const projects = await this.projectsService.getByToolId(this.workspace.taskToolId);
+      const orgProjects = projects.filter(
+        p => p.organizationId === this.workspace!.taskOrganization
+      );
+      projectExternalIds = new Set(orgProjects.map(p => p.externalId));
+    } else {
+      return;
+    }
+
+    // Load all tasks and filter to matching projects
     await this.tasksService.loadTasks();
     this.workspaceTasks = this.tasksService.tasks.filter(task => {
       if (task.toolId !== this.workspace!.taskToolId) return false;
@@ -622,6 +925,11 @@ export class WorkspaceDetailComponent implements OnInit {
         return false;
       }
     });
+  }
+
+  private async loadAgents(): Promise<void> {
+    if (!this.workspace) return;
+    this.agents = await this.workspaceAgentsService.getByWorkspace(this.workspace.id);
   }
 
   async openEditor(): Promise<void> {

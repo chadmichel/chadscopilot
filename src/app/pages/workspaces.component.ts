@@ -103,11 +103,25 @@ import { ProjectsService } from '../services/projects.service';
                 <label>Organization</label>
                 <select
                   [ngModel]="configWorkspace.taskOrganization"
-                  (ngModelChange)="configWorkspace.taskOrganization = $event; configDirty = true"
+                  (ngModelChange)="onOrgChange($event)"
                 >
                   <option value="">None</option>
                   @for (org of configOrganizations; track org) {
                     <option [value]="org">{{ org }}</option>
+                  }
+                </select>
+              </div>
+            }
+            @if (configWorkspace.taskOrganization && configProjects.length > 0) {
+              <div class="form-group">
+                <label>Project</label>
+                <select
+                  [ngModel]="configWorkspace.taskToolExternalId"
+                  (ngModelChange)="configWorkspace.taskToolExternalId = $event; configDirty = true"
+                >
+                  <option value="">None</option>
+                  @for (proj of configProjects; track proj.externalId) {
+                    <option [value]="proj.externalId">{{ proj.name }}</option>
                   }
                 </select>
               </div>
@@ -476,6 +490,7 @@ export class WorkspacesComponent implements OnInit {
   editorTools: Tool[] = [];
   taskTools: Tool[] = [];
   configOrganizations: string[] = [];
+  configProjects: { externalId: string; name: string }[] = [];
 
   constructor(
     public workspaceService: WorkspaceService,
@@ -536,8 +551,12 @@ export class WorkspacesComponent implements OnInit {
     this.configWorkspace = { ...workspace };
     this.configDirty = false;
     this.configOrganizations = [];
+    this.configProjects = [];
     if (workspace.taskToolId) {
       await this.loadOrganizationsForTool(workspace.taskToolId);
+      if (workspace.taskOrganization) {
+        await this.loadProjectsForOrg(workspace.taskToolId, workspace.taskOrganization);
+      }
     }
   }
 
@@ -545,19 +564,40 @@ export class WorkspacesComponent implements OnInit {
     this.configWorkspace = null;
     this.configDirty = false;
     this.configOrganizations = [];
+    this.configProjects = [];
   }
 
   async onTaskToolChange(toolId: string): Promise<void> {
     if (!this.configWorkspace) return;
     this.configWorkspace.taskToolId = toolId;
     this.configWorkspace.taskOrganization = '';
+    this.configWorkspace.taskToolExternalId = '';
     this.configDirty = true;
     this.configOrganizations = [];
+    this.configProjects = [];
     if (toolId) {
       await this.loadOrganizationsForTool(toolId);
       // Auto-select if only one org
       if (this.configOrganizations.length === 1) {
         this.configWorkspace.taskOrganization = this.configOrganizations[0];
+        await this.loadProjectsForOrg(toolId, this.configOrganizations[0]);
+        if (this.configProjects.length === 1) {
+          this.configWorkspace.taskToolExternalId = this.configProjects[0].externalId;
+        }
+      }
+    }
+  }
+
+  async onOrgChange(org: string): Promise<void> {
+    if (!this.configWorkspace) return;
+    this.configWorkspace.taskOrganization = org;
+    this.configWorkspace.taskToolExternalId = '';
+    this.configDirty = true;
+    this.configProjects = [];
+    if (org && this.configWorkspace.taskToolId) {
+      await this.loadProjectsForOrg(this.configWorkspace.taskToolId, org);
+      if (this.configProjects.length === 1) {
+        this.configWorkspace.taskToolExternalId = this.configProjects[0].externalId;
       }
     }
   }
@@ -574,12 +614,20 @@ export class WorkspacesComponent implements OnInit {
     this.configOrganizations = [...orgs];
   }
 
+  private async loadProjectsForOrg(toolId: string, org: string): Promise<void> {
+    const projects = await this.projectsService.getByToolId(toolId);
+    this.configProjects = projects
+      .filter(p => p.organizationId === org)
+      .map(p => ({ externalId: p.externalId, name: p.name }));
+  }
+
   async saveConfig(): Promise<void> {
     if (!this.configWorkspace || !this.configDirty) return;
     await this.workspaceService.updateWorkspace(this.configWorkspace.id, {
       editorToolId: this.configWorkspace.editorToolId,
       taskToolId: this.configWorkspace.taskToolId,
       taskOrganization: this.configWorkspace.taskOrganization,
+      taskToolExternalId: this.configWorkspace.taskToolExternalId,
     });
     this.closeConfig();
   }
