@@ -86,6 +86,7 @@ dist
 dist-electron
 
 # Angular output
+.angular/
 out-tsc
 
 # Gatsby files
