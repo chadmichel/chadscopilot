@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
 import path from 'path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'url';
 import { CopilotService } from './copilot.service.js';
 import { DatabaseService } from './database.service.js';
@@ -501,6 +502,44 @@ function setupIPC(): void {
     },
   );
 
+  // --- File System ---
+  ipcMain.handle('fs:read-file', async (_event, filePath: string) => {
+    try {
+      return await fs.promises.readFile(filePath, 'utf-8');
+    } catch (err) {
+      return null;
+    }
+  });
+
+  ipcMain.handle('fs:write-file', async (_event, filePath: string, content: string) => {
+    try {
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.promises.writeFile(filePath, content, 'utf-8');
+      return true;
+    } catch (err) {
+      return false;
+    }
+  });
+
+  ipcMain.handle('fs:exists', async (_event, filePath: string) => {
+    return fs.existsSync(filePath);
+  });
+
+  ipcMain.handle('fs:list-files', async (_event, dirPath: string, extension?: string) => {
+    try {
+      const exists = fs.existsSync(dirPath);
+      if (!exists) return [];
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+      let files = entries.filter(e => e.isFile()).map(e => e.name);
+      if (extension) {
+        files = files.filter(f => f.endsWith(extension));
+      }
+      return files;
+    } catch (err) {
+      return [];
+    }
+  });
+
   // --- Popout workspace window ---
   ipcMain.handle(
     'window:popout-workspace',
@@ -528,6 +567,37 @@ function setupIPC(): void {
         popout.loadFile(
           path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
           { hash: `/workspaces/${workspaceId}?popout=1` },
+        );
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'window:open-mermaid-builder',
+    (_event, workspaceId: string, filePath: string) => {
+      const win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 600,
+        minHeight: 400,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.cjs'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+        icon: appIcon,
+        titleBarStyle: 'hiddenInset',
+        backgroundColor: '#1a1a1a',
+        title: 'Mermaid Builder',
+      });
+
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        win.loadURL(`http://localhost:4300/#/mermaid-builder?workspaceId=${workspaceId}&filePath=${filePath}`);
+      } else {
+        win.loadFile(
+          path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
+          { hash: `/mermaid-builder?workspaceId=${workspaceId}&filePath=${filePath}` },
         );
       }
     },

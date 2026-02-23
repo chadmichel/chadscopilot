@@ -137,8 +137,43 @@ interface Tab {
                     </div>
                   }
                   @case ('design') {
-                    <div class="placeholder">
-                      <p>Design view coming soon.</p>
+                    <div class="design-tab">
+                      <div class="design-actions">
+                        <div class="split-button">
+                          <button class="split-main" (click)="openDesign()">
+                            New {{ selectedDesignType | uppercase }} Design
+                          </button>
+                          <button class="split-trigger" (click)="showDesignMenu = !showDesignMenu">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                          </button>
+                          @if (showDesignMenu) {
+                            <div class="split-menu">
+                              @for (type of designTypes; track type) {
+                                <button class="menu-item" (click)="selectDesignType(type)">{{ type | titlecase }}</button>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+                      @if (designFiles.length > 0) {
+                        <div class="design-file-list">
+                          @for (file of designFiles; track file) {
+                            <button class="design-file-item" (click)="openDesign('designs/' + file)">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <path d="M14 2v6h6"/>
+                              </svg>
+                              <span class="design-file-name">{{ file }}</span>
+                            </button>
+                          }
+                        </div>
+                      } @else {
+                        <div class="design-placeholder">
+                          <p>No design files yet. Create one to get started.</p>
+                        </div>
+                      }
                     </div>
                   }
                   @case ('tasks') {
@@ -767,6 +802,135 @@ interface Tab {
         background: var(--theme-primary-hover);
       }
 
+      /* Design tab */
+      .design-tab {
+        padding: 24px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .design-actions {
+        display: flex;
+        justify-content: center;
+      }
+      .design-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        color: var(--app-text-muted);
+        font-size: 14px;
+        text-align: center;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+      .design-file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .design-file-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        color: var(--app-text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: left;
+      }
+      .design-file-item:hover {
+        border-color: var(--theme-primary);
+        color: var(--theme-primary);
+      }
+      .design-file-item svg {
+        color: var(--app-text-muted);
+        flex-shrink: 0;
+      }
+      .design-file-item:hover svg {
+        color: var(--theme-primary);
+      }
+      .design-file-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Split Button */
+      .split-button {
+        display: flex;
+        position: relative;
+        border-radius: 8px;
+        overflow: visible;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      .split-main {
+        padding: 12px 20px;
+        background: var(--theme-primary);
+        color: #fff;
+        border: none;
+        border-radius: 8px 0 0 8px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.15s;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .split-main:hover {
+        background: var(--theme-primary-hover);
+      }
+      .split-trigger {
+        padding: 0 10px;
+        background: var(--theme-primary);
+        color: #fff;
+        border: none;
+        border-radius: 0 8px 8px 0;
+        cursor: pointer;
+        transition: background-color 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .split-trigger:hover {
+        background: var(--theme-primary-hover);
+      }
+      .split-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        width: 100%;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        overflow: hidden;
+      }
+      .menu-item {
+        width: 100%;
+        padding: 10px 16px;
+        text-align: left;
+        background: transparent;
+        border: none;
+        color: var(--app-text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color 0.15s;
+      }
+      .menu-item:hover {
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        color: var(--theme-primary);
+      }
+
       /* Not found */
       .not-found {
         display: flex;
@@ -810,6 +974,12 @@ export class WorkspaceDetailComponent implements OnInit {
   editorTool: Tool | null = null;
   isPopout = false;
 
+  // Design tab
+  designTypes: string[] = ['mermaid', 'ux', 'system'];
+  selectedDesignType = 'mermaid';
+  showDesignMenu = false;
+  designFiles: string[] = [];
+
   // Tasks for this workspace
   workspaceTasks: Task[] = [];
 
@@ -851,6 +1021,7 @@ export class WorkspaceDetailComponent implements OnInit {
         await this.loadEditorTool();
         await this.loadWorkspaceTasks();
         await this.loadAgents();
+        await this.loadDesignFiles();
       } else {
         localStorage.removeItem('chadscopilot_last_workspace_id');
       }
@@ -906,6 +1077,20 @@ export class WorkspaceDetailComponent implements OnInit {
     this.activeTab = tabId;
     if (tabId !== 'tasks') {
       this.selectedTask = null;
+    }
+  }
+
+  selectDesignType(type: string) {
+    this.selectedDesignType = type;
+    this.showDesignMenu = false;
+  }
+
+  async openDesign(fileName?: string) {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    if (this.selectedDesignType === 'mermaid') {
+      const file = fileName || 'designs/mermaid.md';
+      await electron?.openMermaidBuilder?.(this.workspace.id, file);
     }
   }
 
@@ -989,6 +1174,15 @@ export class WorkspaceDetailComponent implements OnInit {
   private async loadAgents(): Promise<void> {
     if (!this.workspace) return;
     this.agents = await this.workspaceAgentsService.getByWorkspace(this.workspace.id);
+  }
+
+  private async loadDesignFiles(): Promise<void> {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    const sep = this.workspace.folderPath.includes('\\') ? '\\' : '/';
+    const designsDir = `${this.workspace.folderPath}${sep}designs`;
+    const files: string[] = await electron?.listFiles?.(designsDir, '.md') ?? [];
+    this.designFiles = files.sort();
   }
 
   async openEditor(): Promise<void> {

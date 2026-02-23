@@ -7,6 +7,7 @@ import { CalendarComponent } from './pages/calendar.component';
 import { ToolsComponent } from './pages/tools.component';
 import { ToolConfigureComponent } from './pages/tool-configure.component';
 import { PreferencesComponent } from './pages/preferences.component';
+import { MermaidBuilderComponent } from './pages/mermaid-builder.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'agent', pathMatch: 'full' },
@@ -18,4 +19,5 @@ export const routes: Routes = [
   { path: 'tools', component: ToolsComponent },
   { path: 'tools/:id', component: ToolConfigureComponent },
   { path: 'preferences', component: PreferencesComponent },
+  { path: 'mermaid-builder', component: MermaidBuilderComponent },
 ];

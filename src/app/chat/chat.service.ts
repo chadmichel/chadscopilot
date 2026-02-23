@@ -1,4 +1,5 @@
 import { Injectable, NgZone } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -16,6 +17,10 @@ declare global {
       getWorkspaces: () => Promise<any[]>;
       addWorkspace: (id: string, name: string, folderPath: string) => Promise<any>;
       removeWorkspace: (id: string) => Promise<void>;
+      readFile: (filePath: string) => Promise<string | null>;
+      writeFile: (filePath: string, content: string) => Promise<boolean>;
+      exists: (filePath: string) => Promise<boolean>;
+      openMermaidBuilder: (workspaceId: string, filePath: string) => Promise<void>;
     };
   }
 }
@@ -25,6 +30,8 @@ declare global {
 })
 export class ChatService {
   private messagesMap = new Map<string, ChatMessage[]>();
+  private messagesSubject = new BehaviorSubject<Record<string, ChatMessage[]>>({});
+  messages$ = this.messagesSubject.asObservable();
   private streamingMap = new Map<string, boolean>();
 
   private get electron() {
@@ -40,8 +47,17 @@ export class ChatService {
     if (!messages) {
       messages = [];
       this.messagesMap.set(workspaceId, messages);
+      this.notifyMessagesChange();
     }
     return messages;
+  }
+
+  private notifyMessagesChange(): void {
+    const record: Record<string, ChatMessage[]> = {};
+    this.messagesMap.forEach((msgs, id) => {
+      record[id] = [...msgs];
+    });
+    this.messagesSubject.next(record);
   }
 
   getIsStreaming(workspaceId: string = 'global'): boolean {
@@ -61,6 +77,7 @@ export class ChatService {
         } else {
           messages.push({ role: 'assistant', content: delta });
         }
+        this.notifyMessagesChange();
       });
     });
 
@@ -82,9 +99,10 @@ export class ChatService {
     });
   }
 
-  async sendMessage(content: string, workspaceId: string = 'global', folderPath?: string): Promise<void> {
+  async sendMessage(content: string, workspaceId: string = 'global', folderPath?: string, displayContent?: string): Promise<void> {
     const messages = this.getMessages(workspaceId);
-    messages.push({ role: 'user', content });
+    messages.push({ role: 'user', content: displayContent || content });
+    this.notifyMessagesChange();
 
     if (this.electron) {
       await this.electron.sendMessage(workspaceId, content, folderPath);

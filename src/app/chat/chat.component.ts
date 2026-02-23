@@ -21,6 +21,7 @@ export class ChatComponent implements AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
   @Input() workspaceId: string = 'global';
   @Input() folderPath: string = '';
+  @Input() contextProvider: (() => string) | null = null;
 
   userInput = '';
   isLoading = false;
@@ -39,7 +40,14 @@ export class ChatComponent implements AfterViewChecked {
     this.isLoading = true;
 
     try {
-      await this.chatService.sendMessage(message, this.workspaceId, this.folderPath || undefined);
+      let fullMessage = message;
+      if (this.contextProvider) {
+        const context = this.contextProvider();
+        if (context) {
+          fullMessage = `${context}\n\nUser request: ${message}`;
+        }
+      }
+      await this.chatService.sendMessage(fullMessage, this.workspaceId, this.folderPath || undefined, message);
     } finally {
       this.isLoading = false;
     }

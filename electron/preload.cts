@@ -167,4 +167,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- Popout workspace window ---
   popoutWorkspace: (workspaceId: string, workspaceName: string): Promise<void> =>
     ipcRenderer.invoke('window:popout-workspace', workspaceId, workspaceName),
+
+  openMermaidBuilder: (workspaceId: string, filePath: string): Promise<void> =>
+    ipcRenderer.invoke('window:open-mermaid-builder', workspaceId, filePath),
+
+  // --- File System ---
+  readFile: (filePath: string): Promise<string | null> =>
+    ipcRenderer.invoke('fs:read-file', filePath),
+
+  writeFile: (filePath: string, content: string): Promise<boolean> =>
+    ipcRenderer.invoke('fs:write-file', filePath, content),
+
+  exists: (filePath: string): Promise<boolean> =>
+    ipcRenderer.invoke('fs:exists', filePath),
+
+  listFiles: (dirPath: string, extension?: string): Promise<string[]> =>
+    ipcRenderer.invoke('fs:list-files', dirPath, extension),
 });
