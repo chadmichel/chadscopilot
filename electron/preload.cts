@@ -171,6 +171,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openMermaidBuilder: (workspaceId: string, filePath: string): Promise<void> =>
     ipcRenderer.invoke('window:open-mermaid-builder', workspaceId, filePath),
 
+  openPlanEditor: (workspaceId: string, filePath: string): Promise<void> =>
+    ipcRenderer.invoke('window:open-plan-editor', workspaceId, filePath),
+
   // --- File System ---
   readFile: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:read-file', filePath),

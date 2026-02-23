@@ -602,6 +602,37 @@ function setupIPC(): void {
       }
     },
   );
+
+  ipcMain.handle(
+    'window:open-plan-editor',
+    (_event, workspaceId: string, filePath: string) => {
+      const win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 600,
+        minHeight: 400,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.cjs'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+        icon: appIcon,
+        titleBarStyle: 'hiddenInset',
+        backgroundColor: '#1a1a1a',
+        title: 'Plan Editor',
+      });
+
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        win.loadURL(`http://localhost:4300/#/plan-editor?workspaceId=${workspaceId}&filePath=${filePath}`);
+      } else {
+        win.loadFile(
+          path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
+          { hash: `/plan-editor?workspaceId=${workspaceId}&filePath=${filePath}` },
+        );
+      }
+    },
+  );
 }
 
 app.whenReady().then(async () => {

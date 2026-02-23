@@ -132,8 +132,33 @@ interface Tab {
               <div class="tab-content">
                 @switch (activeTab) {
                   @case ('plan') {
-                    <div class="placeholder">
-                      <p>Plan view coming soon.</p>
+                    <div class="design-tab">
+                      <div class="design-actions">
+                        <button class="toolbar-btn" (click)="openPlan()">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14"/>
+                            <path d="M5 12h14"/>
+                          </svg>
+                          New Plan
+                        </button>
+                      </div>
+                      @if (planFiles.length > 0) {
+                        <div class="design-file-list">
+                          @for (file of planFiles; track file) {
+                            <button class="design-file-item" (click)="openPlan('plans/' + file)">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <path d="M14 2v6h6"/>
+                              </svg>
+                              <span class="design-file-name">{{ file }}</span>
+                            </button>
+                          }
+                        </div>
+                      } @else {
+                        <div class="design-placeholder">
+                          <p>No plan files yet. Create one to get started.</p>
+                        </div>
+                      }
                     </div>
                   }
                   @case ('design') {
@@ -865,6 +890,26 @@ interface Tab {
         white-space: nowrap;
       }
 
+      /* Toolbar button */
+      .toolbar-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        background: var(--theme-primary);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.15s;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      .toolbar-btn:hover {
+        background: var(--theme-primary-hover);
+      }
+
       /* Split Button */
       .split-button {
         display: flex;
@@ -979,6 +1024,7 @@ export class WorkspaceDetailComponent implements OnInit {
   selectedDesignType = 'mermaid';
   showDesignMenu = false;
   designFiles: string[] = [];
+  planFiles: string[] = [];
 
   // Tasks for this workspace
   workspaceTasks: Task[] = [];
@@ -1022,6 +1068,7 @@ export class WorkspaceDetailComponent implements OnInit {
         await this.loadWorkspaceTasks();
         await this.loadAgents();
         await this.loadDesignFiles();
+        await this.loadPlanFiles();
       } else {
         localStorage.removeItem('chadscopilot_last_workspace_id');
       }
@@ -1083,6 +1130,13 @@ export class WorkspaceDetailComponent implements OnInit {
   selectDesignType(type: string) {
     this.selectedDesignType = type;
     this.showDesignMenu = false;
+  }
+
+  async openPlan(fileName?: string) {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    const file = fileName || 'plans/plan.json';
+    await electron?.openPlanEditor?.(this.workspace.id, file);
   }
 
   async openDesign(fileName?: string) {
@@ -1174,6 +1228,15 @@ export class WorkspaceDetailComponent implements OnInit {
   private async loadAgents(): Promise<void> {
     if (!this.workspace) return;
     this.agents = await this.workspaceAgentsService.getByWorkspace(this.workspace.id);
+  }
+
+  private async loadPlanFiles(): Promise<void> {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    const sep = this.workspace.folderPath.includes('\\') ? '\\' : '/';
+    const plansDir = `${this.workspace.folderPath}${sep}plans`;
+    const files: string[] = await electron?.listFiles?.(plansDir, '.json') ?? [];
+    this.planFiles = files.sort();
   }
 
   private async loadDesignFiles(): Promise<void> {

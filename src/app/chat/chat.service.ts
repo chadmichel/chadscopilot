@@ -21,6 +21,7 @@ declare global {
       writeFile: (filePath: string, content: string) => Promise<boolean>;
       exists: (filePath: string) => Promise<boolean>;
       openMermaidBuilder: (workspaceId: string, filePath: string) => Promise<void>;
+      openPlanEditor: (workspaceId: string, filePath: string) => Promise<void>;
     };
   }
 }
