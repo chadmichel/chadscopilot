@@ -23,14 +23,16 @@ interface Tab {
   template: `
     @if (workspace) {
       <div class="detail-container">
-        <div class="detail-header">
-          <button class="back-btn" (click)="goBack()" aria-label="Back to workspaces">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5"/>
-              <path d="M12 19l-7-7 7-7"/>
-            </svg>
-          </button>
+        <div class="detail-header" [class.popout-header]="isPopout">
+          @if (!isPopout) {
+            <button class="back-btn" (click)="goBack()" aria-label="Back to workspaces">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5"/>
+                <path d="M12 19l-7-7 7-7"/>
+              </svg>
+            </button>
+          }
           <h2>{{ workspace.name }}</h2>
           <span class="path-badge">{{ workspace.folderPath }}</span>
           @if (editorTool) {
@@ -41,6 +43,16 @@ interface Tab {
                 <path d="m15 5 4 4"/>
               </svg>
               {{ editorTool.title }}
+            </button>
+          }
+          @if (!isPopout) {
+            <button class="popout-btn" [class.ml-auto]="!editorTool" (click)="popoutWorkspace()" title="Open in new window">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
             </button>
           }
         </div>
@@ -344,6 +356,40 @@ interface Tab {
       .editor-btn:hover {
         background: color-mix(in srgb, var(--theme-primary), transparent 90%);
         border-color: var(--theme-primary);
+      }
+
+      /* Popout button */
+      .popout-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        color: var(--app-text-muted);
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .popout-btn:hover {
+        color: var(--theme-primary);
+        border-color: var(--theme-primary);
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+      }
+      .ml-auto {
+        margin-left: auto;
+      }
+
+      /* Popout window header — draggable titlebar */
+      .popout-header {
+        -webkit-app-region: drag;
+        padding-left: 80px; /* room for macOS traffic lights */
+      }
+      .popout-header button,
+      .popout-header select {
+        -webkit-app-region: no-drag;
       }
 
       /* Split layout */
@@ -754,6 +800,7 @@ export class WorkspaceDetailComponent implements OnInit {
   agentCollapsed = false;
   tabsCollapsed = false;
   editorTool: Tool | null = null;
+  isPopout = false;
 
   // Tasks for this workspace
   workspaceTasks: Task[] = [];
@@ -783,8 +830,12 @@ export class WorkspaceDetailComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
+    this.isPopout = this.route.snapshot.queryParamMap.get('popout') === '1';
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
+      if (this.workspaceService.workspaces.length === 0) {
+        await this.workspaceService.loadWorkspaces();
+      }
       this.workspace = this.workspaceService.getWorkspace(id);
       if (this.workspace) {
         this.activeAgentId = this.workspace.id;
@@ -946,6 +997,12 @@ export class WorkspaceDetailComponent implements OnInit {
     } else if (title.includes('antigravity')) {
       await electron?.antigravityOpen?.(folderPath, cliPath);
     }
+  }
+
+  async popoutWorkspace(): Promise<void> {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    await electron?.popoutWorkspace?.(this.workspace.id, this.workspace.name);
   }
 
   goBack(): void {

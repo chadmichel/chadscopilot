@@ -500,6 +500,38 @@ function setupIPC(): void {
       return antigravityService.open(folderPath, cliPath);
     },
   );
+
+  // --- Popout workspace window ---
+  ipcMain.handle(
+    'window:popout-workspace',
+    (_event, workspaceId: string, workspaceName: string) => {
+      const popout = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        minWidth: 400,
+        minHeight: 300,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.cjs'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+        icon: appIcon,
+        titleBarStyle: 'hiddenInset',
+        backgroundColor: '#1a1a1a',
+        title: workspaceName,
+      });
+
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        popout.loadURL(`http://localhost:4300/#/workspaces/${workspaceId}?popout=1`);
+      } else {
+        popout.loadFile(
+          path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
+          { hash: `/workspaces/${workspaceId}?popout=1` },
+        );
+      }
+    },
+  );
 }
 
 app.whenReady().then(async () => {

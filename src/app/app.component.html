@@ -1,11 +1,15 @@
-<header class="app-header">
-  <div class="header-brand">
-    <img src="logo.png" alt="What Is Done - Copilot" class="header-logo" />
-    <span class="header-title">What Is Done (Copilot)</span>
-  </div>
-</header>
+@if (!isPopout) {
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="logo.png" alt="What Is Done - Copilot" class="header-logo" />
+      <span class="header-title">What Is Done (Copilot)</span>
+    </div>
+  </header>
+}
 <div class="app-container">
-  <app-sidebar></app-sidebar>
+  @if (!isPopout) {
+    <app-sidebar></app-sidebar>
+  }
   <main class="app-main">
     <router-outlet></router-outlet>
   </main>

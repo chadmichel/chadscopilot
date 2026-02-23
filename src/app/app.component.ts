@@ -11,9 +11,12 @@ import { ThemeService } from './services/theme.service';
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit {
+  isPopout = false;
+
   constructor(private themeService: ThemeService) { }
 
   ngOnInit() {
     this.themeService.init();
+    this.isPopout = window.location.hash.includes('popout=1');
   }
 }

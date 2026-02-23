@@ -163,4 +163,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   antigravityOpen: (folderPath: string, cliPath?: string): Promise<boolean> =>
     ipcRenderer.invoke('editor:antigravity-open', folderPath, cliPath),
+
+  // --- Popout workspace window ---
+  popoutWorkspace: (workspaceId: string, workspaceName: string): Promise<void> =>
+    ipcRenderer.invoke('window:popout-workspace', workspaceId, workspaceName),
 });
