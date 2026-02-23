@@ -402,7 +402,7 @@ interface Tab {
         flex: 1;
         min-width: 0;
         border-right: 1px solid var(--app-border);
-        overflow: hidden;
+        overflow: visible;
         position: relative;
         transition: flex 0.2s ease;
         display: flex;
@@ -417,7 +417,7 @@ interface Tab {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: visible;
         position: relative;
         transition: flex 0.2s ease;
       }
@@ -505,9 +505,9 @@ interface Tab {
       /* Panel toggle buttons */
       .panel-toggle {
         position: absolute;
-        top: 8px;
-        width: 24px;
-        height: 24px;
+        top: 50%;
+        width: 18px;
+        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -516,31 +516,39 @@ interface Tab {
         background: var(--app-surface);
         color: var(--app-text-muted);
         cursor: pointer;
-        transition: color 0.15s, background-color 0.15s;
-        z-index: 1;
+        transition: all 0.15s;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
       .panel-toggle:hover {
-        color: var(--app-text);
+        color: var(--theme-primary);
+        border-color: var(--theme-primary);
         background: var(--app-background);
       }
       .agent-toggle {
-        right: 8px;
+        right: -9px;
+        transform: translateY(-50%);
+        margin-top: -20px;
       }
       .agent-panel.collapsed .agent-toggle {
-        right: auto;
-        left: 50%;
-        top: auto;
-        bottom: 12px;
-        transform: translateX(-50%);
+        right: -9px;
+        left: auto;
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+        margin-top: -20px;
       }
       .tabs-toggle {
-        left: 8px;
+        left: -9px;
+        transform: translateY(-50%);
+        margin-top: 20px;
       }
       .right-panel.collapsed .tabs-toggle {
-        left: 50%;
-        top: auto;
-        bottom: 12px;
-        transform: translateX(-50%);
+        left: -9px;
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+        margin-top: 20px;
       }
 
       /* Tabs */
@@ -827,7 +835,7 @@ export class WorkspaceDetailComponent implements OnInit {
     private projectsService: ProjectsService,
     private workspaceAgentsService: WorkspaceAgentsService,
     private chatService: ChatService,
-  ) {}
+  ) { }
 
   async ngOnInit(): Promise<void> {
     this.isPopout = this.route.snapshot.queryParamMap.get('popout') === '1';
