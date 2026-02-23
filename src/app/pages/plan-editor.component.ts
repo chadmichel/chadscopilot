@@ -22,6 +22,7 @@ interface PlanActivity {
     durationDays: number;
     startDate: string;
     endDate: string;
+    dependsOn: string[];
 }
 
 interface EarnedValueEntry {
@@ -36,6 +37,7 @@ interface EarnedValueEntry {
 }
 
 interface PlanData {
+    startDate: string;
     resources: PlanResource[];
     activities: PlanActivity[];
     earnedValue: EarnedValueEntry[];
@@ -68,8 +70,35 @@ interface PlanData {
            <button class="save-btn" (click)="saveFile()" [disabled]="!isDirty">
              Save
            </button>
+           <button class="settings-btn" (click)="showSettings = true" title="Project Settings">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <circle cx="12" cy="12" r="3"/>
+               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+             </svg>
+           </button>
         </div>
       </header>
+
+      @if (showSettings) {
+        <div class="dialog-overlay" (click)="showSettings = false">
+          <div class="dialog" (click)="$event.stopPropagation()">
+            <div class="dialog-header">
+              <h3>Project Settings</h3>
+              <button class="dialog-close" (click)="showSettings = false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div class="dialog-body">
+              <div class="form-group">
+                <label for="startDate">Project Start Date</label>
+                <input id="startDate" type="date" class="form-input" [(ngModel)]="plan.startDate" (ngModelChange)="markDirty()" />
+              </div>
+            </div>
+          </div>
+        </div>
+      }
 
       <div class="builder-body">
         <div class="agent-side">
@@ -150,6 +179,7 @@ interface PlanData {
                           <th style="width:90px">Duration</th>
                           <th style="width:130px">Start Date</th>
                           <th style="width:130px">End Date</th>
+                          <th style="width:200px">Depends On</th>
                           <th style="width:60px"></th>
                         </tr>
                       </thead>
@@ -168,6 +198,28 @@ interface PlanData {
                             <td><input class="cell-input" type="number" [(ngModel)]="act.durationDays" (ngModelChange)="markDirty()" min="0" /></td>
                             <td><input class="cell-input" type="date" [(ngModel)]="act.startDate" (ngModelChange)="markDirty()" /></td>
                             <td><input class="cell-input" type="date" [(ngModel)]="act.endDate" (ngModelChange)="markDirty()" /></td>
+                            <td>
+                              <div class="deps-cell">
+                                <div class="deps-tags">
+                                  @for (depId of act.dependsOn; track depId) {
+                                    <span class="dep-tag">
+                                      {{ getActivityName(depId) }}
+                                      <button class="dep-remove" (click)="removeDependency(act, depId)">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                          <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+                                        </svg>
+                                      </button>
+                                    </span>
+                                  }
+                                </div>
+                                <select class="cell-input dep-select" (change)="addDependency(act, $any($event.target).value); $any($event.target).value = ''">
+                                  <option value="">+ Add...</option>
+                                  @for (other of getAvailableDependencies(act); track other.id) {
+                                    <option [value]="other.id">{{ other.name || other.id }}</option>
+                                  }
+                                </select>
+                              </div>
+                            </td>
                             <td>
                               <button class="remove-btn" (click)="removeActivity(act.id)" title="Remove">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -614,6 +666,148 @@ interface PlanData {
       overflow: hidden;
     }
 
+    /* Settings button */
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      color: var(--app-text-muted);
+      border: 1px solid var(--app-border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-left: 4px;
+    }
+    .settings-btn:hover {
+      color: var(--theme-primary);
+      border-color: var(--theme-primary);
+    }
+
+    /* Dialog */
+    .dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .dialog {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      width: 400px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--app-border);
+    }
+    .dialog-header h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--app-text);
+    }
+    .dialog-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: var(--app-text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .dialog-close:hover {
+      background: var(--app-background);
+      color: var(--app-text);
+    }
+    .dialog-body {
+      padding: 20px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--app-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .form-input {
+      background: var(--app-background);
+      color: var(--app-text);
+      border: 1px solid var(--app-border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+    }
+    .form-input:focus {
+      border-color: var(--theme-primary);
+    }
+
+    /* Dependency tags */
+    .deps-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .deps-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+    .dep-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: color-mix(in srgb, var(--theme-primary), transparent 85%);
+      color: var(--theme-primary);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .dep-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      background: transparent;
+      border: none;
+      color: var(--theme-primary);
+      cursor: pointer;
+      padding: 0;
+      border-radius: 2px;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .dep-remove:hover {
+      opacity: 1;
+    }
+    .dep-select {
+      font-size: 11px !important;
+      padding: 3px 6px !important;
+    }
+
     /* Earned Value tab */
     .ev-container {
       flex: 1;
@@ -626,8 +820,9 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     workspaceId: string = '';
     filePath: string = 'plans/plan.json';
     workspace: Workspace | null = null;
-    plan: PlanData = { resources: [], activities: [], earnedValue: [] };
+    plan: PlanData = { startDate: '', resources: [], activities: [], earnedValue: [] };
     isDirty = false;
+    showSettings = false;
     activeTab: 'activities' | 'gantt' | 'ev' = 'activities';
     ganttMinDate = '';
     ganttMaxDate = '';
@@ -637,7 +832,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
     getPlanContext = (): string => {
         const json = JSON.stringify(this.plan, null, 2);
-        return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nIMPORTANT: Do NOT include explanatory text in your response. Output ONLY the full updated plan JSON inside a single \`\`\`json code block with no other text. The JSON must have "resources", "activities", and "earnedValue" arrays. Each resource has: id, name, allocation, daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, startDate, endDate. Each earnedValue entry has: date, projectedPercent, projectedEarned, actualPercent, actualEarned, activitiesFinished[], activitiesWorked[], resources[].`;
+        return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nIMPORTANT: Do NOT include explanatory text in your response. Output ONLY the full updated plan JSON inside a single \`\`\`json code block with no other text. The JSON must have "startDate" (string, project start date), "resources", "activities", and "earnedValue" arrays. Each resource has: id, name, allocation, daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, startDate, endDate, dependsOn (string[] of activity ids). Each earnedValue entry has: date, projectedPercent, projectedEarned, actualPercent, actualEarned, activitiesFinished[], activitiesWorked[], resources[].`;
     };
 
     private get electron() { return (window as any).electronAPI; }
@@ -673,8 +868,9 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
                         const parsed = JSON.parse(match[1].trim());
                         if (parsed.activities || parsed.resources || parsed.earnedValue) {
                             this.plan = {
+                                startDate: parsed.startDate || this.plan.startDate || '',
                                 resources: parsed.resources || [],
-                                activities: parsed.activities || [],
+                                activities: (parsed.activities || []).map((a: any) => ({ ...a, dependsOn: a.dependsOn || [] })),
                                 earnedValue: parsed.earnedValue || [],
                             };
                             this.isDirty = true;
@@ -700,8 +896,9 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
             try {
                 const parsed = JSON.parse(result);
                 this.plan = {
+                    startDate: parsed.startDate || '',
                     resources: parsed.resources || [],
-                    activities: parsed.activities || [],
+                    activities: (parsed.activities || []).map((a: any) => ({ ...a, dependsOn: a.dependsOn || [] })),
                     earnedValue: parsed.earnedValue || [],
                 };
                 this.isDirty = false;
@@ -737,12 +934,16 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
             durationDays: 1,
             startDate: '',
             endDate: '',
+            dependsOn: [],
         });
         this.isDirty = true;
     }
 
     removeActivity(id: string) {
         this.plan.activities = this.plan.activities.filter(a => a.id !== id);
+        for (const act of this.plan.activities) {
+            act.dependsOn = act.dependsOn.filter(d => d !== id);
+        }
         this.isDirty = true;
         this.computeGanttRange();
     }
@@ -766,6 +967,26 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     onResourceSelect(act: PlanActivity) {
         const res = this.plan.resources.find(r => r.id === act.resourceId);
         act.resourceName = res?.name || '';
+        this.isDirty = true;
+    }
+
+    getActivityName(id: string): string {
+        const act = this.plan.activities.find(a => a.id === id);
+        return act?.name || id;
+    }
+
+    getAvailableDependencies(act: PlanActivity): PlanActivity[] {
+        return this.plan.activities.filter(a => a.id !== act.id && !act.dependsOn.includes(a.id));
+    }
+
+    addDependency(act: PlanActivity, depId: string) {
+        if (!depId || act.dependsOn.includes(depId)) return;
+        act.dependsOn.push(depId);
+        this.isDirty = true;
+    }
+
+    removeDependency(act: PlanActivity, depId: string) {
+        act.dependsOn = act.dependsOn.filter(d => d !== depId);
         this.isDirty = true;
     }
 
