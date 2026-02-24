@@ -390,6 +390,39 @@ interface Tab {
         </div>
       </div>
     }
+
+    @if (showNewDesignDialog) {
+      <div class="dialog-overlay">
+        <div class="dialog">
+          <div class="dialog-header">
+            <h3>New {{ selectedDesignType | uppercase }} Design</h3>
+            <button class="dialog-close" (click)="cancelNewDesign()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label for="design-name">Enter design name</label>
+              <input 
+                id="design-name" 
+                type="text" 
+                class="form-input" 
+                [(ngModel)]="newDesignName" 
+                placeholder="My Architecture Diagram"
+                (keydown.enter)="confirmNewDesign()"
+                autofocus
+              />
+            </div>
+            <div class="dialog-footer">
+              <button class="btn-cancel" (click)="cancelNewDesign()">Cancel</button>
+              <button class="btn-confirm" (click)="confirmNewDesign()" [disabled]="!newDesignName.trim()">Create Design</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [
     `
@@ -1219,6 +1252,9 @@ export class WorkspaceDetailComponent implements OnInit {
   showNewPlanDialog = false;
   newPlanName = '';
 
+  showNewDesignDialog = false;
+  newDesignName = '';
+
   // Tasks for this workspace
   workspaceTasks: Task[] = [];
 
@@ -1358,11 +1394,44 @@ export class WorkspaceDetailComponent implements OnInit {
 
   async openDesign(fileName?: string) {
     if (!this.workspace) return;
+
+    if (!fileName) {
+      this.newDesignName = '';
+      this.showNewDesignDialog = true;
+      return;
+    }
+
     const electron = (window as any).electronAPI;
     if (this.selectedDesignType === 'mermaid') {
-      const file = fileName || 'designs/mermaid.md';
+      await electron?.openMermaidBuilder?.(this.workspace.id, fileName);
+    }
+    setTimeout(() => this.loadDesignFiles(), 1000);
+  }
+
+  async confirmNewDesign() {
+    if (!this.workspace || !this.newDesignName.trim()) return;
+
+    const electron = (window as any).electronAPI;
+    const sanitized = this.newDesignName.trim().replace(/[^a-z0-9_\-]/gi, '_');
+
+    let file = '';
+    if (this.selectedDesignType === 'mermaid') {
+      file = `designs/${sanitized}.md`;
+    } else {
+      // Handle other types if needed
+      file = `designs/${sanitized}.${this.selectedDesignType}`;
+    }
+
+    this.showNewDesignDialog = false;
+    if (this.selectedDesignType === 'mermaid') {
       await electron?.openMermaidBuilder?.(this.workspace.id, file);
     }
+    setTimeout(() => this.loadDesignFiles(), 1000);
+  }
+
+  cancelNewDesign() {
+    this.showNewDesignDialog = false;
+    this.newDesignName = '';
   }
 
   async startWorkOnTask(task: Task): Promise<void> {
