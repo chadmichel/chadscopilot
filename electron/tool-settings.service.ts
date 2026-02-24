@@ -28,6 +28,7 @@ const SEED_TOOLS: Omit<Tool, 'id'>[] = [
   { title: 'Project Design', description: 'Project design documentation', isEnabled: true, toolType: 'project design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'System Design', description: 'System design documentation', isEnabled: true, toolType: 'system design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'UX Design', description: 'UX design documentation', isEnabled: true, toolType: 'ux design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'Outlook Calendar', description: 'Microsoft Outlook calendar integration', isEnabled: false, toolType: 'calendar', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
 ];
 
 function rowToTool(row: ToolRow): Tool {
@@ -55,27 +56,29 @@ export class ToolSettingsService {
   }
 
   private seed(): void {
-    const count = this.db.prepare('SELECT COUNT(*) as cnt FROM tools').get() as unknown as { cnt: number };
-    if (count.cnt > 0) return;
-
-    const stmt = this.db.prepare(
+    const checkStmt = this.db.prepare('SELECT COUNT(*) as cnt FROM tools WHERE title = ?');
+    const insertStmt = this.db.prepare(
       `INSERT INTO tools (id, title, description, isEnabled, toolType, prompt, localPath, token, useGitHubToken, organization, extra)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
+
     for (const tool of SEED_TOOLS) {
-      stmt.run(
-        crypto.randomUUID(),
-        tool.title,
-        tool.description,
-        tool.isEnabled ? 1 : 0,
-        tool.toolType,
-        tool.prompt,
-        tool.localPath,
-        encrypt(tool.token),
-        tool.useGitHubToken ? 1 : 0,
-        tool.organization,
-        tool.extra,
-      );
+      const row = checkStmt.get(tool.title) as any;
+      if (row && row.cnt === 0) {
+        insertStmt.run(
+          crypto.randomUUID(),
+          tool.title,
+          tool.description,
+          tool.isEnabled ? 1 : 0,
+          tool.toolType,
+          tool.prompt,
+          tool.localPath,
+          encrypt(tool.token),
+          tool.useGitHubToken ? 1 : 0,
+          tool.organization,
+          tool.extra,
+        );
+      }
     }
   }
 

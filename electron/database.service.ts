@@ -209,6 +209,22 @@ export class DatabaseService {
         taskDescription TEXT DEFAULT ''
       )
     `);
+
+    // Calendars table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS calendars (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        subject TEXT,
+        start TEXT,
+        end TEXT,
+        body TEXT,
+        location TEXT,
+        isAllDay INTEGER,
+        type TEXT DEFAULT 'outlook',
+        createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
   }
 
   // --- Workspaces ---

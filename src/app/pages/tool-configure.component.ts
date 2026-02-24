@@ -370,6 +370,34 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
             </div>
           }
 
+          <!-- Calendar Connection -->
+          @if (tool.toolType === 'calendar') {
+            <div class="section-divider">
+              <span class="section-label">Outlook Connection</span>
+            </div>
+
+            <div class="connectivity-row">
+              @if (!outlookAccountId) {
+                <button class="connectivity-btn" (click)="loginOutlook()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+                  </svg>
+                  Connect Outlook
+                </button>
+              } @else {
+                <span class="connectivity-result ok">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                  Connected
+                </span>
+                <button class="connectivity-btn danger" (click)="logoutOutlook()">
+                  Sign Out
+                </button>
+              }
+            </div>
+          }
+
           <!-- Save -->
           <div class="form-actions">
             <div></div>
@@ -784,6 +812,13 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
       .connectivity-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+      .connectivity-btn.danger {
+        color: #ef4444;
+      }
+      .connectivity-btn.danger:hover:not(:disabled) {
+        background: color-mix(in srgb, #ef4444, transparent 90%);
+        border-color: #ef4444;
       }
       .spinner {
         width: 14px;
@@ -1223,18 +1258,19 @@ export class ToolConfigureComponent implements OnInit {
   showLogPanel = false;
   syncLogs: any[] = [];
 
-  // Copilot / gh CLI connectivity
+  copilotLogin = '';
   copilotAuthChecked = false;
   copilotAuthenticated = false;
-  copilotLogin = '';
+  outlookAccountId: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private toolSettingsService: ToolSettingsService
-  ) {}
+  ) { }
 
   async ngOnInit(): Promise<void> {
+    this.outlookAccountId = localStorage.getItem('outlook_account_id');
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       // Ensure tools are loaded
@@ -1269,11 +1305,11 @@ export class ToolConfigureComponent implements OnInit {
       case 'localPath':
         return ['editor', 'mcp', 'rag'].includes(type);
       case 'token':
-        return ['mcp', 'rag', 'repository', 'project management'].includes(type);
+        return ['mcp', 'rag', 'repository', 'project management', 'calendar'].includes(type);
       case 'prompt':
         return ['mcp', 'rag', 'background agent', 'project design', 'system design', 'ux design'].includes(type);
       case 'extra':
-        return ['mcp', 'rag', 'repository', 'project management', 'background agent'].includes(type);
+        return ['mcp', 'rag', 'repository', 'project management', 'background agent', 'calendar'].includes(type);
       default:
         return false;
     }
@@ -1530,6 +1566,34 @@ export class ToolConfigureComponent implements OnInit {
 
     if (this.showLogPanel) {
       await this.loadSyncLogs();
+    }
+  }
+
+  async loginOutlook(): Promise<void> {
+    try {
+      const electron = (window as any).electronAPI;
+      if (!electron?.calendarLogin) return;
+
+      const id = await electron.calendarLogin();
+      if (id) {
+        this.outlookAccountId = id;
+        localStorage.setItem('outlook_account_id', id);
+      }
+    } catch (err) {
+      console.error('Outlook login failed', err);
+    }
+  }
+
+  async logoutOutlook(): Promise<void> {
+    try {
+      const electron = (window as any).electronAPI;
+      if (!electron?.calendarLogout) return;
+
+      await electron.calendarLogout();
+      this.outlookAccountId = null;
+      localStorage.removeItem('outlook_account_id');
+    } catch (err) {
+      console.error('Outlook logout failed', err);
     }
   }
 

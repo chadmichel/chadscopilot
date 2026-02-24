@@ -186,4 +186,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   listFiles: (dirPath: string, extension?: string): Promise<string[]> =>
     ipcRenderer.invoke('fs:list-files', dirPath, extension),
+
+  // --- Calendar ---
+  calendarLogin: (): Promise<string | null> =>
+    ipcRenderer.invoke('calendar:login'),
+
+  calendarSync: (accountId: string): Promise<void> =>
+    ipcRenderer.invoke('calendar:sync', accountId),
+
+  calendarGetEvents: (userId: string): Promise<any[]> =>
+    ipcRenderer.invoke('calendar:get-events', userId),
+
+  calendarLogout: (): Promise<void> =>
+    ipcRenderer.invoke('calendar:logout'),
 });

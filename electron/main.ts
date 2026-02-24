@@ -14,6 +14,7 @@ import { WorkspaceAgentsService } from './workspace-agents.service.js';
 import { VsCodeService } from './vscode.service.js';
 import { CursorService } from './cursor.service.js';
 import { GoogleAntigravityService } from './google-antigravity.service.js';
+import { CalendarService } from './calendar.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +51,7 @@ let tasksService: TasksService | null = null;
 let projectsService: ProjectsService | null = null;
 let syncLogService: SyncLogService | null = null;
 let workspaceAgentsService: WorkspaceAgentsService | null = null;
+let calendarService: CalendarService | null = null;
 const gitHubService = new GitHubService();
 const vsCodeService = new VsCodeService();
 const cursorService = new CursorService();
@@ -633,6 +635,27 @@ function setupIPC(): void {
       }
     },
   );
+
+  // --- Calendar ---
+  ipcMain.handle('calendar:login', async () => {
+    if (!calendarService) throw new Error('Calendar service not initialized');
+    return calendarService.login();
+  });
+
+  ipcMain.handle('calendar:sync', async (_event, accountId: string) => {
+    if (!calendarService) throw new Error('Calendar service not initialized');
+    return calendarService.syncEvents(accountId);
+  });
+
+  ipcMain.handle('calendar:get-events', (_event, userId: string) => {
+    if (!calendarService) throw new Error('Calendar service not initialized');
+    return calendarService.getEvents(userId);
+  });
+
+  ipcMain.handle('calendar:logout', async () => {
+    if (!calendarService) throw new Error('Calendar service not initialized');
+    return calendarService.logout();
+  });
 }
 
 app.whenReady().then(async () => {
@@ -649,6 +672,7 @@ app.whenReady().then(async () => {
   projectsService = new ProjectsService(databaseService.getDb());
   syncLogService = new SyncLogService(databaseService.getDb());
   workspaceAgentsService = new WorkspaceAgentsService(databaseService.getDb());
+  calendarService = new CalendarService(databaseService.getDb());
   console.log('Database initialized');
 
   // Initialize Copilot
