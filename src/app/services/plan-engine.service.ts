@@ -39,6 +39,9 @@ export class PlanEngineService {
                 act.criticalPath = false;
             }
         });
+
+        // Calculate Projected Earned Value
+        this.generateProjectedEV(plan, projectEndMs);
     }
 
     private runForwardPass(plan: PlanData): void {
@@ -230,5 +233,99 @@ export class PlanEngineService {
             currentMs += dayMs;
         }
         return Math.max(0, count);
+    }
+
+    private generateProjectedEV(plan: PlanData, projectEndMs: number): void {
+        const startDateMs = new Date(plan.startDate).getTime();
+        const dayMs = 24 * 60 * 60 * 1000;
+
+        const dailyValueMap = new Map<string, number>();
+        const dailyFinishedMap = new Map<string, string[]>();
+        const dailyWorkedMap = new Map<string, string[]>();
+
+        let totalProjectValue = 0;
+
+        plan.activities.forEach(act => {
+            const val = act.value ?? act.durationDays ?? 0;
+            totalProjectValue += val;
+
+            if (!act.startDate || !act.endDate) return;
+
+            const startMs = new Date(act.startDate).getTime();
+            const endMs = new Date(act.endDate).getTime();
+
+            const workDays: string[] = [];
+            let tempMs = startMs;
+            const workWeek = plan.workWeek || [0, 1, 1, 1, 1, 1, 0];
+            const resource = plan.resources.find(r => r.id === act.resourceId);
+
+            while (tempMs < endMs) {
+                const d = new Date(tempMs);
+                const isoDate = d.toISOString().split('T')[0];
+                const dayOfWeek = d.getDay();
+
+                let isWorkDay = workWeek[dayOfWeek] > 0;
+                if (plan.holidays?.includes(isoDate)) isWorkDay = false;
+                if (resource?.daysOff?.includes(isoDate)) isWorkDay = false;
+
+                if (isWorkDay) {
+                    workDays.push(isoDate);
+                }
+                tempMs += dayMs;
+            }
+
+            if (workDays.length > 0) {
+                const valuePerDay = val / workDays.length;
+                workDays.forEach(date => {
+                    dailyValueMap.set(date, (dailyValueMap.get(date) || 0) + valuePerDay);
+                    if (!dailyWorkedMap.has(date)) dailyWorkedMap.set(date, []);
+                    dailyWorkedMap.get(date)!.push(act.id);
+                });
+
+                const lastWorkDay = workDays[workDays.length - 1];
+                if (!dailyFinishedMap.has(lastWorkDay)) dailyFinishedMap.set(lastWorkDay, []);
+                dailyFinishedMap.get(lastWorkDay)!.push(act.id);
+            } else if (val > 0) {
+                // Milestone or instant task on a non-work day? 
+                // Put it on the finish day anyway
+                const finishDateStr = new Date(endMs - dayMs).toISOString().split('T')[0];
+                dailyValueMap.set(finishDateStr, (dailyValueMap.get(finishDateStr) || 0) + val);
+                if (!dailyFinishedMap.has(finishDateStr)) dailyFinishedMap.set(finishDateStr, []);
+                dailyFinishedMap.get(finishDateStr)!.push(act.id);
+            }
+        });
+
+        const entries: any[] = [];
+        let cumulativeValue = 0;
+        let tempMs = startDateMs;
+
+        while (tempMs < projectEndMs + dayMs) {
+            const dateStr = new Date(tempMs).toISOString().split('T')[0];
+            const dayVal = dailyValueMap.get(dateStr) || 0;
+            cumulativeValue += dayVal;
+
+            const existing = plan.earnedValue?.find(e => e.date === dateStr);
+            const workedIds = dailyWorkedMap.get(dateStr) || [];
+            const activeResources = new Set<string>();
+            workedIds.forEach(id => {
+                const a = plan.activities.find(act => act.id === id);
+                if (a?.resourceId) activeResources.add(a.resourceId);
+            });
+
+            entries.push({
+                date: dateStr,
+                projectedEarned: Math.round(cumulativeValue * 100) / 100,
+                projectedPercent: totalProjectValue > 0 ? Math.round((cumulativeValue / totalProjectValue) * 10000) / 100 : 0,
+                actualEarned: existing?.actualEarned || 0,
+                actualPercent: existing?.actualPercent || 0,
+                activitiesFinished: dailyFinishedMap.get(dateStr) || [],
+                activitiesWorked: workedIds,
+                resources: Array.from(activeResources)
+            });
+
+            tempMs += dayMs;
+        }
+
+        plan.earnedValue = entries;
     }
 }

@@ -18,6 +18,7 @@ export interface PlanActivity {
     color?: string;
     float?: number;
     criticalPath?: boolean;
+    value?: number;
 }
 
 export interface EarnedValueEntry {

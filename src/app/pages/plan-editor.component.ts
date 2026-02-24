@@ -115,6 +115,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
             <button [class.active]="activeTab === 'activities'" (click)="activeTab = 'activities'">Activities</button>
             <button [class.active]="activeTab === 'gantt'" (click)="activeTab = 'gantt'">Gantt</button>
             <button [class.active]="activeTab === 'ev'" (click)="activeTab = 'ev'">Earned Value</button>
+            <button [class.active]="activeTab === 'ev-chart'" (click)="activeTab = 'ev-chart'">EV Chart</button>
           </div>
 
           <div class="tab-content">
@@ -187,6 +188,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                           <th>Resource</th>
                            <th style="width:70px">Priority</th>
                            <th style="width:90px">Duration</th>
+                           <th style="width:70px">Value</th>
                            <th style="width:130px">Start Date</th>
                            <th style="width:130px">End Date</th>
                            <th style="width:200px">Depends On</th>
@@ -209,6 +211,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                             </td>
                              <td><input class="cell-input" type="number" [(ngModel)]="act.priority" (ngModelChange)="markDirty()" /></td>
                              <td><input class="cell-input" type="number" [(ngModel)]="act.durationDays" (ngModelChange)="markDirty()" min="0" /></td>
+                             <td><input class="cell-input" type="number" [(ngModel)]="act.value" (ngModelChange)="markDirty()" placeholder="Auto" /></td>
                             <td><span class="date-read-only">{{ act.startDate }}</span></td>
                             <td><span class="date-read-only">{{ act.endDate }}</span></td>
                             <td>
@@ -348,6 +351,43 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                 } @else {
                   <div class="empty-state">No earned value data yet. Ask the AI to generate earned value tracking.</div>
                 }
+              </div>
+            }
+
+            @if (activeTab === 'ev-chart') {
+              <div class="ev-chart-container">
+                <div class="chart-legend">
+                  <div class="legend-item">
+                    <span class="legend-color" style="background: var(--theme-primary)"></span>
+                    <span>Projected %</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-color" style="background: #f44336"></span>
+                    <span>Actual %</span>
+                  </div>
+                </div>
+
+                <div class="chart-wrapper">
+                  <svg viewBox="0 0 800 400" preserveAspectRatio="none" class="chart-svg">
+                    <!-- Grid Lines -->
+                    @for (tick of [0, 25, 50, 75, 100]; track tick) {
+                      <line x1="0" [attr.y1]="400 - (tick * 4)" x2="800" [attr.y2]="400 - (tick * 4)" class="chart-axis" style="opacity: 0.2; stroke-dasharray: 4" />
+                      <text x="-35" [attr.y]="400 - (tick * 4) + 4" class="chart-text" style="font-size: 10px; fill: var(--app-text-muted)">{{ tick }}%</text>
+                    }
+
+                    <!-- X Axis Ticks -->
+                    @for (tick of getEVChartTicks(); track tick.label) {
+                      <line [attr.x1]="tick.x * 8" y1="400" [attr.x2]="tick.x * 8" y2="405" class="chart-axis" />
+                      <text [attr.x]="tick.x * 8" y="420" class="chart-text" style="font-size: 10px; fill: var(--app-text-muted); text-anchor: middle">{{ tick.label }}</text>
+                    }
+
+                    <!-- Projected Line -->
+                    <path [attr.d]="getEVChartPath('projected')" class="chart-line-projected" />
+                    
+                    <!-- Actual Line -->
+                    <path [attr.d]="getEVChartPath('actual')" class="chart-line-actual" />
+                  </svg>
+                </div>
               </div>
             }
           </div>
@@ -1067,6 +1107,69 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       padding: 20px;
       overflow-y: auto;
     }
+      /* Earned Value Chart */
+    .ev-chart-container {
+      flex: 1;
+      padding: 40px 60px 60px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow: hidden;
+      background: var(--app-background);
+    }
+    .chart-wrapper {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .chart-axis {
+      stroke: var(--app-border);
+      stroke-width: 1;
+    }
+    .chart-line-projected {
+      fill: none;
+      stroke: var(--theme-primary);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .chart-line-actual {
+      fill: none;
+      stroke: #f44336;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .chart-legend {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--app-text);
+    }
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+    }
+    .chart-text {
+      font-family: inherit;
+    }
   `]
 })
 export class PlanEditorComponent implements OnInit, OnDestroy {
@@ -1083,7 +1186,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   };
   isDirty = false;
   showSettings = false;
-  activeTab: 'activities' | 'gantt' | 'ev' = 'activities';
+  activeTab: 'activities' | 'gantt' | 'ev' | 'ev-chart' = 'activities';
   ganttMinDate = '';
   ganttMaxDate = '';
   ganttZoom = 100;
@@ -1094,7 +1197,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
   getPlanContext = (): string => {
     const json = JSON.stringify(this.plan, null, 2);
-    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), and color (hex string). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: Activity properties "float" and "criticalPath" are automatically calculated and read-only; do not try to modify them. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies.`;
+    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), color (hex string), and optional "value" (numeric business value or budget). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: Activity properties "float" and "criticalPath" as well as the "earnedValue" array are automatically calculated and read-only; do not try to modify them. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies.`;
   };
 
   private get electron() { return (window as any).electronAPI; }
@@ -1406,5 +1509,60 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     if (!this.workspace) return '';
     const sep = this.workspace.folderPath.includes('\\') ? '\\' : '/';
     return `${this.workspace.folderPath}${sep}${this.filePath}`;
+  }
+
+  getEVChartPath(type: 'projected' | 'actual'): string {
+    const evs = this.plan.earnedValue || [];
+    if (evs.length === 0) return '';
+
+    const width = 800;
+    const height = 400;
+    const points: string[] = [];
+
+    // For actuals, we only want to draw up to the last entry that has an actual percentage or is not in the future relative to "today"
+    // However, our data structure has actualPercent for every entry (defaulting to 0).
+    // Let's draw it as long as there is any activity in the "activitiesWorked" or "activitiesFinished" OR we have a non-zero actual.
+    let lastValidIdx = -1;
+    if (type === 'actual') {
+      for (let i = evs.length - 1; i >= 0; i--) {
+        if (evs[i].actualPercent > 0 || evs[i].activitiesWorked.length > 0 || evs[i].activitiesFinished.length > 0) {
+          lastValidIdx = i;
+          break;
+        }
+      }
+      if (lastValidIdx === -1) return '';
+    }
+
+    evs.forEach((ev, i) => {
+      if (type === 'actual' && i > lastValidIdx) return;
+
+      const x = (i / (evs.length - 1)) * width;
+      const percent = type === 'projected' ? ev.projectedPercent : ev.actualPercent;
+      const y = height - (percent / 100) * height;
+      points.push(`${x},${y}`);
+    });
+
+    if (points.length < 2) return '';
+    return 'M ' + points.join(' L ');
+  }
+
+  getEVChartTicks() {
+    const evs = this.plan.earnedValue || [];
+    if (evs.length === 0) return [];
+
+    const ticks: { x: number, label: string }[] = [];
+    const count = evs.length;
+    const skip = Math.max(1, Math.floor(count / 8));
+
+    evs.forEach((ev, i) => {
+      if (i % skip === 0 || i === count - 1) {
+        const d = new Date(ev.date);
+        ticks.push({
+          x: (i / (count - 1)) * 100,
+          label: (d.getMonth() + 1) + '/' + d.getDate()
+        });
+      }
+    });
+    return ticks;
   }
 }
