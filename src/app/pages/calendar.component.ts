@@ -122,11 +122,11 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                 <div class="bar-metrics">
                   <div class="bar-metric">
                     <span class="val">{{ weekMetrics.allocated }}%</span>
-                    <span class="lab">Avg Allocated</span>
+                    <span class="lab">Allocated</span>
                   </div>
                   <div class="bar-metric">
                     <span class="val">{{ weekMetrics.deepWork }}%</span>
-                    <span class="lab">Avg Deep Work</span>
+                    <span class="lab">Deep Work</span>
                   </div>
                 </div>
               </div>
@@ -148,6 +148,18 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                             <span class="metric-label">Deep Work</span>
                           </div>
                         </div>
+                        @if (metrics.bestRange) {
+                          <div class="deep-work-rec">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M12 2v20M2 12h20"/>
+                            </svg>
+                            Best: {{ metrics.bestRange }}
+                          </div>
+                        } @else {
+                          <div class="deep-work-rec none">
+                            No Deep Work Available
+                          </div>
+                        }
                       </div>
                       <div class="day-events">
                         @for (event of getEventsForDate(day); track event.id) {
@@ -369,6 +381,30 @@ import { ToolSettingsService } from '../services/tool-settings.service';
       text-transform: uppercase;
       color: var(--app-text-muted);
       letter-spacing: 0.2px;
+    }
+    
+    .deep-work-rec {
+      margin-top: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--theme-primary);
+      background: color-mix(in srgb, var(--theme-primary), transparent 92%);
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .deep-work-rec.none {
+      color: var(--app-text-muted);
+      background: var(--app-background);
+      border: 1px dashed var(--app-border);
+      font-weight: 500;
     }
 
     /* Weekly Bar */
@@ -631,17 +667,37 @@ export class CalendarComponent implements OnInit {
 
     let deepWorkMins = 0;
     let cursor = dayStart.getTime();
+    let longestGapMins = 0;
+    let bestRange = '';
+
+    const formatRange = (start: number, end: number) => {
+      const s = new Date(start);
+      const e = new Date(end);
+      const fmt = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+      return `${fmt(s)} - ${fmt(e)}`;
+    };
+
+    const processGap = (start: number, end: number) => {
+      const gap = (end - start) / (1000 * 60);
+      if (gap >= 60) {
+        deepWorkMins += gap;
+        if (gap > longestGapMins) {
+          longestGapMins = gap;
+          bestRange = formatRange(start, end);
+        }
+      }
+    };
+
     for (const m of merged) {
-      const gap = (m.start.getTime() - cursor) / (1000 * 60);
-      if (gap >= 60) deepWorkMins += gap;
+      processGap(cursor, m.start.getTime());
       cursor = Math.max(cursor, m.end.getTime());
     }
-    const finalGap = (dayEnd.getTime() - cursor) / (1000 * 60);
-    if (finalGap >= 60) deepWorkMins += finalGap;
+    processGap(cursor, dayEnd.getTime());
 
     return {
       allocated: Math.round((allocatedMins / totalMinutes) * 100),
-      deepWork: Math.round((deepWorkMins / totalMinutes) * 100)
+      deepWork: Math.round((deepWorkMins / totalMinutes) * 100),
+      bestRange: bestRange || null
     };
   }
 
