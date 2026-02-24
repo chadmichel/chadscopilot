@@ -195,7 +195,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                         </tr>
                       </thead>
                       <tbody>
-                        @for (act of plan.activities; track act.id) {
+                        @for (act of getVisibleActivities(); track act.id) {
                           <tr>
                             <td><input class="cell-input" [(ngModel)]="act.name" (ngModelChange)="markDirty()" /></td>
                             <td>
@@ -1049,7 +1049,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
   getPlanContext = (): string => {
     const json = JSON.stringify(this.plan, null, 2);
-    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), and color (hex string). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD.`;
+    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), and color (hex string). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: An activity with id "finish" is automatically managed to depend on all other activities and should not be manually removed or edited in its dependencies.`;
   };
 
   private get electron() { return (window as any).electronAPI; }
@@ -1152,8 +1152,38 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   }
 
   recalculateDates() {
+    this.ensureFinishActivity();
     this.planEngine.calculate(this.plan);
     this.computeGanttRange();
+  }
+
+  private ensureFinishActivity() {
+    let finish = this.plan.activities.find(a => a.id === 'finish');
+    if (!finish) {
+      finish = {
+        id: 'finish',
+        name: 'FINISH',
+        resourceId: '',
+        resourceName: '',
+        durationDays: 0,
+        startDate: '',
+        endDate: '',
+        dependsOn: [],
+        priority: -100,
+        color: '#f44336'
+      };
+      this.plan.activities.push(finish);
+    }
+
+    const otherIds = this.plan.activities
+      .filter(a => a.id !== 'finish')
+      .map(a => a.id);
+
+    finish.dependsOn = [...otherIds];
+  }
+
+  getVisibleActivities(): PlanActivity[] {
+    return this.plan.activities.filter(a => a.id !== 'finish');
   }
 
   addActivity() {
@@ -1209,7 +1239,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   }
 
   getAvailableDependencies(act: PlanActivity): PlanActivity[] {
-    return this.plan.activities.filter(a => a.id !== act.id && !act.dependsOn.includes(a.id));
+    return this.plan.activities.filter(a => a.id !== act.id && a.id !== 'finish' && !act.dependsOn.includes(a.id));
   }
 
   addDependency(act: PlanActivity, depId: string) {

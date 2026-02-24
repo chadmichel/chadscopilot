@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
 import { ChatService } from '../chat/chat.service';
@@ -19,7 +20,7 @@ interface Tab {
 @Component({
   selector: 'app-workspace-detail',
   standalone: true,
-  imports: [CommonModule, ChatComponent],
+  imports: [CommonModule, ChatComponent, FormsModule],
   template: `
     @if (workspace) {
       <div class="detail-container">
@@ -340,6 +341,39 @@ interface Tab {
         <h2>Workspace not found</h2>
         <p>This workspace may have been removed.</p>
         <button class="back-link" (click)="goBack()">Back to Workspaces</button>
+      </div>
+    }
+
+    @if (showNewPlanDialog) {
+      <div class="dialog-overlay">
+        <div class="dialog">
+          <div class="dialog-header">
+            <h3>New Plan</h3>
+            <button class="dialog-close" (click)="cancelNewPlan()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label for="plan-name">Enter plan name</label>
+              <input 
+                id="plan-name" 
+                type="text" 
+                class="form-input" 
+                [(ngModel)]="newPlanName" 
+                placeholder="My Project Plan"
+                (keydown.enter)="confirmNewPlan()"
+                autofocus
+              />
+            </div>
+            <div class="dialog-footer">
+              <button class="btn-cancel" (click)="cancelNewPlan()">Cancel</button>
+              <button class="btn-confirm" (click)="confirmNewPlan()" [disabled]="!newPlanName.trim()">Create Plan</button>
+            </div>
+          </div>
+        </div>
       </div>
     }
   `,
@@ -1023,6 +1057,121 @@ interface Tab {
       .back-link:hover {
         background-color: var(--theme-primary-hover);
       }
+
+      /* Dialog Styles */
+      .dialog-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .dialog {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 12px;
+        width: 400px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      }
+      .dialog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--app-border);
+      }
+      .dialog-header h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--app-text);
+      }
+      .dialog-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .dialog-close:hover {
+        background: var(--app-background);
+        color: var(--app-text);
+      }
+      .dialog-body {
+        padding: 20px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      .form-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--app-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .form-input {
+        background: var(--app-background);
+        border: 1px solid var(--app-border);
+        color: var(--app-text);
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .form-input:focus {
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary), transparent 85%);
+      }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      .btn-cancel {
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid var(--app-border);
+        color: var(--app-text);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: background 0.15s;
+      }
+      .btn-cancel:hover {
+        background: var(--app-background);
+      }
+      .btn-confirm {
+        padding: 8px 16px;
+        background: var(--theme-primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: opacity 0.15s;
+      }
+      .btn-confirm:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+      .btn-confirm:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     `,
   ],
 })
@@ -1040,6 +1189,8 @@ export class WorkspaceDetailComponent implements OnInit {
   showDesignMenu = false;
   designFiles: string[] = [];
   planFiles: string[] = [];
+  showNewPlanDialog = false;
+  newPlanName = '';
 
   // Tasks for this workspace
   workspaceTasks: Task[] = [];
@@ -1149,9 +1300,33 @@ export class WorkspaceDetailComponent implements OnInit {
 
   async openPlan(fileName?: string) {
     if (!this.workspace) return;
+
+    if (!fileName) {
+      this.newPlanName = '';
+      this.showNewPlanDialog = true;
+      return;
+    }
+
     const electron = (window as any).electronAPI;
-    const file = fileName || 'plans/plan.json';
+    await electron?.openPlanEditor?.(this.workspace.id, fileName);
+    setTimeout(() => this.loadPlanFiles(), 1000);
+  }
+
+  async confirmNewPlan() {
+    if (!this.workspace || !this.newPlanName.trim()) return;
+
+    const electron = (window as any).electronAPI;
+    const sanitized = this.newPlanName.trim().replace(/[^a-z0-9_\-]/gi, '_');
+    const file = `plans/${sanitized}.json`;
+
+    this.showNewPlanDialog = false;
     await electron?.openPlanEditor?.(this.workspace.id, file);
+    setTimeout(() => this.loadPlanFiles(), 1000);
+  }
+
+  cancelNewPlan() {
+    this.showNewPlanDialog = false;
+    this.newPlanName = '';
   }
 
   async openDesign(fileName?: string) {
