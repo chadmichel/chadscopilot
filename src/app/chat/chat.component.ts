@@ -22,11 +22,12 @@ export class ChatComponent implements AfterViewChecked {
   @Input() workspaceId: string = 'global';
   @Input() folderPath: string = '';
   @Input() contextProvider: (() => string) | null = null;
+  @Input() hideJson: boolean = false;
 
   userInput = '';
   isLoading = false;
 
-  constructor(public chatService: ChatService) {}
+  constructor(public chatService: ChatService) { }
 
   ngAfterViewChecked(): void {
     this.scrollToBottom();

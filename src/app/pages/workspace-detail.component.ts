@@ -345,11 +345,20 @@ interface Tab {
   `,
   styles: [
     `
-      .detail-container {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-      }
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex: 1;
+    }
+
+    .detail-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      height: 100%;
+      min-height: 0;
+    }
 
       /* Header */
       .detail-header {
@@ -467,6 +476,12 @@ interface Tab {
         transition: flex 0.2s ease;
         display: flex;
         flex-direction: column;
+      }
+      app-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
       }
       .agent-panel.collapsed {
         flex: 0 0 44px;

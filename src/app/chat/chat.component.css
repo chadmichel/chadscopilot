@@ -2,12 +2,15 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  flex-direction: column;
 }
 
 .chat-container {
   display: flex;
   flex-direction: column;
   width: 100%;
+  flex: 1;
+  min-height: 0;
   height: 100%;
 }
 

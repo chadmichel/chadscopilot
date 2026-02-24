@@ -9,10 +9,10 @@ import { WorkspaceService, Workspace } from '../services/workspace.service';
 import mermaid from 'mermaid';
 
 @Component({
-    selector: 'app-mermaid-builder',
-    standalone: true,
-    imports: [CommonModule, FormsModule, ChatComponent],
-    template: `
+  selector: 'app-mermaid-builder',
+  standalone: true,
+  imports: [CommonModule, FormsModule, ChatComponent],
+  template: `
     <div class="builder-container">
       <header class="builder-header">
         <div class="header-left">
@@ -82,11 +82,13 @@ import mermaid from 'mermaid';
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     :host {
       display: flex;
       flex-direction: column;
       height: 100%;
+      flex: 1;
+      width: 100%;
     }
 
     .builder-container {
@@ -102,8 +104,8 @@ import mermaid from 'mermaid';
       height: 56px;
       display: flex;
       align-items: center;
-      padding: 0 20px;
-      gap: 30px;
+      justify-content: space-between;
+      padding: 0 80px; /* Balanced padding on both sides for true horizontal centering */
       border-bottom: 1px solid var(--app-border);
       background: var(--app-surface);
       -webkit-app-region: drag;
@@ -112,14 +114,18 @@ import mermaid from 'mermaid';
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       color: var(--theme-primary);
+      flex: 0 0 150px;
     }
 
     .header-left h1 {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       margin: 0;
+      line-height: 1;
+      display: flex;
+      align-items: center;
       white-space: nowrap;
     }
 
@@ -128,7 +134,8 @@ import mermaid from 'mermaid';
       align-items: center;
       gap: 8px;
       flex: 1;
-      max-width: 600px;
+      max-width: 500px;
+      justify-content: center;
       -webkit-app-region: no-drag;
     }
 
@@ -156,6 +163,11 @@ import mermaid from 'mermaid';
     }
 
     .header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex: 0 0 180px;
       -webkit-app-region: no-drag;
     }
 
@@ -183,9 +195,20 @@ import mermaid from 'mermaid';
 
     .agent-side {
       width: 400px;
+      flex-shrink: 0;
       border-right: 1px solid var(--app-border);
       display: flex;
       flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    app-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
     }
 
     .editor-side {
@@ -297,139 +320,139 @@ import mermaid from 'mermaid';
   `]
 })
 export class MermaidBuilderComponent implements OnInit, OnDestroy, AfterViewInit {
-    @ViewChild('mermaidContainer') mermaidContainer!: ElementRef;
+  @ViewChild('mermaidContainer') mermaidContainer!: ElementRef;
 
-    workspaceId: string = '';
-    filePath: string = 'designs/mermaid.md';
-    workspace: Workspace | null = null;
-    content: string = `graph TD
+  workspaceId: string = '';
+  filePath: string = 'designs/mermaid.md';
+  workspace: Workspace | null = null;
+  content: string = `graph TD
   A[Start] --> B(Process)
   B --> C{Decision}
   C --> D[Result 1]
   C --> E[Result 2]`;
-    isDirty = false;
-    activeTab: 'markdown' | 'visual' = 'visual';
-    error: string | null = null;
-    private chatSub?: Subscription;
+  isDirty = false;
+  activeTab: 'markdown' | 'visual' = 'visual';
+  error: string | null = null;
+  private chatSub?: Subscription;
 
-    getMermaidContext = (): string => {
-        if (!this.content.trim()) return '';
-        return `You are a Mermaid diagram assistant. Here is the current diagram:\n\`\`\`mermaid\n${this.content}\n\`\`\`\n\nIMPORTANT: Do NOT include explanatory text in your response. Output ONLY the full updated mermaid diagram inside a single \`\`\`mermaid code block with no other text.`;
-    };
+  getMermaidContext = (): string => {
+    if (!this.content.trim()) return '';
+    return `You are a Mermaid diagram assistant. Here is the current diagram:\n\`\`\`mermaid\n${this.content}\n\`\`\`\n\nIMPORTANT: Do NOT include explanatory text in your response. Output ONLY the full updated mermaid diagram inside a single \`\`\`mermaid code block with no other text.`;
+  };
 
-    private get electron() { return (window as any).electronAPI; }
+  private get electron() { return (window as any).electronAPI; }
 
-    constructor(
-        private route: ActivatedRoute,
-        private workspaceService: WorkspaceService,
-        private chatService: ChatService
-    ) { }
+  constructor(
+    private route: ActivatedRoute,
+    private workspaceService: WorkspaceService,
+    private chatService: ChatService
+  ) { }
 
-    async ngOnInit() {
-        this.route.queryParams.subscribe(async params => {
-            this.workspaceId = params['workspaceId'] || '';
-            this.filePath = params['filePath'] || 'designs/mermaid.md';
+  async ngOnInit() {
+    this.route.queryParams.subscribe(async params => {
+      this.workspaceId = params['workspaceId'] || '';
+      this.filePath = params['filePath'] || 'designs/mermaid.md';
 
-            await this.workspaceService.loadWorkspaces();
-            this.workspace = this.workspaceService.getWorkspace(this.workspaceId) || null;
+      await this.workspaceService.loadWorkspaces();
+      this.workspace = this.workspaceService.getWorkspace(this.workspaceId) || null;
 
-            if (this.workspace) {
-                await this.loadFile();
-            }
-        });
+      if (this.workspace) {
+        await this.loadFile();
+      }
+    });
 
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'dark',
-            securityLevel: 'loose',
-        });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      securityLevel: 'loose',
+    });
 
-        // Watch for agent updates
-        this.chatSub = this.chatService.messages$.subscribe(allMessages => {
-            const myMessages = allMessages['mermaid-' + this.workspaceId] || [];
-            if (myMessages.length === 0) return;
+    // Watch for agent updates
+    this.chatSub = this.chatService.messages$.subscribe(allMessages => {
+      const myMessages = allMessages['mermaid-' + this.workspaceId] || [];
+      if (myMessages.length === 0) return;
 
-            const lastMessage = myMessages[myMessages.length - 1];
-            if (lastMessage.role === 'assistant') {
-                const match = lastMessage.content.match(/```mermaid\s*([\s\S]*?)```/);
-                if (match) {
-                    const extracted = match[1].trim();
-                    if (extracted !== this.content) {
-                        this.content = extracted;
-                        this.isDirty = true;
-                        this.renderMermaid();
-                    }
-                }
-            }
-        });
-    }
-
-    ngAfterViewInit() {
-        this.renderMermaid();
-    }
-
-    ngOnDestroy() {
-        this.chatSub?.unsubscribe();
-    }
-
-    async loadFile() {
-        if (!this.workspace) return;
-        const fullPath = this.getFullPath();
-        const result = await this.electron.readFile(fullPath);
-        if (result !== null) {
-            this.content = result;
-            this.isDirty = false;
+      const lastMessage = myMessages[myMessages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        const match = lastMessage.content.match(/```mermaid\s*([\s\S]*?)```/);
+        if (match) {
+          const extracted = match[1].trim();
+          if (extracted !== this.content) {
+            this.content = extracted;
+            this.isDirty = true;
             this.renderMermaid();
+          }
         }
+      }
+    });
+  }
+
+  ngAfterViewInit() {
+    this.renderMermaid();
+  }
+
+  ngOnDestroy() {
+    this.chatSub?.unsubscribe();
+  }
+
+  async loadFile() {
+    if (!this.workspace) return;
+    const fullPath = this.getFullPath();
+    const result = await this.electron.readFile(fullPath);
+    if (result !== null) {
+      this.content = result;
+      this.isDirty = false;
+      this.renderMermaid();
     }
+  }
 
-    async saveFile() {
-        if (!this.workspace) return;
-        const fullPath = this.getFullPath();
-        const success = await this.electron.writeFile(fullPath, this.content);
-        if (success) {
-            this.isDirty = false;
-        }
+  async saveFile() {
+    if (!this.workspace) return;
+    const fullPath = this.getFullPath();
+    const success = await this.electron.writeFile(fullPath, this.content);
+    if (success) {
+      this.isDirty = false;
     }
+  }
 
-    onContentChange() {
-        this.isDirty = true;
-        if (this.activeTab === 'visual') {
-            this.renderMermaid();
-        }
+  onContentChange() {
+    this.isDirty = true;
+    if (this.activeTab === 'visual') {
+      this.renderMermaid();
     }
+  }
 
-    onPathChange() {
-        // Maybe reload? Or just wait for save.
+  onPathChange() {
+    // Maybe reload? Or just wait for save.
+  }
+
+  private getFullPath() {
+    if (!this.workspace) return '';
+    const sep = this.workspace.folderPath.includes('\\') ? '\\' : '/';
+    return `${this.workspace.folderPath}${sep}${this.filePath}`;
+  }
+
+  async renderMermaid() {
+    if (!this.mermaidContainer) return;
+    const container = this.mermaidContainer.nativeElement;
+    container.innerHTML = '';
+    this.error = null;
+
+    if (!this.content.trim()) return;
+
+    try {
+      let mermaidCode = this.content;
+      const match = this.content.match(/```mermaid([\s\S]*?)```/);
+      if (match) {
+        mermaidCode = match[1].trim();
+      }
+
+      const id = 'mermaid-svg-' + Math.random().toString(36).substring(2, 9);
+      const rendered = await mermaid.render(id, mermaidCode);
+      container.innerHTML = rendered.svg;
+    } catch (err: any) {
+      console.error('Mermaid render error:', err);
+      this.error = err.message || 'Failed to render diagram';
     }
-
-    private getFullPath() {
-        if (!this.workspace) return '';
-        const sep = this.workspace.folderPath.includes('\\') ? '\\' : '/';
-        return `${this.workspace.folderPath}${sep}${this.filePath}`;
-    }
-
-    async renderMermaid() {
-        if (!this.mermaidContainer) return;
-        const container = this.mermaidContainer.nativeElement;
-        container.innerHTML = '';
-        this.error = null;
-
-        if (!this.content.trim()) return;
-
-        try {
-            let mermaidCode = this.content;
-            const match = this.content.match(/```mermaid([\s\S]*?)```/);
-            if (match) {
-                mermaidCode = match[1].trim();
-            }
-
-            const id = 'mermaid-svg-' + Math.random().toString(36).substring(2, 9);
-            const rendered = await mermaid.render(id, mermaidCode);
-            container.innerHTML = rendered.svg;
-        } catch (err: any) {
-            console.error('Mermaid render error:', err);
-            this.error = err.message || 'Failed to render diagram';
-        }
-    }
+  }
 }

@@ -14,9 +14,15 @@ export class MarkdownPipe implements PipeTransform {
     });
   }
 
-  transform(value: string): SafeHtml {
+  transform(value: string, hideCodeBlocks: boolean = false): SafeHtml {
     if (!value) return '';
-    const html = marked.parse(value, { async: false }) as string;
+    let processed = value;
+    if (hideCodeBlocks) {
+      // Very simple regex to hide JSON code blocks specifically or all code blocks
+      processed = value.replace(/```json[\s\S]*?```/g, '');
+      processed = processed.trim();
+    }
+    const html = marked.parse(processed, { async: false }) as string;
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 }
