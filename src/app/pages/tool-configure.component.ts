@@ -1305,7 +1305,7 @@ export class ToolConfigureComponent implements OnInit {
       case 'localPath':
         return ['editor', 'mcp', 'rag'].includes(type);
       case 'token':
-        return ['mcp', 'rag', 'repository', 'project management', 'calendar'].includes(type);
+        return ['mcp', 'rag', 'repository', 'project management'].includes(type);
       case 'prompt':
         return ['mcp', 'rag', 'background agent', 'project design', 'system design', 'ux design'].includes(type);
       case 'extra':

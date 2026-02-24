@@ -642,9 +642,9 @@ function setupIPC(): void {
     return calendarService.login();
   });
 
-  ipcMain.handle('calendar:sync', async (_event, accountId: string) => {
+  ipcMain.handle('calendar:sync', async (_event, accountId: string, otherUserEmail?: string) => {
     if (!calendarService) throw new Error('Calendar service not initialized');
-    return calendarService.syncEvents(accountId);
+    return calendarService.syncEvents(accountId, otherUserEmail);
   });
 
   ipcMain.handle('calendar:get-events', (_event, userId: string) => {

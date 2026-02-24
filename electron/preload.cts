@@ -191,8 +191,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   calendarLogin: (): Promise<string | null> =>
     ipcRenderer.invoke('calendar:login'),
 
-  calendarSync: (accountId: string): Promise<void> =>
-    ipcRenderer.invoke('calendar:sync', accountId),
+  calendarSync: (accountId: string, otherUserEmail?: string): Promise<void> =>
+    ipcRenderer.invoke('calendar:sync', accountId, otherUserEmail),
 
   calendarGetEvents: (userId: string): Promise<any[]> =>
     ipcRenderer.invoke('calendar:get-events', userId),

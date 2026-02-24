@@ -9,7 +9,7 @@ import { encrypt, decrypt } from './crypto.service.js';
 const DEFAULT_TENANT_ID = 'common';
 const DEFAULT_CLIENT_ID = 'c8f7283c-59ed-419c-b98c-65654a1ff93d';
 const REDIRECT_URI = 'http://localhost:3000';
-const SCOPES = ['https://graph.microsoft.com/Calendars.Read', 'https://graph.microsoft.com/User.Read', 'offline_access'];
+const SCOPES = ['https://graph.microsoft.com/Calendars.Read', 'https://graph.microsoft.com/Calendars.Read.Shared', 'https://graph.microsoft.com/User.Read', 'offline_access'];
 
 export class CalendarService {
     private db: DatabaseSync;
@@ -21,16 +21,13 @@ export class CalendarService {
     }
 
     private getSettings(): { clientId: string; tenantId: string } {
-        const stmt = this.db.prepare("SELECT token, organization, extra FROM tools WHERE toolType = 'calendar' LIMIT 1");
+        const stmt = this.db.prepare("SELECT organization, extra FROM tools WHERE toolType = 'calendar' LIMIT 1");
         const row = stmt.get() as any;
 
         let clientId = DEFAULT_CLIENT_ID;
         let tenantId = DEFAULT_TENANT_ID;
 
         if (row) {
-            const dbToken = row.token ? decrypt(row.token) : '';
-            if (dbToken && dbToken.trim()) clientId = dbToken.trim();
-
             if (row.organization && row.organization.trim()) tenantId = row.organization.trim();
 
             try {
@@ -62,16 +59,32 @@ export class CalendarService {
         return {
             beforeCacheAccess: async (cacheContext) => {
                 if (fs.existsSync(this.cachePath)) {
-                    const encrypted = fs.readFileSync(this.cachePath, 'utf8');
-                    const decrypted = decrypt(encrypted);
-                    cacheContext.tokenCache.deserialize(decrypted);
+                    try {
+                        const encrypted = fs.readFileSync(this.cachePath, 'utf8');
+                        const decrypted = decrypt(encrypted);
+                        if (decrypted) {
+                            cacheContext.tokenCache.deserialize(decrypted);
+                            console.log(`[CalendarService] MSAL Cache loaded from ${this.cachePath}`);
+                        } else {
+                            console.warn('[CalendarService] MSAL Cache decryption returned empty string');
+                        }
+                    } catch (err) {
+                        console.error('[CalendarService] Failed to load MSAL cache', err);
+                    }
+                } else {
+                    console.log('[CalendarService] MSAL Cache file not found yet');
                 }
             },
             afterCacheAccess: async (cacheContext) => {
                 if (cacheContext.cacheHasChanged) {
-                    const content = cacheContext.tokenCache.serialize();
-                    const encrypted = encrypt(content);
-                    fs.writeFileSync(this.cachePath, encrypted, 'utf8');
+                    try {
+                        const content = cacheContext.tokenCache.serialize();
+                        const encrypted = encrypt(content);
+                        fs.writeFileSync(this.cachePath, encrypted, 'utf8');
+                        console.log(`[CalendarService] MSAL Cache saved to ${this.cachePath}`);
+                    } catch (err) {
+                        console.error('[CalendarService] Failed to save MSAL cache', err);
+                    }
                 }
             }
         };
@@ -126,7 +139,13 @@ export class CalendarService {
     async getAccessToken(accountId: string): Promise<string | null> {
         const pca = this.createPCA();
         const account = await pca.getTokenCache().getAccountByHomeId(accountId);
-        if (!account) return null;
+        if (!account) {
+            console.warn(`[CalendarService] No account found in cache for ID: ${accountId}`);
+            const allAccounts = await pca.getTokenCache().getAllAccounts();
+            console.log(`[CalendarService] Available accounts in cache: ${allAccounts.length}`);
+            allAccounts.forEach(a => console.log(`  - Account: ${a.username} (${a.homeAccountId})`));
+            return null;
+        }
 
         try {
             const response = await pca.acquireTokenSilent({
@@ -135,6 +154,7 @@ export class CalendarService {
             });
             return response.accessToken;
         } catch (error) {
+            console.error('[CalendarService] acquireTokenSilent failed', error);
             if (error instanceof msal.InteractionRequiredAuthError) {
                 return null; // Need to login again
             }
@@ -142,47 +162,55 @@ export class CalendarService {
         }
     }
 
-    async syncEvents(accountId: string): Promise<void> {
+    async syncEvents(accountId: string, otherUserEmail?: string): Promise<void> {
         const token = await this.getAccessToken(accountId);
         if (!token) throw new Error('Not authenticated');
 
-        const url = 'https://graph.microsoft.com/v1.0/me/calendarview?startDateTime=' + new Date().toISOString() + '&endDateTime=' + new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        console.log(`[CalendarService] Syncing events from: ${url}`);
+        const now = new Date();
+        const startDate = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000); // 4 weeks back
+        const endDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // ~13 weeks forward
 
-        // Debug token
-        try {
-            const parts = token.split('.');
-            if (parts.length === 3) {
-                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-                console.log(`[CalendarService] Token Info - Audience: ${payload.aud}, Scopes: ${payload.scp || payload.scope}`);
+        const targetUser = otherUserEmail ? `users/${otherUserEmail}` : 'me';
+        // Increase top to 999 and follow nextLink
+        let url: string | null = `https://graph.microsoft.com/v1.0/${targetUser}/calendarview?startDateTime=${startDate.toISOString()}&endDateTime=${endDate.toISOString()}&$top=999`;
+        console.log(`[CalendarService] Syncing window for ${targetUser}: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
+
+        const allEvents: any[] = [];
+
+        while (url) {
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Prefer': 'outlook.timezone="Central Standard Time"'
+                }
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text().catch(() => 'No error body');
+                throw new Error(`Failed to fetch calendar events: ${response.status} ${response.statusText} - ${errorBody}`);
             }
-        } catch (e) {
-            console.log('[CalendarService] Could not decode token log');
+
+            const data = await response.json() as any;
+            const events = data.value || [];
+            allEvents.push(...events);
+
+            url = data['@odata.nextLink'] || null;
+            if (url) {
+                console.log(`[CalendarService] Following nextLink for more events... (total so far: ${allEvents.length})`);
+            }
         }
 
-        const response = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.text().catch(() => 'No error body');
-            throw new Error(`Failed to fetch calendar events: ${response.status} ${response.statusText} - ${errorBody}`);
-        }
-
-        const data = await response.json();
-        const events = data.value || [];
+        console.log(`[CalendarService] Successfully fetched ${allEvents.length} events for ${targetUser}`);
 
         const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO calendars (id, userId, subject, start, end, body, location, isAllDay, type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'outlook')
-    `);
+          INSERT OR REPLACE INTO calendars (id, userId, subject, start, end, body, location, isAllDay, type)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'outlook')
+        `);
 
-        for (const event of events) {
+        for (const event of allEvents) {
             stmt.run(
                 event.id,
-                accountId,
+                otherUserEmail || accountId,
                 event.subject,
                 event.start.dateTime,
                 event.end.dateTime,

@@ -1,39 +1,84 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ToolSettingsService } from '../services/tool-settings.service';
 
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="calendar-page">
       <div class="header">
         <div class="title-section">
           <h2>Calendar</h2>
-          <p class="subtitle">Sync your meetings and activities</p>
+          <div class="selectors">
+            <select class="view-select" [(ngModel)]="displayMode">
+              <option value="day">Day</option>
+              <option value="work-week">Work Week</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
+
+            <div class="user-selector">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <select [(ngModel)]="selectedUserId" (change)="onUserChange()">
+                <option [value]="accountId">My Calendar</option>
+                @for (shared of sharedEmails; track shared) {
+                  <option [value]="shared">{{ shared }}</option>
+                }
+                <option value="add_new">+ Add Shared Calendar...</option>
+              </select>
+            </div>
+            <div class="navigation">
+              <button class="nav-btn" (click)="prev()" title="Previous Page">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+              </button>
+              <button class="nav-btn today-btn" (click)="resetToToday()">Today</button>
+              <button class="nav-btn" (click)="next()" title="Next Page">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </button>
+              <span class="range-label">{{ getRangeLabel() }}</span>
+            </div>
+          </div>
         </div>
+
         <div class="actions">
           @if (accountId) {
             <button class="btn btn-secondary" (click)="sync()" [disabled]="isSyncing">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.spinning]="isSyncing">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.spinning]="isSyncing">
                 <path d="M23 4v6h-6M1 20v-6h6"/>
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
               </svg>
-              {{ isSyncing ? 'Syncing...' : 'Sync Now' }}
+              {{ isSyncing ? 'Syncing...' : 'Sync' }}
             </button>
           }
-          <button class="btn btn-secondary" (click)="goToSettings()" title="Configuration">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
         </div>
       </div>
 
       <div class="content">
+        @if (isAddingEmail) {
+          <div class="add-email-overlay">
+            <div class="add-email-card">
+              <h3>Add Shared Calendar</h3>
+              <p>Enter the email address of the user whose calendar you want to view.</p>
+              <input type="email" [(ngModel)]="newEmail" placeholder="user@example.com" class="email-input" (keyup.enter)="confirmAddEmail()">
+              <div class="modal-actions">
+                <button class="btn btn-secondary" (click)="cancelAddEmail()">Cancel</button>
+                <button class="btn btn-primary" (click)="confirmAddEmail()">Add Calendar</button>
+              </div>
+            </div>
+          </div>
+        }
+
         @if (!accountId) {
           <div class="empty-state">
             <div class="empty-icon">
@@ -44,254 +89,386 @@ import { ToolSettingsService } from '../services/tool-settings.service';
             <h3>Connect your calendar</h3>
             <p>Bring your Outlook schedule into Chad's Copilot to stay organized.</p>
             <button class="btn btn-primary" (click)="goToSettings()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
               Go to Configuration
             </button>
           </div>
-        } @else if (events.length === 0) {
-          <div class="empty-state">
-            <div class="empty-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-            </div>
-            <h3>No events found</h3>
-            <p>Your calendar is connected, but we couldn't find any upcoming events.</p>
-            <button class="btn btn-secondary" (click)="sync()" [disabled]="isSyncing">
-              {{ isSyncing ? 'Syncing...' : 'Sync Now' }}
-            </button>
-          </div>
         } @else {
-          <div class="events-grid">
-            @for (event of events; track event.id) {
-              <div class="event-card">
-                <div class="event-marker"></div>
-                <div class="event-time">
-                  <span class="day">{{ event.start | date:'EEE' }}</span>
-                  <span class="date">{{ event.start | date:'MMM d' }}</span>
-                  <span class="hour">{{ event.start | date:'shortTime' }}</span>
+          <!-- DAY VIEW -->
+          @if (displayMode === 'day') {
+            <div class="day-view">
+              <div class="date-header">{{ viewDate | date:'fullDate' }}</div>
+              <div class="events-list">
+                @for (event of getEventsForDate(viewDate); track event.id) {
+                  <div class="event-item">
+                    <div class="time">{{ event.start | date:'h:mm a' }}</div>
+                    <div class="details">
+                      <div class="subject">{{ event.subject }}</div>
+                      <div class="location">{{ event.location }}</div>
+                    </div>
+                  </div>
+                } @empty {
+                  <div class="no-events">No events scheduled for today</div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- WEEK / WORK WEEK VIEW -->
+          @if (displayMode === 'week' || displayMode === 'work-week') {
+            <div class="week-view">
+              <div class="week-grid" [style.grid-template-columns]="'repeat(' + (displayMode === 'work-week' ? 5 : 7) + ', minmax(0, 1fr))'">
+                @for (day of weekDays; track day.getTime()) {
+                  @if (displayMode === 'week' || (day.getDay() !== 0 && day.getDay() !== 6)) {
+                    <div class="week-col" [class.is-today]="isToday(day)">
+                      <div class="day-header">
+                        <span class="day-name">{{ day | date:'EEE' }}</span>
+                        <span class="day-num">{{ day | date:'d' }}</span>
+                      </div>
+                      <div class="day-events">
+                        @for (event of getEventsForDate(day); track event.id) {
+                          <div class="event-bubble" [title]="event.subject">
+                            <span class="time">{{ event.start | date:'h:mm a' }}</span>
+                            <span class="title">{{ event.subject }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            </div>
+          }
+
+          <!-- MONTH VIEW -->
+          @if (displayMode === 'month') {
+            <div class="month-view">
+              <div class="month-grid">
+                <div class="weekday-labels">
+                  <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                 </div>
-                <div class="event-main">
-                  <div class="subject">{{ event.subject }}</div>
-                  @if (event.location) {
-                    <div class="location">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      {{ event.location }}
+                <div class="days-container">
+                  @for (day of monthDays; track day.getTime()) {
+                    <div class="month-day" 
+                         [class.is-today]="isToday(day)"
+                         [class.other-month]="day.getMonth() !== monthViewDate.getMonth()">
+                      <span class="day-number">{{ day | date:'d' }}</span>
+                      <div class="event-dots">
+                        @for (event of getEventsForDate(day).slice(0, 3); track event.id) {
+                          <div class="event-dot" [title]="event.subject"></div>
+                        }
+                        @if (getEventsForDate(day).length > 3) {
+                          <div class="plus-more">+{{ getEventsForDate(day).length - 3 }}</div>
+                        }
+                      </div>
                     </div>
                   }
                 </div>
               </div>
-            }
-          </div>
+            </div>
+          }
         }
       </div>
     </div>
   `,
   styles: [`
     .calendar-page {
-      padding: 32px;
+      padding: 24px;
       height: 100%;
       display: flex;
       flex-direction: column;
       background: var(--app-background);
       color: var(--app-text);
-      overflow-y: auto;
+      overflow: hidden;
     }
 
     .header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 40px;
-    }
-
-    h2 {
-      font-size: 28px;
-      font-weight: 700;
-      margin: 0;
-      background: linear-gradient(135deg, #fff 0%, #aaa 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .subtitle {
-      color: var(--app-text-muted);
-      margin: 4px 0 0 0;
-      font-size: 14px;
-    }
-
-    .btn {
-      display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      border: 1px solid transparent;
+      margin-bottom: 24px;
     }
 
-    .btn-primary {
-      background: var(--theme-primary);
-      color: #fff;
+    .title-section h2 {
+      font-size: 24px;
+      margin: 0 0 12px 0;
+      font-weight: 700;
     }
 
-    .btn-primary:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
+    .selectors {
+      display: flex;
+      gap: 12px;
     }
 
-    .btn-secondary {
+    .view-select, .user-selector select {
       background: var(--app-surface);
       color: var(--app-text);
-      border-color: var(--app-border);
+      border: 1px solid var(--app-border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
     }
 
-    .btn-secondary:hover:not(:disabled) {
-      background: var(--app-border);
+    .user-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      padding: 0 8px;
+      border-radius: 6px;
     }
 
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    .user-selector select { border: none; }
+
+    .actions { display: flex; gap: 8px; }
+    
+    .navigation {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 12px;
+      padding-left: 12px;
+      border-left: 1px solid var(--app-border);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid var(--app-border);
+      color: var(--app-text);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .nav-btn:hover {
+      background: var(--app-surface);
+      border-color: var(--theme-primary);
+    }
+    .today-btn {
+      width: auto;
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .range-label {
+      margin-left: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--app-text);
+      min-width: 150px;
     }
 
     .content {
       flex: 1;
-    }
-
-    .empty-state {
+      min-height: 0;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 80px 20px;
-      text-align: center;
+    }
+
+    /* Day View */
+    .day-view {
       background: var(--app-surface);
-      border-radius: 16px;
-      border: 1px dashed var(--app-border);
-    }
-
-    .empty-icon {
-      color: var(--app-text-muted);
-      margin-bottom: 20px;
-      opacity: 0.5;
-    }
-
-    .empty-state h3 {
-      font-size: 20px;
-      margin-bottom: 12px;
-    }
-
-    .empty-state p {
-      color: var(--app-text-muted);
-      max-width: 320px;
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-
-    .events-grid {
-      display: grid;
-      gap: 12px;
-    }
-
-    .event-card {
-      display: flex;
-      align-items: center;
-      padding: 16px;
-      background: var(--app-surface);
-      border-radius: 12px;
       border: 1px solid var(--app-border);
-      transition: transform 0.2s, border-color 0.2s;
-      position: relative;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .date-header { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+    .event-item {
+      display: flex;
+      gap: 20px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--app-border);
+    }
+    .event-item .time { min-width: 80px; color: var(--theme-primary); font-weight: 600; }
+    .event-item .subject { font-weight: 600; }
+    .event-item .location { font-size: 12px; color: var(--app-text-muted); }
+
+    /* Week View */
+    .week-view { height: 100%; overflow: hidden; }
+    .week-grid {
+      display: grid;
+      height: 100%;
+      background: var(--app-border);
+      gap: 1px;
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
       overflow: hidden;
     }
-
-    .event-card:hover {
-      border-color: var(--theme-primary);
-      transform: translateX(4px);
-    }
-
-    .event-marker {
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: var(--theme-primary);
-      opacity: 0.7;
-    }
-
-    .event-time {
+    .week-col {
+      background: var(--app-surface);
       display: flex;
       flex-direction: column;
-      min-width: 100px;
-      padding-right: 20px;
-      border-right: 1px solid var(--app-border);
-      margin-right: 20px;
+      min-height: 0;
+      min-width: 0; /* Important for grid item shrinking */
     }
+    .week-col.is-today { background: var(--app-background); }
+    .day-header {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--app-border);
+      display: flex;
+      flex-direction: column;
+    }
+    .day-name { font-size: 11px; text-transform: uppercase; color: var(--app-text-muted); }
+    .day-num { font-size: 18px; font-weight: 700; }
+    .is-today .day-num { color: var(--theme-primary); }
+    
+    .day-events {
+      flex: 1;
+      padding: 8px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .event-bubble {
+      background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+      border-left: 3px solid var(--theme-primary);
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+    }
+    .event-bubble .time { font-weight: 700; color: var(--theme-primary); margin-bottom: 2px; white-space: nowrap; }
+    .event-bubble .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .day {
+    /* Month View */
+    .month-view { height: 100%; }
+    .month-grid {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .weekday-labels {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      background: var(--app-surface);
+      border-bottom: 1px solid var(--app-border);
+    }
+    .weekday-labels span {
+      padding: 8px;
+      text-align: center;
       font-size: 11px;
       text-transform: uppercase;
-      font-weight: 700;
-      color: var(--theme-primary);
-      letter-spacing: 1px;
-    }
-
-    .date {
-      font-size: 16px;
       font-weight: 600;
-      margin: 2px 0;
-    }
-
-    .hour {
-      font-size: 12px;
       color: var(--app-text-muted);
     }
-
-    .event-main {
+    .days-container {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-auto-rows: 1fr;
       flex: 1;
+      background: var(--app-border);
+      gap: 1px;
     }
-
-    .subject {
-      font-weight: 600;
-      font-size: 16px;
-      margin-bottom: 4px;
+    .month-day {
+      background: var(--app-surface);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
     }
+    .month-day.other-month { opacity: 0.4; background: var(--app-background); }
+    .day-number { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .is-today .day-number { 
+      background: var(--theme-primary); 
+      color: #fff; 
+      width: 20px; 
+      height: 20px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      border-radius: 50%;
+    }
+    .event-dots { display: flex; flex-wrap: wrap; gap: 2px; }
+    .event-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--theme-primary); }
+    .plus-more { font-size: 9px; color: var(--app-text-muted); }
 
-    .location {
-      font-size: 13px;
-      color: var(--app-text-muted);
+    .btn {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .btn-secondary { background: var(--app-surface); border-color: var(--app-border); color: var(--app-text); }
+    .btn-primary { background: var(--theme-primary); color: #fff; }
+    .spinning { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* Modal Overlay */
+    .add-email-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
 
-    .spinning {
-      animation: spin 1s linear infinite;
+    .add-email-card {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
     }
 
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+    .add-email-card h3 { font-size: 20px; margin: 0 0 12px 0; }
+    .add-email-card p { font-size: 14px; color: var(--app-text-muted); margin-bottom: 24px; }
+
+    .email-input {
+      width: 100%;
+      background: var(--app-background);
+      border: 1px solid var(--app-border);
+      color: var(--app-text);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      outline: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
     }
   `],
 })
 export class CalendarComponent implements OnInit {
   accountId: string | null = null;
+  selectedUserId: string | null = null;
+  displayMode: 'day' | 'week' | 'work-week' | 'month' = 'work-week';
   events: any[] = [];
+  sharedEmails: string[] = [];
   isSyncing = false;
+  isAddingEmail = false;
+  newEmail = '';
+
+  realToday = new Date();
+  viewDate = new Date();
+  weekDays: Date[] = [];
+  monthDays: Date[] = [];
 
   constructor(
     private router: Router,
@@ -300,31 +477,143 @@ export class CalendarComponent implements OnInit {
 
   get electron() { return (window as any).electronAPI; }
 
+  calculateGrids() {
+    // Week grid
+    const startOfWeek = new Date(this.viewDate);
+    startOfWeek.setDate(this.viewDate.getDate() - this.viewDate.getDay()); // Sunday
+    this.weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      return d;
+    });
+
+    // Month grid
+    const startOfMonth = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth(), 1);
+    const startGrid = new Date(startOfMonth);
+    startGrid.setDate(startGrid.getDate() - startGrid.getDay()); // Start on Sunday of first week
+
+    this.monthDays = Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(startGrid);
+      d.setDate(startGrid.getDate() + i);
+      return d;
+    });
+  }
+
+  isToday(d: Date) {
+    return d.toDateString() === this.realToday.toDateString();
+  }
+
+  getEventsForDate(d: Date) {
+    const dateStr = d.toDateString();
+    return this.events.filter(e => new Date(e.start).toDateString() === dateStr);
+  }
+
+  get filteredEvents() {
+    const startOfView = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth(), this.viewDate.getDate());
+
+    return this.events.filter(event => {
+      const eventDate = new Date(event.start);
+      const diffDays = Math.floor((eventDate.getTime() - startOfView.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (this.displayMode === 'day') {
+        return diffDays === 0;
+      } else if (this.displayMode === 'week' || this.displayMode === 'work-week') {
+        const isWithinWeek = diffDays >= 0 && diffDays < 7;
+        if (this.displayMode === 'work-week') {
+          return isWithinWeek && eventDate.getDay() !== 0 && eventDate.getDay() !== 6;
+        }
+        return isWithinWeek;
+      } else {
+        return diffDays >= 0 && diffDays < 30;
+      }
+    });
+  }
+
+  getRangeLabel(): string {
+    if (this.displayMode === 'day') {
+      return this.viewDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+    } else if (this.displayMode === 'month') {
+      return this.viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    } else {
+      const start = this.weekDays[0];
+      const end = this.weekDays[6];
+      if (start.getMonth() === end.getMonth()) {
+        return `${start.toLocaleDateString(undefined, { month: 'long' })} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
+      }
+      return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${end.getFullYear()}`;
+    }
+  }
+
+  prev() { this.navigate(-1); }
+  next() { this.navigate(1); }
+
+  resetToToday() {
+    this.viewDate = new Date();
+    this.calculateGrids();
+  }
+
+  private navigate(delta: number) {
+    if (this.displayMode === 'day') {
+      this.viewDate.setDate(this.viewDate.getDate() + delta);
+    } else if (this.displayMode === 'month') {
+      this.viewDate.setMonth(this.viewDate.getMonth() + delta);
+    } else {
+      this.viewDate.setDate(this.viewDate.getDate() + (delta * 7));
+    }
+    this.viewDate = new Date(this.viewDate); // Trigger change detection
+    this.calculateGrids();
+  }
+
   async ngOnInit() {
     this.accountId = localStorage.getItem('outlook_account_id');
+    this.selectedUserId = this.accountId;
+
+    // Load previously added shared emails from local storage
+    const saved = localStorage.getItem('calendar_shared_emails');
+    if (saved) {
+      this.sharedEmails = JSON.parse(saved);
+    }
+
+    this.calculateGrids();
+
     if (this.accountId) {
       await this.loadEvents();
     }
   }
 
-  async login() {
-    try {
-      const id = await this.electron.calendarLogin();
-      if (id) {
-        this.accountId = id;
-        localStorage.setItem('outlook_account_id', id);
-        await this.sync();
-      }
-    } catch (err) {
-      console.error('Login failed', err);
+  async onUserChange() {
+    if (this.selectedUserId === 'add_new') {
+      this.isAddingEmail = true;
+      this.newEmail = '';
+    } else {
+      await this.loadEvents();
     }
   }
 
+  async confirmAddEmail() {
+    if (this.newEmail && this.newEmail.includes('@')) {
+      if (!this.sharedEmails.includes(this.newEmail)) {
+        this.sharedEmails.push(this.newEmail);
+        localStorage.setItem('calendar_shared_emails', JSON.stringify(this.sharedEmails));
+      }
+      this.selectedUserId = this.newEmail;
+      this.isAddingEmail = false;
+      await this.loadEvents();
+    }
+  }
+
+  cancelAddEmail() {
+    this.isAddingEmail = false;
+    this.selectedUserId = this.accountId;
+  }
+
   async sync() {
-    if (!this.accountId) return;
+    if (!this.accountId || !this.selectedUserId) return;
     this.isSyncing = true;
     try {
-      await this.electron.calendarSync(this.accountId);
+      // If selectedUserId is the accountId, it's 'me', otherwise it's the specific email
+      const targetEmail = this.selectedUserId === this.accountId ? undefined : this.selectedUserId;
+      await this.electron.calendarSync(this.accountId, targetEmail);
       await this.loadEvents();
     } catch (err) {
       console.error('Sync failed', err);
@@ -334,8 +623,8 @@ export class CalendarComponent implements OnInit {
   }
 
   async loadEvents() {
-    if (!this.accountId) return;
-    this.events = await this.electron.calendarGetEvents(this.accountId);
+    if (!this.selectedUserId) return;
+    this.events = await this.electron.calendarGetEvents(this.selectedUserId);
   }
 
   async goToSettings() {
