@@ -297,12 +297,19 @@ export class PlanEngineService {
 
         const entries: any[] = [];
         let cumulativeValue = 0;
+        let cumulativeActualValue = 0;
         let tempMs = startDateMs;
 
         while (tempMs < projectEndMs + dayMs) {
             const dateStr = new Date(tempMs).toISOString().split('T')[0];
             const dayVal = dailyValueMap.get(dateStr) || 0;
             cumulativeValue += dayVal;
+
+            plan.activities.forEach(a => {
+                if (a.actualFinishDate === dateStr) {
+                    cumulativeActualValue += (a.value ?? a.durationDays ?? 0);
+                }
+            });
 
             const existing = plan.earnedValue?.find(e => e.date === dateStr);
             const workedIds = dailyWorkedMap.get(dateStr) || [];
@@ -316,9 +323,9 @@ export class PlanEngineService {
                 date: dateStr,
                 projectedEarned: Math.round(cumulativeValue * 100) / 100,
                 projectedPercent: totalProjectValue > 0 ? Math.round((cumulativeValue / totalProjectValue) * 10000) / 100 : 0,
-                actualEarned: existing?.actualEarned || 0,
-                actualPercent: existing?.actualPercent || 0,
-                activitiesFinished: dailyFinishedMap.get(dateStr) || [],
+                actualEarned: Math.round(cumulativeActualValue * 100) / 100,
+                actualPercent: totalProjectValue > 0 ? Math.round((cumulativeActualValue / totalProjectValue) * 10000) / 100 : 0,
+                activitiesFinished: plan.activities.filter(a => a.actualFinishDate === dateStr).map(a => a.id),
                 activitiesWorked: workedIds,
                 resources: Array.from(activeResources)
             });

@@ -19,6 +19,8 @@ export interface PlanActivity {
     float?: number;
     criticalPath?: boolean;
     value?: number;
+    percentComplete?: number; // 0-100
+    actualFinishDate?: string; // YYYY-MM-DD
 }
 
 export interface EarnedValueEntry {

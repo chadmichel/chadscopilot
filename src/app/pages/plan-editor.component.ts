@@ -114,7 +114,8 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
           <div class="side-tabs">
             <button [class.active]="activeTab === 'activities'" (click)="activeTab = 'activities'">Activities</button>
             <button [class.active]="activeTab === 'gantt'" (click)="activeTab = 'gantt'">Gantt</button>
-            <button [class.active]="activeTab === 'ev'" (click)="activeTab = 'ev'">Earned Value</button>
+            <button [class.active]="activeTab === 'tracking'" (click)="activeTab = 'tracking'">Tracking</button>
+            <button [class.active]="activeTab === 'ev'" (click)="activeTab = 'ev'">Earned Value</button>            
             <button [class.active]="activeTab === 'ev-chart'" (click)="activeTab = 'ev-chart'">EV Chart</button>
           </div>
 
@@ -351,6 +352,43 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                 } @else {
                   <div class="empty-state">No earned value data yet. Ask the AI to generate earned value tracking.</div>
                 }
+              </div>
+            }
+
+            @if (activeTab === 'tracking') {
+              <div class="tracking-container">
+                <div class="table-wrapper">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Activity</th>
+                        <th style="width:150px">Status</th>
+                        <th style="width:200px">Actual Finish Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (act of getVisibleActivities(); track act.id) {
+                        <tr [class.is-complete]="!!act.actualFinishDate">
+                          <td>{{ act.name }}</td>
+                          <td>
+                            <button class="status-btn" 
+                                    [class.complete]="!!act.actualFinishDate"
+                                    (click)="toggleActivityComplete(act)">
+                              {{ !!act.actualFinishDate ? 'Completed' : 'Mark Complete' }}
+                            </button>
+                          </td>
+                          <td>
+                            <input class="cell-input" 
+                                   type="date" 
+                                   [(ngModel)]="act.actualFinishDate" 
+                                   (ngModelChange)="onActualFinishDateChange()"
+                                   [disabled]="!act.actualFinishDate" />
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
               </div>
             }
 
@@ -1102,10 +1140,33 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     }
 
     /* Earned Value tab */
-    .ev-container {
+    .ev-container, .tracking-container {
       flex: 1;
       padding: 20px;
       overflow-y: auto;
+    }
+    .status-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface);
+      color: var(--app-text);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .status-btn:hover {
+      border-color: var(--theme-primary);
+      color: var(--theme-primary);
+    }
+    .status-btn.complete {
+      background: var(--theme-primary);
+      color: white;
+      border-color: var(--theme-primary);
+    }
+    .is-complete {
+      background: color-mix(in srgb, var(--theme-primary), transparent 95%);
     }
       /* Earned Value Chart */
     .ev-chart-container {
@@ -1186,7 +1247,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   };
   isDirty = false;
   showSettings = false;
-  activeTab: 'activities' | 'gantt' | 'ev' | 'ev-chart' = 'activities';
+  activeTab: 'activities' | 'gantt' | 'ev' | 'ev-chart' | 'tracking' = 'activities';
   ganttMinDate = '';
   ganttMaxDate = '';
   ganttZoom = 100;
@@ -1197,7 +1258,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
   getPlanContext = (): string => {
     const json = JSON.stringify(this.plan, null, 2);
-    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), color (hex string), and optional "value" (numeric business value or budget). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: Activity properties "float" and "criticalPath" as well as the "earnedValue" array are automatically calculated and read-only; do not try to modify them. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies.`;
+    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), color (hex string), optional "value" (numeric), "percentComplete" (0-100), and "actualFinishDate" (YYYY-MM-DD). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: Activity properties "float" and "criticalPath" as well as the "earnedValue" array are automatically calculated and read-only; do not try to modify them. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies. Setting "actualFinishDate" is what calculates the "Actual Earned Value" in the project.`;
   };
 
   private get electron() { return (window as any).electronAPI; }
@@ -1384,6 +1445,24 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   getActivityName(id: string): string {
     const act = this.plan.activities.find(a => a.id === id);
     return act?.name || id;
+  }
+
+  isMarkingInProgress = false;
+  toggleActivityComplete(act: PlanActivity) {
+    if (act.actualFinishDate) {
+      act.actualFinishDate = undefined;
+      act.percentComplete = 0;
+    } else {
+      act.actualFinishDate = new Date().toISOString().split('T')[0];
+      act.percentComplete = 100;
+    }
+    this.markDirty();
+    this.recalculateDates();
+  }
+
+  onActualFinishDateChange() {
+    this.markDirty();
+    this.recalculateDates();
   }
 
   getAvailableDependencies(act: PlanActivity): PlanActivity[] {
