@@ -116,6 +116,20 @@ import { ToolSettingsService } from '../services/tool-settings.service';
           <!-- WEEK / WORK WEEK VIEW -->
           @if (displayMode === 'week' || displayMode === 'work-week') {
             <div class="week-view">
+              <div class="week-metrics-bar">
+                <span class="bar-label">Weekly Summary</span>
+                @let weekMetrics = getWeekMetrics();
+                <div class="bar-metrics">
+                  <div class="bar-metric">
+                    <span class="val">{{ weekMetrics.allocated }}%</span>
+                    <span class="lab">Avg Allocated</span>
+                  </div>
+                  <div class="bar-metric">
+                    <span class="val">{{ weekMetrics.deepWork }}%</span>
+                    <span class="lab">Avg Deep Work</span>
+                  </div>
+                </div>
+              </div>
               <div class="week-grid" [style.grid-template-columns]="'repeat(' + (displayMode === 'work-week' ? 5 : 7) + ', minmax(0, 1fr))'">
                 @for (day of weekDays; track day.getTime()) {
                   @if (displayMode === 'week' || (day.getDay() !== 0 && day.getDay() !== 6)) {
@@ -123,6 +137,17 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                       <div class="day-header">
                         <span class="day-name">{{ day | date:'EEE' }}</span>
                         <span class="day-num">{{ day | date:'d' }}</span>
+                        <div class="day-metrics">
+                          @let metrics = getDayMetrics(day);
+                          <div class="metric-item" title="% of 9am-5pm allocated to meetings">
+                            <span class="metric-value">{{ metrics.allocated }}%</span>
+                            <span class="metric-label">Allocated</span>
+                          </div>
+                          <div class="metric-item" title="% of 9am-5pm available for deep work (gaps >= 1hr)">
+                            <span class="metric-value">{{ metrics.deepWork }}%</span>
+                            <span class="metric-label">Deep Work</span>
+                          </div>
+                        </div>
                       </div>
                       <div class="day-events">
                         @for (event of getEventsForDate(day); track event.id) {
@@ -319,6 +344,72 @@ import { ToolSettingsService } from '../services/tool-settings.service';
     .day-num { font-size: 18px; font-weight: 700; }
     .is-today .day-num { color: var(--theme-primary); }
     
+    /* Metrics */
+    .day-metrics {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--app-border);
+    }
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .metric-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--app-text);
+    }
+    .metric-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--app-text-muted);
+      letter-spacing: 0.2px;
+    }
+
+    /* Weekly Bar */
+    .week-metrics-bar {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .bar-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--app-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .bar-metrics {
+      display: flex;
+      gap: 32px;
+    }
+    .bar-metric {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .bar-metric .val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--theme-primary);
+    }
+    .bar-metric .lab {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--app-text-muted);
+      text-transform: uppercase;
+    }
+    
     .day-events {
       flex: 1;
       padding: 8px;
@@ -501,6 +592,77 @@ export class CalendarComponent implements OnInit {
 
   isToday(d: Date) {
     return d.toDateString() === this.realToday.toDateString();
+  }
+
+  getDayMetrics(date: Date) {
+    const events = this.events.filter(e => new Date(e.start).toDateString() === date.toDateString());
+
+    const dayStart = new Date(date);
+    dayStart.setHours(9, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(17, 0, 0, 0);
+
+    const totalMinutes = 8 * 60; // 9am - 5pm
+
+    // Sort and filter events to 9-5 window
+    const dayEvents = events.map(e => ({
+      start: new Date(e.start),
+      end: new Date(e.end)
+    })).filter(e => e.end > dayStart && e.start < dayEnd)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    // Merge overlapping events and clip to 9-5
+    const merged: { start: Date, end: Date }[] = [];
+    for (const e of dayEvents) {
+      const s = e.start < dayStart ? dayStart : e.start;
+      const f = e.end > dayEnd ? dayEnd : e.end;
+
+      if (merged.length > 0 && s <= merged[merged.length - 1].end) {
+        merged[merged.length - 1].end = new Date(Math.max(merged[merged.length - 1].end.getTime(), f.getTime()));
+      } else {
+        merged.push({ start: s, end: f });
+      }
+    }
+
+    let allocatedMins = 0;
+    merged.forEach(m => {
+      allocatedMins += (m.end.getTime() - m.start.getTime()) / (1000 * 60);
+    });
+
+    let deepWorkMins = 0;
+    let cursor = dayStart.getTime();
+    for (const m of merged) {
+      const gap = (m.start.getTime() - cursor) / (1000 * 60);
+      if (gap >= 60) deepWorkMins += gap;
+      cursor = Math.max(cursor, m.end.getTime());
+    }
+    const finalGap = (dayEnd.getTime() - cursor) / (1000 * 60);
+    if (finalGap >= 60) deepWorkMins += finalGap;
+
+    return {
+      allocated: Math.round((allocatedMins / totalMinutes) * 100),
+      deepWork: Math.round((deepWorkMins / totalMinutes) * 100)
+    };
+  }
+
+  getWeekMetrics() {
+    const activeDays = this.weekDays.filter(day =>
+      this.displayMode === 'week' || (day.getDay() !== 0 && day.getDay() !== 6)
+    );
+
+    let totalAllocated = 0;
+    let totalDeepWork = 0;
+
+    activeDays.forEach(day => {
+      const m = this.getDayMetrics(day);
+      totalAllocated += m.allocated;
+      totalDeepWork += m.deepWork;
+    });
+
+    return {
+      allocated: Math.round(totalAllocated / activeDays.length),
+      deepWork: Math.round(totalDeepWork / activeDays.length)
+    };
   }
 
   getEventsForDate(d: Date) {
