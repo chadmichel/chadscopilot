@@ -1,26 +1,41 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { TasksService, Task } from '../services/tasks.service';
 import { ProjectsService, Project } from '../services/projects.service';
+import { ToolSettingsService } from '../services/tool-settings.service';
 
 @Component({
   selector: 'app-tasks',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   template: `
     <div class="page">
       <div class="page-header">
-        <h2>Tasks</h2>
-        <select
-          class="project-filter"
-          [(ngModel)]="selectedProjectId"
-        >
-          <option value="all">All Projects</option>
-          @for (project of projects; track project.id) {
-            <option [value]="project.externalId">{{ project.name }}</option>
-          }
-        </select>
+        <div class="header-left">
+          <select
+            class="project-filter"
+            [(ngModel)]="selectedProjectId"
+          >
+            <option value="all">All Projects</option>
+            @for (project of projects; track project.id) {
+              <option [value]="project.externalId">{{ project.name }}</option>
+            }
+          </select>
+          <button 
+            class="sync-btn" 
+            (click)="sync()" 
+            [disabled]="syncing"
+            title="Sync tasks from GitHub"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
+                 stroke="currentColor" stroke-width="2.5" [class.spinning]="syncing">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+            {{ syncing ? 'Syncing...' : 'Sync' }}
+          </button>
+        </div>
       </div>
 
       @if (filteredTasks.length === 0 && !loading) {
@@ -36,16 +51,21 @@ import { ProjectsService, Project } from '../services/projects.service';
           <p>Sync a GitHub project from the Tools page to see tasks here.</p>
         </div>
       } @else {
-        <div class="board">
+        <div class="board" cdkDropListGroup>
           <!-- Backlog -->
           <div class="column">
             <div class="column-header">
               <span class="column-title">Backlog</span>
               <span class="column-count">{{ backlogTasks.length }}</span>
             </div>
-            <div class="column-body">
+            <div 
+              class="column-body" 
+              cdkDropList 
+              [cdkDropListData]="backlogTasks"
+              (cdkDropListDropped)="onDrop($event, 'pending')"
+            >
               @for (task of backlogTasks; track task.id) {
-                <div class="task-card pending">
+                <div class="task-card pending" cdkDrag [cdkDragData]="task">
                   <div class="task-title">{{ task.title }}</div>
                   @if (task.description) {
                     <div class="task-desc">{{ task.description }}</div>
@@ -67,9 +87,14 @@ import { ProjectsService, Project } from '../services/projects.service';
               <span class="column-title">In Progress</span>
               <span class="column-count">{{ inProgressTasks.length }}</span>
             </div>
-            <div class="column-body">
+            <div 
+              class="column-body" 
+              cdkDropList 
+              [cdkDropListData]="inProgressTasks"
+              (cdkDropListDropped)="onDrop($event, 'in_progress')"
+            >
               @for (task of inProgressTasks; track task.id) {
-                <div class="task-card in-progress">
+                <div class="task-card in-progress" cdkDrag [cdkDragData]="task">
                   <div class="task-title">{{ task.title }}</div>
                   @if (task.description) {
                     <div class="task-desc">{{ task.description }}</div>
@@ -91,9 +116,14 @@ import { ProjectsService, Project } from '../services/projects.service';
               <span class="column-title">Complete</span>
               <span class="column-count">{{ completeTasks.length }}</span>
             </div>
-            <div class="column-body">
+            <div 
+              class="column-body" 
+              cdkDropList 
+              [cdkDropListData]="completeTasks"
+              (cdkDropListDropped)="onDrop($event, 'done')"
+            >
               @for (task of completeTasks; track task.id) {
-                <div class="task-card done">
+                <div class="task-card done" cdkDrag [cdkDragData]="task">
                   <div class="task-title">{{ task.title }}</div>
                   @if (task.description) {
                     <div class="task-desc">{{ task.description }}</div>
@@ -129,6 +159,11 @@ import { ProjectsService, Project } from '../services/projects.service';
         margin-bottom: 20px;
         flex-shrink: 0;
       }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
       h2 {
         font-size: 18px;
         font-weight: 700;
@@ -163,6 +198,36 @@ import { ProjectsService, Project } from '../services/projects.service';
       .project-filter option {
         background: var(--app-surface);
         color: var(--app-text);
+      }
+
+      .sync-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        color: var(--app-text);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .sync-btn:hover:not(:disabled) {
+        border-color: var(--theme-primary);
+        color: var(--theme-primary);
+      }
+      .sync-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .spinning {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
       }
 
       /* Empty state */
@@ -294,11 +359,34 @@ import { ProjectsService, Project } from '../services/projects.service';
         padding: 2px 8px;
         border-radius: 4px;
       }
+
+      .cdk-drag-preview {
+        box-sizing: border-box;
+        border-radius: 8px;
+        box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2),
+                    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+                    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+        background: var(--app-surface);
+        padding: 12px 14px;
+        border-left: 3px solid var(--theme-primary);
+        z-index: 1000;
+        pointer-events: none;
+      }
+      .cdk-drag-placeholder {
+        opacity: 0.3;
+      }
+      .cdk-drag-animating {
+        transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+      }
+      .column-body.cdk-drop-list-dragging .task-card:not(.cdk-drag-placeholder) {
+        transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+      }
     `,
   ],
 })
 export class TasksComponent implements OnInit {
   loading = true;
+  syncing = false;
   selectedProjectId = 'all';
   projects: Project[] = [];
 
@@ -308,7 +396,8 @@ export class TasksComponent implements OnInit {
   constructor(
     private tasksService: TasksService,
     private projectsService: ProjectsService,
-  ) {}
+    private toolSettingsService: ToolSettingsService,
+  ) { }
 
   async ngOnInit(): Promise<void> {
     await Promise.all([
@@ -358,6 +447,86 @@ export class TasksComponent implements OnInit {
       return extra.githubProjectId || '';
     } catch {
       return '';
+    }
+  }
+
+  async sync(): Promise<void> {
+    if (this.syncing) return;
+    this.syncing = true;
+
+    try {
+      const electron = (window as any).electronAPI;
+      if (!electron?.githubSyncProject) return;
+
+      // Load tools to get tokens
+      await this.toolSettingsService.loadTools();
+
+      const projectsToSync = this.selectedProjectId === 'all'
+        ? this.projects
+        : this.projects.filter(p => p.externalId === this.selectedProjectId);
+
+      for (const project of projectsToSync) {
+        const tool = this.toolSettingsService.tools.find(t => t.id === project.toolId);
+        if (!tool || !tool.token || !tool.isEnabled) continue;
+
+        try {
+          // Note: main.ts uses project.externalId as projectId, p.name as title, 
+          // p.organizationId as organization.
+          // projectNumber seems optional or unused in github.service.ts but required by IPC.
+          // We don't have projectNumber in Project interface currently, passing 0.
+          await electron.githubSyncProject(
+            tool.token,
+            project.externalId,
+            project.name,
+            0,
+            tool.id,
+            project.organizationId
+          );
+        } catch (err) {
+          console.error(`Failed to sync project ${project.name}:`, err);
+        }
+      }
+
+      // Reload tasks after sync
+      await this.tasksService.loadTasks();
+      this.allTasks = this.tasksService.tasks;
+    } finally {
+      this.syncing = false;
+    }
+  }
+
+  async onDrop(event: CdkDragDrop<Task[]>, newStatus: string) {
+    if (event.previousContainer === event.container) return;
+
+    const task = event.item.data as Task;
+    const oldStatus = task.status;
+
+    // 1. Update local database
+    await this.tasksService.updateTask(task.id, { status: newStatus });
+
+    // 2. Update local state immediately for visual feedback
+    task.status = newStatus;
+
+    // 3. Update GitHub if applicable
+    const ghProjectId = this.parseGhProjectId(task);
+    if (ghProjectId && task.externalId) {
+      if (this.toolSettingsService.tools.length === 0) {
+        await this.toolSettingsService.loadTools();
+      }
+      const tool = this.toolSettingsService.tools.find(t => t.id === task.toolId);
+      if (tool && tool.token) {
+        const electron = (window as any).electronAPI;
+        try {
+          await electron?.githubUpdateItemStatus?.(
+            tool.token,
+            ghProjectId,
+            task.externalId,
+            newStatus
+          );
+        } catch (err) {
+          console.error('Failed to update GitHub status:', err);
+        }
+      }
     }
   }
 }

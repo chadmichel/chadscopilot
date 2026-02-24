@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const MACOS_PATHS = [
   '/Applications/Visual Studio Code.app',
   '/Applications/Visual Studio Code - Insiders.app',
-  `${process.env.HOME}/Applications/Visual Studio Code.app`,
+  `${process.env['HOME']}/Applications/Visual Studio Code.app`,
 ];
 
 const CLI_NAMES = ['code', 'code-insiders'];
@@ -42,7 +42,11 @@ export class VsCodeService {
     const cli = cliPath || this.findCli();
 
     if (cli) {
-      spawn(cli, [folderPath], { detached: true, stdio: 'ignore' }).unref();
+      if (process.platform === 'darwin' && cli.endsWith('.app')) {
+        spawn('open', ['-a', cli, folderPath], { detached: true, stdio: 'ignore' }).unref();
+      } else {
+        spawn(cli, [folderPath], { detached: true, stdio: 'ignore' }).unref();
+      }
       return true;
     }
 

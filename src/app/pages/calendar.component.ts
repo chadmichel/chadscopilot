@@ -12,7 +12,6 @@ import { ToolSettingsService } from '../services/tool-settings.service';
     <div class="calendar-page">
       <div class="header">
         <div class="title-section">
-          <h2>Calendar</h2>
           <div class="selectors">
             <select class="view-select" [(ngModel)]="displayMode">
               <option value="day">Day</option>
@@ -179,6 +178,20 @@ import { ToolSettingsService } from '../services/tool-settings.service';
           <!-- MONTH VIEW -->
           @if (displayMode === 'month') {
             <div class="month-view">
+              <div class="week-metrics-bar">
+                <span class="bar-label">Monthly Summary</span>
+                @let monthMetrics = getMonthMetrics();
+                <div class="bar-metrics">
+                  <div class="bar-metric">
+                    <span class="val">{{ monthMetrics.allocated }}%</span>
+                    <span class="lab">Allocated</span>
+                  </div>
+                  <div class="bar-metric">
+                    <span class="val">{{ monthMetrics.deepWork }}%</span>
+                    <span class="lab">Deep Work</span>
+                  </div>
+                </div>
+              </div>
               <div class="month-grid">
                 <div class="weekday-labels">
                   <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -187,7 +200,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                   @for (day of monthDays; track day.getTime()) {
                     <div class="month-day" 
                          [class.is-today]="isToday(day)"
-                         [class.other-month]="day.getMonth() !== monthViewDate.getMonth()">
+                         [class.other-month]="day.getMonth() !== viewDate.getMonth()">
                       <span class="day-number">{{ day | date:'d' }}</span>
                       <div class="event-dots">
                         @for (event of getEventsForDate(day).slice(0, 3); track event.id) {
@@ -705,6 +718,28 @@ export class CalendarComponent implements OnInit {
     const activeDays = this.weekDays.filter(day =>
       this.displayMode === 'week' || (day.getDay() !== 0 && day.getDay() !== 6)
     );
+
+    let totalAllocated = 0;
+    let totalDeepWork = 0;
+
+    activeDays.forEach(day => {
+      const m = this.getDayMetrics(day);
+      totalAllocated += m.allocated;
+      totalDeepWork += m.deepWork;
+    });
+
+    return {
+      allocated: Math.round(totalAllocated / activeDays.length),
+      deepWork: Math.round(totalDeepWork / activeDays.length)
+    };
+  }
+
+  getMonthMetrics() {
+    const activeDays = this.monthDays.filter(day =>
+      day.getMonth() === this.viewDate.getMonth() && (day.getDay() !== 0 && day.getDay() !== 6)
+    );
+
+    if (activeDays.length === 0) return { allocated: 0, deepWork: 0 };
 
     let totalAllocated = 0;
     let totalDeepWork = 0;

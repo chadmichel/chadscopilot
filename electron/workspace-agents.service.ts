@@ -31,6 +31,11 @@ export class WorkspaceAgentsService {
     this.db = db;
   }
 
+  getAll(): WorkspaceAgent[] {
+    const stmt = this.db.prepare('SELECT * FROM workspace_agents ORDER BY name ASC');
+    return (stmt.all() as unknown as WorkspaceAgentRow[]).map(rowToAgent);
+  }
+
   getByWorkspace(workspaceId: string): WorkspaceAgent[] {
     const stmt = this.db.prepare(
       'SELECT * FROM workspace_agents WHERE workspaceId = ? ORDER BY name ASC'

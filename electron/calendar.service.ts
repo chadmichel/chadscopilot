@@ -230,4 +230,8 @@ export class CalendarService {
     getEvents(userId: string) {
         return this.db.prepare('SELECT * FROM calendars WHERE userId = ? ORDER BY start ASC').all(userId);
     }
+
+    getAllEvents() {
+        return this.db.prepare('SELECT * FROM calendars ORDER BY start ASC').all();
+    }
 }

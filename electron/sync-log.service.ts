@@ -40,6 +40,13 @@ export class SyncLogService {
     return (stmt.all(toolId, limit) as unknown as SyncLogRow[]).map(rowToEntry);
   }
 
+  getAll(limit = 200): SyncLogEntry[] {
+    const stmt = this.db.prepare(
+      'SELECT * FROM sync_log ORDER BY createdAt DESC LIMIT ?',
+    );
+    return (stmt.all(limit) as unknown as SyncLogRow[]).map(rowToEntry);
+  }
+
   add(entry: Omit<SyncLogEntry, 'id' | 'createdAt'>): SyncLogEntry {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();

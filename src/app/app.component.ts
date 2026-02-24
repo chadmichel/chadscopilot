@@ -4,6 +4,7 @@ import { SidebarComponent } from './sidebar/sidebar.component';
 import { ThemeService } from './services/theme.service';
 import { filter } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
+import { Title } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-root',
@@ -14,17 +15,31 @@ import { CommonModule } from '@angular/common';
 })
 export class AppComponent implements OnInit {
   isPopout = false;
+  windowTitle = 'What Is Done';
 
-  constructor(private themeService: ThemeService, private router: Router) { }
+  constructor(
+    private themeService: ThemeService,
+    private router: Router,
+    private titleService: Title
+  ) { }
 
   ngOnInit() {
     this.themeService.init();
     this.updateInitialState();
 
+    // Set initial title from document
+    setTimeout(() => {
+      this.windowTitle = this.titleService.getTitle();
+    }, 0);
+
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe(() => {
       this.updateSidebarVisibility();
+      // Wait for TitleStrategy to finish updating the document title
+      setTimeout(() => {
+        this.windowTitle = this.titleService.getTitle();
+      }, 0);
     });
   }
 

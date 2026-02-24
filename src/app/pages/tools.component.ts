@@ -10,7 +10,6 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
   template: `
     <div class="page">
       <div class="page-header">
-        <h2>Tools</h2>
       </div>
 
       @if (toolSettingsService.tools.length === 0) {
@@ -254,7 +253,7 @@ export class ToolsComponent implements OnInit {
   constructor(
     public toolSettingsService: ToolSettingsService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.toolSettingsService.loadTools();

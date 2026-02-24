@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const MACOS_PATHS = [
   '/Applications/Cursor.app',
-  `${process.env.HOME}/Applications/Cursor.app`,
+  `${process.env['HOME']}/Applications/Cursor.app`,
 ];
 
 const CLI_NAMES = ['cursor'];
@@ -39,7 +39,11 @@ export class CursorService {
     const cli = cliPath || this.findCli();
 
     if (cli) {
-      spawn(cli, [folderPath], { detached: true, stdio: 'ignore' }).unref();
+      if (process.platform === 'darwin' && cli.endsWith('.app')) {
+        spawn('open', ['-a', cli, folderPath], { detached: true, stdio: 'ignore' }).unref();
+      } else {
+        spawn(cli, [folderPath], { detached: true, stdio: 'ignore' }).unref();
+      }
       return true;
     }
 

@@ -341,4 +341,95 @@ export class GitHubService {
     if (!token) return [];
     return this.getOrganizations(token);
   }
+
+  async updateItemStatus(token: string, projectId: string, itemId: string, statusName: string): Promise<boolean> {
+    // 1. Get the "Status" field ID and its option IDs
+    const getFieldQuery = `
+      query($projectId: ID!) {
+        node(id: $projectId) {
+          ... on ProjectV2 {
+            fields(first: 50) {
+              nodes {
+                ... on ProjectV2SingleSelectField {
+                  id
+                  name
+                  options {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const fieldResponse = await fetch('https://api.github.com/graphql', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChadsCopilot',
+        },
+        body: JSON.stringify({ query: getFieldQuery, variables: { projectId } }),
+      });
+
+      if (!fieldResponse.ok) return false;
+      const fieldData = await fieldResponse.json() as any;
+      const fields = fieldData?.data?.node?.fields?.nodes || [];
+      const statusField = fields.find((f: any) => f.name === 'Status');
+
+      if (!statusField) return false;
+
+      const targetOption = statusField.options.find((o: any) =>
+        o.name.toLowerCase() === statusName.toLowerCase() ||
+        (statusName === 'in_progress' && o.name.toLowerCase() === 'in progress') ||
+        (statusName === 'pending' && (o.name.toLowerCase() === 'todo' || o.name.toLowerCase() === 'backlog')) ||
+        (statusName === 'done' && o.name.toLowerCase() === 'done')
+      );
+
+      if (!targetOption) return false;
+
+      // 2. Update the field value
+      const updateMutation = `
+        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+          updateProjectV2ItemFieldValue(input: {
+            projectId: $projectId
+            itemId: $itemId
+            fieldId: $fieldId
+            value: { singleSelectOptionId: $optionId }
+          }) {
+            projectV2Item {
+              id
+            }
+          }
+        }
+      `;
+
+      const updateResponse = await fetch('https://api.github.com/graphql', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChadsCopilot',
+        },
+        body: JSON.stringify({
+          query: updateMutation,
+          variables: {
+            projectId,
+            itemId,
+            fieldId: statusField.id,
+            optionId: targetOption.id
+          }
+        }),
+      });
+
+      return updateResponse.ok;
+    } catch (err) {
+      console.error('Failed to update GitHub item status:', err);
+      return false;
+    }
+  }
 }

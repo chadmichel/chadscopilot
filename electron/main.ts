@@ -403,6 +403,19 @@ function setupIPC(): void {
   );
 
   ipcMain.handle(
+    'github:update-item-status',
+    async (
+      _event,
+      token: string,
+      projectId: string,
+      itemId: string,
+      status: string,
+    ) => {
+      return gitHubService.updateItemStatus(token, projectId, itemId, status);
+    },
+  );
+
+  ipcMain.handle(
     'github:unsync-project',
     async (_event, projectExternalId: string, toolId: string) => {
       if (!projectsService) throw new Error('Projects service not initialized');
@@ -677,6 +690,16 @@ app.whenReady().then(async () => {
 
   // Initialize Copilot
   copilotService = new CopilotService();
+  if (tasksService && calendarService && databaseService && projectsService && workspaceAgentsService && syncLogService) {
+    copilotService.setServices(
+      tasksService,
+      calendarService,
+      databaseService,
+      projectsService,
+      workspaceAgentsService,
+      syncLogService
+    );
+  }
   try {
     await copilotService.initialize();
     console.log('Copilot SDK initialized successfully');
@@ -702,14 +725,17 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('window-all-closed', async () => {
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('will-quit', async () => {
   if (copilotService) {
     await copilotService.stop();
   }
   if (databaseService) {
     databaseService.close();
-  }
-  if (process.platform !== 'darwin') {
-    app.quit();
   }
 });

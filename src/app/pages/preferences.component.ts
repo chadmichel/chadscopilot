@@ -8,7 +8,6 @@ import { ThemeService, AppTheme } from '../services/theme.service';
   imports: [CommonModule],
   template: `
     <div class="page">
-      <h2>Preferences</h2>
       
       <section class="settings-section">
         <h3>Theme</h3>

@@ -13,7 +13,6 @@ import { ProjectsService } from '../services/projects.service';
   template: `
     <div class="page">
       <div class="page-header">
-        <h2>Workspaces</h2>
         <button class="add-btn" (click)="showAddForm = true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2.5">

@@ -128,6 +128,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   githubUnsyncProject: (projectExternalId: string, toolId: string): Promise<void> =>
     ipcRenderer.invoke('github:unsync-project', projectExternalId, toolId),
 
+  githubUpdateItemStatus: (token: string, projectId: string, itemId: string, status: string): Promise<boolean> =>
+    ipcRenderer.invoke('github:update-item-status', token, projectId, itemId, status),
+
   // --- Sync Log ---
   getSyncLogs: (toolId: string): Promise<any[]> =>
     ipcRenderer.invoke('db:get-sync-logs', toolId),
