@@ -16,6 +16,8 @@ export interface PlanActivity {
     dependsOn: string[];
     priority: number;
     color?: string;
+    float?: number;
+    criticalPath?: boolean;
 }
 
 export interface EarnedValueEntry {

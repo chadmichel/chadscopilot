@@ -190,6 +190,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                            <th style="width:130px">Start Date</th>
                            <th style="width:130px">End Date</th>
                            <th style="width:200px">Depends On</th>
+                           <th style="width:60px">Float</th>
                            <th style="width:50px">Color</th>
                            <th style="width:50px"></th>
                         </tr>
@@ -232,16 +233,24 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                                 </select>
                               </div>
                             </td>
-                            <td><input type="color" [(ngModel)]="act.color" (ngModelChange)="markDirty()" class="color-picker" /></td>
-                            <td>
-                              <button class="remove-btn" (click)="removeActivity(act.id)" title="Remove">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
-                                </svg>
-                              </button>
-                            </td>
-                          </tr>
-                        }
+                             <td>
+                               <div class="float-cell" [class.is-critical]="act.criticalPath">
+                                 {{ act.float | number:'1.0-1' }}d
+                                 @if (act.criticalPath) {
+                                   <span class="critical-badge" title="Critical Path">!</span>
+                                 }
+                               </div>
+                             </td>
+                             <td><input type="color" [(ngModel)]="act.color" (ngModelChange)="markDirty()" class="color-picker" /></td>
+                             <td>
+                               <button class="remove-btn" (click)="removeActivity(act.id)" title="Remove">
+                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                   <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+                                 </svg>
+                               </button>
+                             </td>
+                           </tr>
+                         }
                       </tbody>
                     </table>
                   </div>
@@ -288,9 +297,10 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                             <div class="gantt-bar"
                               [style.left.%]="getBarLeft(act)"
                               [style.width.%]="getBarWidth(act)"
-                              [style.background-color]="act.color || 'var(--theme-primary)'"
-                              [style.border-color]="act.color || 'var(--theme-primary)'"
-                              [title]="act.name + ': ' + act.startDate + ' → ' + act.endDate">
+                                    [style.background-color]="act.color || '#4db6ac'"
+                                    [style.border-color]="act.criticalPath ? '#f44336' : (act.color || '#4db6ac')"
+                                    [class.critical-bar]="act.criticalPath"
+                                    [attr.title]="act.name + ' (' + act.startDate + ' to ' + act.endDate + ') - Float: ' + act.float + 'd'">
                               <span class="gantt-bar-text">{{ act.name }} ({{ act.durationDays }}d)</span>
                             </div>
                           }
@@ -923,6 +933,41 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       border-color: var(--theme-primary);
     }
 
+    .float-cell {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--app-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .float-cell.is-critical {
+      color: #f44336;
+    }
+    .critical-badge {
+      background: #f44336;
+      color: white;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: bold;
+    }
+    .critical-bar {
+      border: 2px solid #f44336 !important;
+      box-shadow: 0 0 8px rgba(244, 67, 54, 0.4);
+    }
+    .gantt-bar-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 600;
+      font-size: 10px;
+    }
+
     /* Dependency tags */
     .deps-cell {
       display: flex;
@@ -1049,7 +1094,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
   getPlanContext = (): string => {
     const json = JSON.stringify(this.plan, null, 2);
-    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), and color (hex string). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: An activity with id "finish" is automatically managed to depend on all other activities and should not be manually removed or edited in its dependencies.`;
+    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), and color (hex string). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: Activity properties "float" and "criticalPath" are automatically calculated and read-only; do not try to modify them. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies.`;
   };
 
   private get electron() { return (window as any).electronAPI; }

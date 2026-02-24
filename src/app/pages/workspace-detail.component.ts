@@ -142,6 +142,12 @@ interface Tab {
                           </svg>
                           New Plan
                         </button>
+                        <button class="toolbar-btn toolbar-btn-secondary" (click)="loadPlanFiles()" title="Refresh plans">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                          </svg>
+                        </button>
                       </div>
                       @if (planFiles.length > 0) {
                         <div class="design-file-list">
@@ -165,22 +171,30 @@ interface Tab {
                   @case ('design') {
                     <div class="design-tab">
                       <div class="design-actions">
-                        <div class="split-button">
-                          <button class="split-main" (click)="openDesign()">
-                            New {{ selectedDesignType | uppercase }} Design
-                          </button>
-                          <button class="split-trigger" (click)="showDesignMenu = !showDesignMenu">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path d="m6 9 6 6 6-6"/>
+                        <div style="display: flex; gap: 8px;">
+                          <div class="split-button">
+                            <button class="split-main" (click)="openDesign()">
+                              New {{ selectedDesignType | uppercase }} Design
+                            </button>
+                            <button class="split-trigger" (click)="showDesignMenu = !showDesignMenu">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m6 9 6 6 6-6"/>
+                              </svg>
+                            </button>
+                            @if (showDesignMenu) {
+                              <div class="split-menu">
+                                @for (type of designTypes; track type) {
+                                  <button class="menu-item" (click)="selectDesignType(type)">{{ type | titlecase }}</button>
+                                }
+                              </div>
+                            }
+                          </div>
+                          <button class="toolbar-btn toolbar-btn-secondary" (click)="loadDesignFiles()" title="Refresh designs">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M23 4v6h-6M1 20v-6h6"/>
+                              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                             </svg>
                           </button>
-                          @if (showDesignMenu) {
-                            <div class="split-menu">
-                              @for (type of designTypes; track type) {
-                                <button class="menu-item" (click)="selectDesignType(type)">{{ type | titlecase }}</button>
-                              }
-                            </div>
-                          }
                         </div>
                       </div>
                       @if (designFiles.length > 0) {
@@ -887,6 +901,7 @@ interface Tab {
       .design-actions {
         display: flex;
         justify-content: center;
+        gap: 8px;
       }
       .design-placeholder {
         display: flex;
@@ -957,6 +972,18 @@ interface Tab {
       }
       .toolbar-btn:hover {
         background: var(--theme-primary-hover);
+      }
+      .toolbar-btn-secondary {
+        background: transparent;
+        color: var(--app-text);
+        border: 1px solid var(--app-border);
+        box-shadow: none;
+        padding: 10px; /* Square for icon-only */
+      }
+      .toolbar-btn-secondary:hover {
+        background: var(--app-surface);
+        border-color: var(--theme-primary);
+        color: var(--theme-primary);
       }
 
       /* Split Button */
