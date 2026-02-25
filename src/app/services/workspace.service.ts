@@ -1,5 +1,11 @@
 import { Injectable } from '@angular/core';
 
+export interface EditorSolution {
+  name: string;
+  folderPath: string;
+  editorToolId: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -11,6 +17,7 @@ export interface Workspace {
   taskOrganization: string;
   tools: string;
   extra: string;
+  solutions?: EditorSolution[];
 }
 
 @Injectable({
@@ -26,18 +33,22 @@ export class WorkspaceService {
   async loadWorkspaces(): Promise<void> {
     if (this.electron?.getWorkspaces) {
       const rows = await this.electron.getWorkspaces();
-      this.workspaces = rows.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        folderPath: r.folderPath,
-        description: r.description || '',
-        editorToolId: r.editorToolId || '',
-        taskToolId: r.taskToolId || '',
-        taskToolExternalId: r.taskToolExternalId || '',
-        taskOrganization: r.taskOrganization || '',
-        tools: r.tools || '[]',
-        extra: r.extra || '{}',
-      }));
+      this.workspaces = rows.map((r: any) => {
+        const extra = JSON.parse(r.extra || '{}');
+        return {
+          id: r.id,
+          name: r.name,
+          folderPath: r.folderPath,
+          description: r.description || '',
+          editorToolId: r.editorToolId || '',
+          taskToolId: r.taskToolId || '',
+          taskToolExternalId: r.taskToolExternalId || '',
+          taskOrganization: r.taskOrganization || '',
+          tools: r.tools || '[]',
+          extra: r.extra || '{}',
+          solutions: extra.solutions || []
+        };
+      });
     }
   }
 

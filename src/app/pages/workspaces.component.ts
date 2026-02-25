@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { WorkspaceService, Workspace } from '../services/workspace.service';
+import { WorkspaceService, Workspace, EditorSolution } from '../services/workspace.service';
 import { ToolSettingsService, Tool } from '../services/tool-settings.service';
 import { ProjectsService } from '../services/projects.service';
 
@@ -71,8 +71,26 @@ import { ProjectsService } from '../services/projects.service';
       <!-- Configure workspace modal -->
       @if (configWorkspace) {
         <div class="modal-overlay" (click)="closeConfig()">
-          <div class="modal" (click)="$event.stopPropagation()">
+          <div class="modal" [class.wide-modal]="configWorkspace.editorToolId === 'multi-solution'" (click)="$event.stopPropagation()">
             <h3>Configure {{ configWorkspace.name }}</h3>
+            
+            <div class="form-group">
+              <label>Workspace Name</label>
+              <input type="text" [(ngModel)]="configWorkspace.name" (ngModelChange)="configDirty = true">
+            </div>
+
+            <div class="form-group">
+              <label>Folder Path</label>
+              <div class="input-with-button">
+                <input type="text" [(ngModel)]="configWorkspace.folderPath" (ngModelChange)="configDirty = true">
+                <button type="button" class="browse-btn" (click)="pickConfigFolder()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
             <div class="form-group">
               <label>Editor Tool</label>
               <select
@@ -80,11 +98,46 @@ import { ProjectsService } from '../services/projects.service';
                 (ngModelChange)="configWorkspace.editorToolId = $event; configDirty = true"
               >
                 <option value="">None</option>
+                <option value="multi-solution">Multi-Solution</option>
                 @for (tool of editorTools; track tool.id) {
                   <option [value]="tool.id">{{ tool.title }}</option>
                 }
               </select>
             </div>
+
+            @if (configWorkspace.editorToolId === 'multi-solution') {
+              <div class="multi-solutions-config">
+                @for (i of [0, 1, 2]; track i) {
+                  <div class="solution-slot">
+                    <div class="slot-header">Solution {{ i + 1 }}</div>
+                    <div class="form-group compact">
+                      <label>Name</label>
+                      <input type="text" [(ngModel)]="configSolutions[i].name" placeholder="Name (e.g. Frontend)" (ngModelChange)="configDirty = true">
+                    </div>
+                    <div class="form-group compact">
+                      <label>Folder</label>
+                      <div class="input-with-button">
+                        <input type="text" [(ngModel)]="configSolutions[i].folderPath" placeholder="Folder Path" (ngModelChange)="configDirty = true">
+                        <button type="button" class="browse-btn" (click)="pickSolutionFolder(i)">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m6 9 6 6 6-6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="form-group compact">
+                      <label>Editor</label>
+                      <select [(ngModel)]="configSolutions[i].editorToolId" (ngModelChange)="configDirty = true">
+                        <option value="">None</option>
+                        @for (tool of editorTools; track tool.id) {
+                          <option [value]="tool.id">{{ tool.title }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
             <div class="form-group">
               <label>Task Tool</label>
               <select
@@ -239,9 +292,13 @@ import { ProjectsService } from '../services/projects.service';
         border-radius: 12px;
         padding: 28px;
         width: 440px;
-        max-width: 90vw;
+        max-width: 95vw;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
         animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .modal.wide-modal {
+        width: 800px;
       }
       @keyframes slideUp {
         from { transform: translateY(16px); opacity: 0; }
@@ -263,6 +320,38 @@ import { ProjectsService } from '../services/projects.service';
         font-weight: 600;
         color: var(--app-text-muted);
         margin-bottom: 6px;
+      }
+      .form-group.compact {
+        margin-bottom: 8px;
+      }
+      .form-group.compact label {
+        margin-bottom: 2px;
+        font-size: 10px;
+      }
+
+      .multi-solutions-config {
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--app-border);
+      }
+      .solution-slot {
+        flex: 1;
+        min-width: 0;
+        background: var(--app-background);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        padding: 14px;
+      }
+      .slot-header {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--theme-primary);
+        margin-bottom: 10px;
+        letter-spacing: 0.5px;
       }
       .form-group input,
       .form-group select {
@@ -490,6 +579,7 @@ export class WorkspacesComponent implements OnInit {
   taskTools: Tool[] = [];
   configOrganizations: string[] = [];
   configProjects: { externalId: string; name: string }[] = [];
+  configSolutions: EditorSolution[] = [];
 
   constructor(
     public workspaceService: WorkspaceService,
@@ -551,10 +641,45 @@ export class WorkspacesComponent implements OnInit {
     this.configDirty = false;
     this.configOrganizations = [];
     this.configProjects = [];
+    this.configSolutions = workspace.solutions && workspace.solutions.length > 0
+      ? [...workspace.solutions.map(s => ({ ...s }))]
+      : [
+        { name: '', folderPath: '', editorToolId: '' },
+        { name: '', folderPath: '', editorToolId: '' },
+        { name: '', folderPath: '', editorToolId: '' }
+      ];
+
+    // Ensure we always have 3 slots for UI consistency
+    while (this.configSolutions.length < 3) {
+      this.configSolutions.push({ name: '', folderPath: '', editorToolId: '' });
+    }
+
     if (workspace.taskToolId) {
       await this.loadOrganizationsForTool(workspace.taskToolId);
       if (workspace.taskOrganization) {
         await this.loadProjectsForOrg(workspace.taskToolId, workspace.taskOrganization);
+      }
+    }
+  }
+
+  async pickSolutionFolder(index: number): Promise<void> {
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI && electronAPI.selectDirectory) {
+      const path = await electronAPI.selectDirectory();
+      if (path) {
+        this.configSolutions[index].folderPath = path;
+        this.configDirty = true;
+      }
+    }
+  }
+
+  async pickConfigFolder(): Promise<void> {
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI && electronAPI.selectDirectory && this.configWorkspace) {
+      const path = await electronAPI.selectDirectory();
+      if (path) {
+        this.configWorkspace.folderPath = path;
+        this.configDirty = true;
       }
     }
   }
@@ -564,6 +689,7 @@ export class WorkspacesComponent implements OnInit {
     this.configDirty = false;
     this.configOrganizations = [];
     this.configProjects = [];
+    this.configSolutions = [];
   }
 
   async onTaskToolChange(toolId: string): Promise<void> {
@@ -622,11 +748,18 @@ export class WorkspacesComponent implements OnInit {
 
   async saveConfig(): Promise<void> {
     if (!this.configWorkspace || !this.configDirty) return;
+
+    // Filter out empty solutions
+    const activeSolutions = this.configSolutions.filter(s => s.name.trim() || s.folderPath.trim() || s.editorToolId);
+
     await this.workspaceService.updateWorkspace(this.configWorkspace.id, {
+      name: this.configWorkspace.name,
+      folderPath: this.configWorkspace.folderPath,
       editorToolId: this.configWorkspace.editorToolId,
       taskToolId: this.configWorkspace.taskToolId,
       taskOrganization: this.configWorkspace.taskOrganization,
       taskToolExternalId: this.configWorkspace.taskToolExternalId,
+      extra: JSON.stringify({ solutions: activeSolutions })
     });
     this.closeConfig();
   }

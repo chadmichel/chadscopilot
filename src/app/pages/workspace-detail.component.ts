@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
 import { ChatService } from '../chat/chat.service';
-import { WorkspaceService, Workspace } from '../services/workspace.service';
+import { WorkspaceService, Workspace, EditorSolution } from '../services/workspace.service';
 import { ToolSettingsService, Tool } from '../services/tool-settings.service';
 import { TasksService, Task } from '../services/tasks.service';
 import { ProjectsService, Project } from '../services/projects.service';
@@ -36,7 +36,30 @@ interface Tab {
           }
           <h2>{{ workspace.name }}</h2>
           <span class="path-badge">{{ workspace.folderPath }}</span>
-          @if (editorTool) {
+          @if (workspace.editorToolId === 'multi-solution') {
+            <div class="split-button editor-split">
+              <button class="split-main" (click)="openSolution(workspace.solutions?.[0])">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                  <path d="m15 5 4 4"/>
+                </svg>
+                {{ workspace.solutions?.[0]?.name || 'Open Editor' }}
+              </button>
+              <button class="split-trigger" (click)="showSolutionMenu = !showSolutionMenu">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+              @if (showSolutionMenu) {
+                <div class="split-menu">
+                  @for (sol of workspace.solutions; track sol.name) {
+                    <button class="menu-item" (click)="openSolution(sol)">{{ sol.name }}</button>
+                  }
+                </div>
+              }
+            </div>
+          } @else if (editorTool) {
             <button class="editor-btn" (click)="openEditor()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2">
@@ -47,7 +70,7 @@ interface Tab {
             </button>
           }
           @if (!isPopout) {
-            <button class="popout-btn" [class.ml-auto]="!editorTool" (click)="popoutWorkspace()" title="Open in new window">
+            <button class="popout-btn" [class.ml-auto]="!editorTool && workspace.editorToolId !== 'multi-solution'" (click)="popoutWorkspace()" title="Open in new window">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -449,6 +472,8 @@ interface Tab {
         padding: 12px 24px;
         border-bottom: 1px solid var(--app-border);
         flex-shrink: 0;
+        position: relative;
+        z-index: 100;
       }
       .back-btn {
         display: flex;
@@ -1085,6 +1110,50 @@ interface Tab {
         color: var(--theme-primary);
       }
 
+      .editor-split {
+        margin-left: auto;
+        box-shadow: none !important;
+      }
+      .editor-split .split-main {
+        padding: 6px 12px;
+        background: transparent;
+        color: var(--theme-primary);
+        border: 1px solid var(--app-border);
+        border-right: none;
+        border-radius: 6px 0 0 6px;
+        font-weight: 600;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .editor-split .split-main:hover {
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        border-color: var(--theme-primary);
+      }
+      .editor-split .split-trigger {
+        padding: 0 8px;
+        background: transparent;
+        color: var(--theme-primary);
+        border: 1px solid var(--app-border);
+        border-radius: 0 6px 6px 0;
+      }
+      .editor-split .split-trigger:hover {
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        border-color: var(--theme-primary);
+      }
+      .editor-split .split-menu {
+        width: 180px;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 1000;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
       /* Not found */
       .not-found {
         display: flex;
@@ -1247,6 +1316,7 @@ export class WorkspaceDetailComponent implements OnInit {
   designTypes: string[] = ['mermaid', 'ux', 'system'];
   selectedDesignType = 'mermaid';
   showDesignMenu = false;
+  showSolutionMenu = false;
   designFiles: string[] = [];
   planFiles: string[] = [];
   showNewPlanDialog = false;
@@ -1540,6 +1610,29 @@ export class WorkspaceDetailComponent implements OnInit {
     const title = this.editorTool.title.toLowerCase();
     const folderPath = this.workspace.folderPath;
     const cliPath = this.editorTool.localPath || undefined;
+
+    if (title.includes('vs code') || title.includes('vscode') || title.includes('visual studio code')) {
+      await electron?.vscodeOpen?.(folderPath, cliPath);
+    } else if (title.includes('cursor')) {
+      await electron?.cursorOpen?.(folderPath, cliPath);
+    } else if (title.includes('antigravity')) {
+      await electron?.antigravityOpen?.(folderPath, cliPath);
+    }
+  }
+
+  async openSolution(sol?: EditorSolution): Promise<void> {
+    if (!sol || !sol.folderPath || !sol.editorToolId) return;
+    this.showSolutionMenu = false;
+    const electron = (window as any).electronAPI;
+
+    // Find the tool to get its localPath (CLI path)
+    await this.toolSettingsService.loadTools();
+    const tool = this.toolSettingsService.tools.find(t => t.id === sol.editorToolId);
+    if (!tool) return;
+
+    const title = tool.title.toLowerCase();
+    const folderPath = sol.folderPath;
+    const cliPath = tool.localPath || undefined;
 
     if (title.includes('vs code') || title.includes('vscode') || title.includes('visual studio code')) {
       await electron?.vscodeOpen?.(folderPath, cliPath);
