@@ -108,30 +108,40 @@ function setupIPC(): void {
       folderPath?: string,
     ) => {
       if (!copilotService) {
-        event.sender.send(
-          'copilot:error',
-          workspaceId,
-          'Copilot service not initialized',
-        );
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(
+            'copilot:error',
+            workspaceId,
+            'Copilot service not initialized',
+          );
+        }
         return;
       }
 
       try {
         await copilotService.sendMessage(workspaceId, message, folderPath, {
           onDelta: (delta: string) => {
-            event.sender.send('copilot:message-delta', workspaceId, delta);
+            if (!event.sender.isDestroyed()) {
+              event.sender.send('copilot:message-delta', workspaceId, delta);
+            }
           },
           onComplete: () => {
-            event.sender.send('copilot:message-complete', workspaceId);
+            if (!event.sender.isDestroyed()) {
+              event.sender.send('copilot:message-complete', workspaceId);
+            }
           },
           onError: (error: string) => {
-            event.sender.send('copilot:error', workspaceId, error);
+            if (!event.sender.isDestroyed()) {
+              event.sender.send('copilot:error', workspaceId, error);
+            }
           },
         });
       } catch (err: unknown) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Unknown error';
-        event.sender.send('copilot:error', workspaceId, errorMessage);
+        if (!event.sender.isDestroyed()) {
+          const errorMessage =
+            err instanceof Error ? err.message : 'Unknown error';
+          event.sender.send('copilot:error', workspaceId, errorMessage);
+        }
       }
     },
   );
@@ -555,6 +565,20 @@ function setupIPC(): void {
     }
   });
 
+  ipcMain.handle('fs:list-directory', async (_event, dirPath: string) => {
+    try {
+      const exists = fs.existsSync(dirPath);
+      if (!exists) return [];
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+      return entries.map(e => ({
+        name: e.name,
+        isDirectory: e.isDirectory()
+      }));
+    } catch (err) {
+      return [];
+    }
+  });
+
   // --- Popout workspace window ---
   ipcMain.handle(
     'window:popout-workspace',
@@ -644,6 +668,37 @@ function setupIPC(): void {
         win.loadFile(
           path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
           { hash: `/plan-editor?workspaceId=${workspaceId}&filePath=${filePath}` },
+        );
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'window:open-work-process-runner',
+    (_event, workspaceId: string) => {
+      const win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 800,
+        minHeight: 600,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.cjs'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+        icon: appIcon,
+        titleBarStyle: 'hiddenInset',
+        backgroundColor: '#1a1a1a',
+        title: 'Work Process Runner',
+      });
+
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        win.loadURL(`http://localhost:4300/#/work-process-runner?workspaceId=${workspaceId}`);
+      } else {
+        win.loadFile(
+          path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
+          { hash: `/work-process-runner?workspaceId=${workspaceId}` },
         );
       }
     },

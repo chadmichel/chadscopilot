@@ -3,6 +3,7 @@ import {
   Input,
   ViewChild,
   ElementRef,
+  AfterViewInit,
   AfterViewChecked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -17,8 +18,9 @@ import { MarkdownPipe } from '../shared/markdown.pipe';
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
-export class ChatComponent implements AfterViewChecked {
+export class ChatComponent implements AfterViewInit, AfterViewChecked {
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
+  @ViewChild('chatInput') private chatInput!: ElementRef<HTMLTextAreaElement>;
   @Input() workspaceId: string = 'global';
   @Input() folderPath: string = '';
   @Input() contextProvider: (() => string) | null = null;
@@ -29,6 +31,10 @@ export class ChatComponent implements AfterViewChecked {
 
   constructor(public chatService: ChatService) { }
 
+  ngAfterViewInit(): void {
+    this.adjustTextareaHeight();
+  }
+
   ngAfterViewChecked(): void {
     this.scrollToBottom();
   }
@@ -38,6 +44,7 @@ export class ChatComponent implements AfterViewChecked {
     if (!message || this.isLoading) return;
 
     this.userInput = '';
+    setTimeout(() => this.adjustTextareaHeight());
     this.isLoading = true;
 
     try {
@@ -59,6 +66,12 @@ export class ChatComponent implements AfterViewChecked {
       event.preventDefault();
       this.sendMessage();
     }
+  }
+
+  adjustTextareaHeight(): void {
+    const textarea = this.chatInput.nativeElement;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
   }
 
   private scrollToBottom(): void {

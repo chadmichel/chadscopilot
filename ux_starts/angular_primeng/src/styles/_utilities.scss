@@ -1,0 +1,232 @@
+@use 'sass:math';
+
+// ===========================================
+// SCSS UTILITIES
+// Functions and mixins for calculations and helpers
+// ===========================================
+
+// ===========================================
+// UNIT CONVERSION FUNCTIONS
+// ===========================================
+
+/// Convert px to rem (base 16px)
+/// @param {Number} $px - Pixel value
+/// @return {Number} - Rem value
+@function px-to-rem($px) {
+  @return math.div($px, 16) * 1rem;
+}
+
+/// Convert px to em
+/// @param {Number} $px - Pixel value
+/// @param {Number} $base - Base font size in px (default: 16)
+/// @return {Number} - Em value
+@function px-to-em($px, $base: 16) {
+  @return math.div($px, $base) * 1em;
+}
+
+/// Convert rem to px (base 16px)
+/// @param {Number} $rem - Rem value
+/// @return {Number} - Pixel value
+@function rem-to-px($rem) {
+  @return math.div($rem, 1rem) * 16px;
+}
+
+// ===========================================
+// COLOR FUNCTIONS
+// ===========================================
+
+/// Lighten a color by mixing with white
+/// @param {Color} $color - Base color
+/// @param {Number} $amount - Percentage to lighten (0-100)
+/// @return {Color} - Lightened color
+@function tint($color, $amount) {
+  @return mix(white, $color, $amount);
+}
+
+/// Darken a color by mixing with black
+/// @param {Color} $color - Base color
+/// @param {Number} $amount - Percentage to darken (0-100)
+/// @return {Color} - Darkened color
+@function shade($color, $amount) {
+  @return mix(black, $color, $amount);
+}
+
+// ===========================================
+// RESPONSIVE MIXINS
+// ===========================================
+
+/// Media query for minimum width (mobile-first)
+/// @param {Number} $min-width - Minimum viewport width
+@mixin breakpoint-up($min-width) {
+  @media (min-width: $min-width) {
+    @content;
+  }
+}
+
+/// Media query for maximum width
+/// @param {Number} $max-width - Maximum viewport width
+@mixin breakpoint-down($max-width) {
+  @media (max-width: $max-width) {
+    @content;
+  }
+}
+
+/// Media query for a range
+/// @param {Number} $min-width - Minimum viewport width
+/// @param {Number} $max-width - Maximum viewport width
+@mixin breakpoint-between($min-width, $max-width) {
+  @media (min-width: $min-width) and (max-width: $max-width) {
+    @content;
+  }
+}
+
+// Common breakpoints
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+$breakpoint-2xl: 1536px;
+
+// ===========================================
+// LAYOUT MIXINS
+// ===========================================
+
+/// Flexbox centering
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/// Flexbox vertical centering
+@mixin flex-align-center {
+  display: flex;
+  align-items: center;
+}
+
+/// Flexbox space between
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/// Absolute positioning to fill parent
+@mixin absolute-fill {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+// ===========================================
+// TEXT MIXINS
+// ===========================================
+
+/// Truncate text with ellipsis
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/// Multi-line text truncation
+/// @param {Number} $lines - Number of lines before truncation
+@mixin text-clamp($lines) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ===========================================
+// VISUAL MIXINS
+// ===========================================
+
+/// Focus ring for accessibility
+/// @param {Color} $color - Focus ring color
+@mixin focus-ring($color: currentColor) {
+  outline: 2px solid $color;
+  outline-offset: 2px;
+}
+
+/// Visually hidden but accessible to screen readers
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ===========================================
+// SCROLLBAR MIXINS
+// ===========================================
+
+/// Custom styled scrollbar for webkit browsers
+/// @param {Number} $width - Scrollbar width (default: 6px)
+@mixin custom-scrollbar($width: 6px) {
+  &::-webkit-scrollbar {
+    width: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb, #e2e8f0);
+    border-radius: 9999px;
+
+    &:hover {
+      background: var(--scrollbar-thumb-hover, #94a3b8);
+    }
+  }
+}
+
+// ===========================================
+// AVATAR MIXIN
+// ===========================================
+
+/// Circular avatar with centered content
+/// @param {Number} $size - Avatar diameter
+/// @param {Color} $bg-color - Background color
+/// @param {Color} $text-color - Text/icon color (optional)
+@mixin avatar($size, $bg-color, $text-color: null) {
+  width: $size;
+  height: $size;
+  border-radius: 50%;
+  background: $bg-color;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  @if $text-color {
+    color: $text-color;
+  }
+}
+
+// ===========================================
+// BUTTON SIZE OVERRIDE MIXIN
+// ===========================================
+
+/// Override PrimeNG button size (for use with ::ng-deep)
+/// @param {Number} $size - Button width/height (square)
+/// @param {Number} $icon-size - Icon font size (optional)
+@mixin button-size($size, $icon-size: null) {
+  width: $size !important;
+  height: $size !important;
+  padding: 0 !important;
+
+  @if $icon-size {
+    .p-button-icon {
+      font-size: $icon-size;
+    }
+  }
+}

@@ -1,0 +1,88 @@
+@use '../../../styles/index' as *;
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-lg;
+  padding: $spacing-md 0;
+  margin-bottom: $spacing-md;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+}
+
+.page-title {
+  font-size: 30px;
+  font-weight: $font-weight-bold;
+  margin: 0;
+  color: $color-text-primary;
+}
+
+// Coordinator selector card
+.coordinator-card {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  background: $color-bg-card;
+  border: 1px solid $color-border-default;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+
+  .coordinator-label {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+    white-space: nowrap;
+
+    i {
+      font-size: $font-size-sm;
+      color: $color-text-muted;
+    }
+  }
+}
+
+// Override p-select styling within header
+:host ::ng-deep .coordinator-select {
+  .p-select {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    min-width: 160px;
+
+    &:not(.p-disabled):hover {
+      border-color: transparent;
+    }
+
+    &:not(.p-disabled).p-focus {
+      border-color: transparent;
+      box-shadow: none;
+    }
+
+    .p-select-label {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $color-text-primary;
+      padding: 0;
+      padding-right: $spacing-sm;
+    }
+
+    .p-select-dropdown {
+      color: $color-text-muted;
+      width: auto;
+      padding: 0;
+    }
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm-plus;
+}

@@ -1,0 +1,47 @@
+/* ============================================================
+   App theme variables
+
+   Switch themes by changing `data-theme` on `<html>` in `src/index.html`.
+   ============================================================ */
+
+html[data-theme='base'] {
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-hover: #f1f5f9;
+  --app-text: #0f172a;
+  --app-muted: #64748b;
+  --app-border: #e2e8f0;
+
+  --app-accent: #2dd4bf;
+  --app-accent-contrast: #0f2828;
+
+  --app-sidebar-bg-start: #1a3a3a;
+  --app-sidebar-bg-end: #0f2828;
+  --app-sidebar-text: #ffffff;
+  --app-sidebar-muted: rgba(255, 255, 255, 0.7);
+  --app-sidebar-border: rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme='midnight'] {
+  --app-bg: #0b1220;
+  --app-surface: #0f172a;
+  --app-surface-hover: rgba(255, 255, 255, 0.06);
+  --app-text: #e5e7eb;
+  --app-muted: rgba(229, 231, 235, 0.7);
+  --app-border: rgba(229, 231, 235, 0.12);
+
+  --app-accent: #60a5fa;
+  --app-accent-contrast: #0b1220;
+
+  --app-sidebar-bg-start: #0f172a;
+  --app-sidebar-bg-end: #0b1220;
+  --app-sidebar-text: #e5e7eb;
+  --app-sidebar-muted: rgba(229, 231, 235, 0.7);
+  --app-sidebar-border: rgba(229, 231, 235, 0.12);
+}
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-text);
+}

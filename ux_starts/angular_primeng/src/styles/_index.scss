@@ -1,0 +1,14 @@
+// ===========================================
+// GLOBAL STYLES INDEX
+// Import this file to get all global styles
+// ===========================================
+
+// Design tokens (variables only, no CSS output)
+@forward 'colors';
+@forward 'variables';
+
+// SCSS utilities (functions/mixins, no CSS output)
+@forward 'utilities';
+
+// Shared UI components (generates CSS classes)
+@forward 'components';

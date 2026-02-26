@@ -1,0 +1,74 @@
+@use '../../../styles/index' as *;
+
+:host {
+  display: block;
+}
+
+.person-card {
+  padding: $spacing-sm-plus $spacing-md;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  transition: background $transition-base;
+
+  &:hover {
+    background: $color-bg-hover;
+  }
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.person-avatar {
+  @include avatar(32px, linear-gradient(135deg, $color-sky-100 0%, $color-sky-200 100%), $color-sky-700);
+  font-weight: $font-weight-bold;
+  font-size: $font-size-sm;
+  flex-shrink: 0;
+}
+
+.person-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.person-name-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.person-address {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  font-size: $font-size-2xs;
+  color: $color-text-secondary;
+  margin-top: $spacing-xs;
+
+  i {
+    font-size: $font-size-2xs;
+    color: $color-text-muted;
+  }
+
+  span {
+    @include text-truncate;
+    max-width: 200px;
+  }
+}
+
+.notes {
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+  font-style: italic;
+}
+
+.children-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+  padding-left: 40px; // Align with content after avatar
+}

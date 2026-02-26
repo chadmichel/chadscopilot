@@ -177,6 +177,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPlanEditor: (workspaceId: string, filePath: string): Promise<void> =>
     ipcRenderer.invoke('window:open-plan-editor', workspaceId, filePath),
 
+  openWorkProcessRunner: (workspaceId: string): Promise<void> =>
+    ipcRenderer.invoke('window:open-work-process-runner', workspaceId),
+
   // --- File System ---
   readFile: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:read-file', filePath),
@@ -189,6 +192,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   listFiles: (dirPath: string, extension?: string): Promise<string[]> =>
     ipcRenderer.invoke('fs:list-files', dirPath, extension),
+
+  listDirectory: (dirPath: string): Promise<{ name: string; isDirectory: boolean }[]> =>
+    ipcRenderer.invoke('fs:list-directory', dirPath),
 
   // --- Calendar ---
   calendarLogin: (): Promise<string | null> =>

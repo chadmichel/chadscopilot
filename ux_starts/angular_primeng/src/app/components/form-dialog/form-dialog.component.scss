@@ -1,0 +1,134 @@
+@use '../../../styles/index' as *;
+
+:host ::ng-deep .form-dialog {
+  width: 500px;
+  max-width: 90vw;
+}
+
+.form-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+// Row of grouped fields (same line)
+.form-field-row {
+  display: flex;
+  gap: $spacing-md;
+
+  .form-field--inline {
+    flex: 1;
+    min-width: 0; // Allow fields to shrink
+  }
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-text-secondary;
+  }
+
+  input,
+  textarea,
+  :host ::ng-deep .p-inputnumber,
+  :host ::ng-deep .p-dropdown {
+    width: 100%;
+  }
+
+  textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+}
+
+// Uses global .chips-toggle and .chip-toggle from _components.scss
+
+// Itemlist field styles
+.itemlist-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.itemlist-items {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.itemlist-row {
+  display: flex;
+  gap: $spacing-xs;
+  align-items: center;
+
+  .itemlist-text {
+    flex: 1;
+  }
+
+  .itemlist-value {
+    width: 60px;
+    flex-shrink: 0;
+  }
+}
+
+.itemlist-remove {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  color: $color-text-secondary;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: $color-danger-bg;
+    color: $color-danger-text;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.itemlist-add {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  font-size: $font-size-sm;
+  color: $color-primary-text;
+  border-radius: $radius-sm;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-bg;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  i {
+    font-size: $font-size-xs;
+  }
+}

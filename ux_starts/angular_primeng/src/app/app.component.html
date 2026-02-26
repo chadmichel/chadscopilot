@@ -1,0 +1,32 @@
+<div class="app-layout" [class.sidebar-collapsed]="sidebarCollapsed">
+  <!-- Sidebar Navigation -->
+  <app-sidebar *ngIf="isAuthenticated && !isAuthRoute" [menuSections]="sidebarMenuSections"
+    [userInfo]="sidebarUserInfo" [(collapsed)]="sidebarCollapsed" (userClicked)="showUserMenu($event)"></app-sidebar>
+
+  <!-- Main Content Area -->
+  <div class="main-area" [class.no-sidebar]="!isAuthenticated || isAuthRoute">
+    <!-- Mobile Header (only on mobile) -->
+    <header class="mobile-header" *ngIf="isAuthenticated && !isAuthRoute">
+      <button class="mobile-menu-btn" (click)="toggleMobileSidebar()">
+        <i class="pi pi-bars"></i>
+      </button>
+      <span class="mobile-title">Base App</span>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+      <router-outlet></router-outlet>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span>&copy; {{ currentYear }} Base App</span>
+        <span class="version">v{{ version }}</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- User Menu Overlay -->
+  <p-menu #userMenu [model]="profileItems" [popup]="true"></p-menu>
+</div>

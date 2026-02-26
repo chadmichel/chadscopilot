@@ -1,0 +1,7 @@
+{
+  "apiUrl": "/api",
+  "features": {
+    "analytics": true,
+    "notifications": true
+  }
+}

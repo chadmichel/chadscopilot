@@ -4,13 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatComponent } from '../chat/chat.component';
 import { ChatService } from '../chat/chat.service';
-import { WorkspaceService, Workspace, EditorSolution } from '../services/workspace.service';
+import { WorkspaceService, Workspace, EditorSolution, WorkProcess, ProcessAgent } from '../services/workspace.service';
 import { ToolSettingsService, Tool } from '../services/tool-settings.service';
 import { TasksService, Task } from '../services/tasks.service';
 import { ProjectsService, Project } from '../services/projects.service';
 import { WorkspaceAgentsService, WorkspaceAgent } from '../services/workspace-agents.service';
+import { FileExplorerComponent } from './file-explorer.component';
 
-type TabId = 'plan' | 'design' | 'tasks';
+type TabId = 'plan' | 'design' | 'tasks' | 'work-process' | 'explorer';
 
 interface Tab {
   id: TabId;
@@ -20,7 +21,7 @@ interface Tab {
 @Component({
   selector: 'app-workspace-detail',
   standalone: true,
-  imports: [CommonModule, ChatComponent, FormsModule],
+  imports: [CommonModule, ChatComponent, FormsModule, FileExplorerComponent],
   template: `
     @if (workspace) {
       <div class="detail-container">
@@ -344,6 +345,88 @@ interface Tab {
                       </div>
                     }
                   }
+                  @case ('work-process') {
+                    <div class="work-process-tab">
+                      <div class="flow-container">
+                        <div class="flow-step">
+                          <button class="add-node-btn" (click)="addAgentAt(0)" title="Add agent at beginning">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                          </button>
+                        </div>
+
+                        @for (agent of workspace.workProcess?.agents; track agent.id; let i = $index) {
+                          <div class="flow-connector">
+                            <div class="connector-line"></div>
+                            <div class="connector-arrow"></div>
+                          </div>
+                          
+                          <div class="node-box" (click)="editAgent(i)">
+                            <div class="node-icon" [class.type-agent]="agent.type === 'Agent'" 
+                                                   [class.type-code]="agent.type === 'Code Analysis'"
+                                                   [class.type-ui]="agent.type === 'UI Analysis'">
+                              @if (agent.type === 'Agent') {
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                </svg>
+                              } @else if (agent.type === 'Code Analysis') {
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                                </svg>
+                              } @else {
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+                                </svg>
+                              }
+                            </div>
+                            <div class="node-content">
+                              <div class="node-type">{{ agent.type }}</div>
+                              <div class="node-prompt">{{ agent.prompt }}</div>
+                            </div>
+                            <button class="node-remove" (click)="removeAgent(i, $event)" title="Remove agent">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div class="flow-connector">
+                            <div class="connector-line"></div>
+                            <div class="connector-arrow"></div>
+                          </div>
+
+                          <div class="flow-step">
+                            <button class="add-node-btn" (click)="addAgentAt(i + 1)" title="Add agent here">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M12 5v14M5 12h14"/>
+                              </svg>
+                            </button>
+                          </div>
+                        }
+
+                        @if (!workspace.workProcess?.agents?.length) {
+                          <div class="flow-empty">
+                            <p>No agents configured in this process. Click the + to add your first step.</p>
+                          </div>
+                        }
+                      </div>
+
+                      @if (workspace.workProcess?.agents?.length) {
+                        <div class="flow-actions">
+                          <button class="run-flow-btn" (click)="runWorkProcess()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                            Run Work Process
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @case ('explorer') {
+                    <app-file-explorer [folderPath]="workspace.folderPath"></app-file-explorer>
+                  }
                 }
               </div>
             } @else {
@@ -441,6 +524,47 @@ interface Tab {
             <div class="dialog-footer">
               <button class="btn-cancel" (click)="cancelNewDesign()">Cancel</button>
               <button class="btn-confirm" (click)="confirmNewDesign()" [disabled]="!newDesignName.trim()">Create Design</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (showAgentFlowDialog) {
+      <div class="dialog-overlay">
+        <div class="dialog" style="width: 500px;">
+          <div class="dialog-header">
+            <h3>{{ editingAgentIndex !== null ? 'Edit Agent' : 'Add Agent' }}</h3>
+            <button class="dialog-close" (click)="cancelAgentFlow()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label>Agent Type</label>
+              <select class="form-input" [(ngModel)]="agentFlowData.type">
+                <option value="Agent">Agent</option>
+                <option value="Code Analysis">Code Analysis</option>
+                <option value="UI Analysis">UI Analysis</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Prompt</label>
+              <textarea class="form-input" [(ngModel)]="agentFlowData.prompt" rows="4" placeholder="Instruction for this agent..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Exit Criteria (Optional)</label>
+              <input type="text" class="form-input" [(ngModel)]="agentFlowData.exitCriteria" placeholder="When is this step done?">
+            </div>
+            <div class="form-group">
+              <label>Prompt Notes (For Next Stage)</label>
+              <textarea class="form-input" [(ngModel)]="agentFlowData.promptNotes" rows="2" placeholder="Information to pass to the next node..."></textarea>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn-cancel" (click)="cancelAgentFlow()">Cancel</button>
+              <button class="btn-confirm" (click)="saveAgentFlow()" [disabled]="!agentFlowData.prompt.trim()">Save Agent</button>
             </div>
           </div>
         </div>
@@ -1301,6 +1425,171 @@ interface Tab {
         opacity: 0.6;
         cursor: not-allowed;
       }
+
+      /* Work Process Flow Styles */
+      .work-process-tab {
+        padding: 40px 20px;
+        height: 100%;
+        overflow-y: auto;
+      }
+      .flow-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .flow-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 2;
+      }
+      .add-node-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        color: var(--app-text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .add-node-btn:hover {
+        background: var(--theme-primary);
+        color: white;
+        border-color: var(--theme-primary);
+        transform: scale(1.1);
+      }
+      .flow-connector {
+        width: 2px;
+        height: 40px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .connector-line {
+        width: 2px;
+        flex: 1;
+        background: var(--app-border);
+      }
+      .connector-arrow {
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid var(--app-border);
+        margin-top: -2px;
+      }
+      .node-box {
+        width: 100%;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      .node-box:hover {
+        border-color: var(--theme-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      }
+      .node-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .type-agent { background: color-mix(in srgb, var(--theme-primary), transparent 90%); color: var(--theme-primary); }
+      .type-code { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+      .type-ui { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+
+      .node-content {
+        flex: 1;
+        min-width: 0;
+      }
+      .node-type {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+        opacity: 0.7;
+      }
+      .node-prompt {
+        font-size: 13px;
+        color: var(--app-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .node-remove {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #ef4444;
+        color: white;
+        border: none;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+      }
+      .node-box:hover .node-remove {
+        display: flex;
+      }
+      .flow-empty {
+        padding: 40px;
+        text-align: center;
+        color: var(--app-text-muted);
+        border: 2px dashed var(--app-border);
+        border-radius: 12px;
+        width: 100%;
+      }
+      .flow-actions {
+        display: flex;
+        justify-content: center;
+        margin-top: 40px;
+        padding-bottom: 20px;
+      }
+      .run-flow-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: var(--theme-primary);
+        color: white;
+        border: none;
+        border-radius: 30px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+      .run-flow-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+      }
     `,
   ],
 })
@@ -1339,7 +1628,14 @@ export class WorkspaceDetailComponent implements OnInit {
     { id: 'plan', label: 'Plan' },
     { id: 'design', label: 'Design' },
     { id: 'tasks', label: 'Tasks' },
+    { id: 'work-process', label: 'Work Process' },
+    { id: 'explorer', label: 'Explorer' },
   ];
+
+  // Agent Flow tab
+  showAgentFlowDialog = false;
+  editingAgentIndex: number | null = null;
+  agentFlowData: ProcessAgent = { id: '', type: 'Agent', prompt: '', exitCriteria: '', promptNotes: '' };
 
   constructor(
     private route: ActivatedRoute,
@@ -1647,6 +1943,73 @@ export class WorkspaceDetailComponent implements OnInit {
     if (!this.workspace) return;
     const electron = (window as any).electronAPI;
     await electron?.popoutWorkspace?.(this.workspace.id, this.workspace.name);
+  }
+
+  private currentInsertIndex: number | null = null;
+
+  addAgentAt(index: number) {
+    this.editingAgentIndex = null;
+    this.agentFlowData = {
+      id: Math.random().toString(36).substring(2, 9),
+      type: 'Agent',
+      prompt: '',
+      exitCriteria: '',
+      promptNotes: ''
+    };
+    this.currentInsertIndex = index;
+    this.showAgentFlowDialog = true;
+  }
+
+  editAgent(index: number) {
+    if (!this.workspace?.workProcess) return;
+    this.editingAgentIndex = index;
+    const agent = this.workspace.workProcess.agents[index];
+    this.agentFlowData = { ...agent };
+    this.showAgentFlowDialog = true;
+  }
+
+  removeAgent(index: number, event: Event) {
+    event.stopPropagation();
+    if (!this.workspace?.workProcess) return;
+    this.workspace.workProcess.agents.splice(index, 1);
+    this.persistWorkProcess();
+  }
+
+  cancelAgentFlow() {
+    this.showAgentFlowDialog = false;
+    this.editingAgentIndex = null;
+  }
+
+  async saveAgentFlow() {
+    if (!this.workspace) return;
+    if (!this.workspace.workProcess) {
+      this.workspace.workProcess = { agents: [] };
+    }
+
+    if (this.editingAgentIndex !== null) {
+      this.workspace.workProcess.agents[this.editingAgentIndex] = { ...this.agentFlowData };
+    } else {
+      const index = this.currentInsertIndex !== null ? this.currentInsertIndex : this.workspace.workProcess.agents.length;
+      this.workspace.workProcess.agents.splice(index, 0, { ...this.agentFlowData });
+    }
+
+    this.showAgentFlowDialog = false;
+    await this.persistWorkProcess();
+  }
+
+  private async persistWorkProcess() {
+    if (!this.workspace) return;
+    const extra = JSON.parse(this.workspace.extra || '{}');
+    extra.workProcess = this.workspace.workProcess;
+
+    await this.workspaceService.updateWorkspace(this.workspace.id, {
+      extra: JSON.stringify(extra)
+    });
+  }
+
+  runWorkProcess() {
+    if (!this.workspace) return;
+    (window as any).electronAPI?.openWorkProcessRunner(this.workspace.id);
   }
 
   goBack(): void {

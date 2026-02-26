@@ -1,0 +1,295 @@
+/* Import shared component styles (badges, progress bars, etc.) */
+@use 'styles/components';
+
+/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --header-bg: #ffffff;
+  --header-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  --sidebar-bg: linear-gradient(180deg, #1a3a3a 0%, #0f2828 100%);
+  --sidebar-accent: #2dd4bf;
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+}
+
+body.dark {
+  --header-bg: #1e1e1e;
+  --header-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Base body styles */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  color: #1e293b;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.auto-width {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.p-button {
+  margin: 5px;
+  padding: 5px;
+}
+
+/* Dark mode */
+html.dark {
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+}
+
+/* Ensure custom components respect dark mode */
+html.dark .flex.justify-content-center {
+  background-color: #1a1a1a;
+}
+
+/* Global component overrides for cleaner look */
+.p-card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.p-datatable {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.p-datatable .p-datatable-thead>tr>th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-color: #e2e8f0;
+}
+
+.p-datatable .p-datatable-tbody>tr {
+  transition: background-color 0.15s ease;
+}
+
+.p-datatable .p-datatable-tbody>tr:hover {
+  background: #f8fafc;
+}
+
+/* Tag/Badge styling */
+.p-tag {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+/* Button refinements */
+.p-button {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.p-button.p-button-success {
+  background: #2dd4bf;
+  border-color: #2dd4bf;
+}
+
+.p-button.p-button-success:hover {
+  background: #14b8a6;
+  border-color: #14b8a6;
+}
+
+/* Input refinements */
+.p-inputtext {
+  border-radius: 8px;
+  border-color: #e2e8f0;
+}
+
+.p-inputtext:focus {
+  border-color: #2dd4bf;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
+}
+
+/* Toolbar refinements */
+.p-toolbar {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+/* ============================================
+   COMMON PAGE STYLES
+   Use these classes for consistent page layouts
+   ============================================ */
+
+/* Page container - wraps entire page content */
+.page-container {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  min-height: calc(100vh - 100px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Page header - contains title and optional actions */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.page-header h1,
+.page-title {
+  font-size: 30px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.25rem 0;
+}
+
+.page-subtitle {
+  color: #64748b;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Primary action button (Add, Create, etc.) */
+.btn-primary-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #0d9488;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary-action:hover {
+  background: #0f766e;
+}
+
+/* Content card - for main content areas */
+.content-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .page-header h1,
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.85rem;
+  }
+}
+
+/* ============================================
+   STUDENT DETAIL - PrimeNG dialog overrides
+   Moved from component styles to avoid component style budget overruns
+   ============================================ */
+
+.edit-student-dialog .p-dialog-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.edit-student-dialog .p-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.edit-student-dialog .p-dialog-content {
+  padding: 0;
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
+}
+
+.edit-student-dialog .p-dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.edit-student-dialog .form-field .p-dropdown,
+.edit-student-dialog .form-field .p-inputnumber {
+  width: 100%;
+}
+
+.edit-student-dialog .form-field .p-inputnumber-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+}
+
+.manage-goals-dialog .p-dialog-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.manage-goals-dialog .p-dialog-content {
+  padding: 0;
+  overflow-y: auto;
+  max-height: calc(80vh - 140px);
+}
+
+.manage-goals-dialog .p-dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.best-score-dialog .p-dialog-header {
+  padding: 1.25rem 1.5rem;
+}
+
+.best-score-dialog .p-dialog-content {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.best-score-dialog .p-dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.best-score-dialog .p-calendar,
+.best-score-dialog .p-inputnumber {
+  width: 100%;
+}

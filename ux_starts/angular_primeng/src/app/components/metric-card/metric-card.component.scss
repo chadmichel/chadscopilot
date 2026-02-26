@@ -1,0 +1,78 @@
+@use '../../../styles/index' as *;
+
+:host {
+  display: block;
+}
+
+.metric-card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  box-shadow: $shadow-sm;
+}
+
+.metric-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  i {
+    font-size: 1.25rem;
+  }
+
+  &.icon-info {
+    background-color: $color-info-bg;
+    color: $color-info-text;
+  }
+
+  &.icon-success {
+    background-color: $color-success-bg;
+    color: $color-success-text;
+  }
+
+  &.icon-warning {
+    background-color: $color-warning-bg;
+    color: $color-warning-text;
+  }
+
+  &.icon-danger {
+    background-color: $color-danger-bg;
+    color: $color-danger-text;
+  }
+
+  &.icon-primary {
+    background-color: $color-primary-bg;
+    color: $color-primary-text;
+  }
+
+  &.icon-purple {
+    background-color: $color-purple-bg;
+    color: $color-purple-text;
+  }
+}
+
+.metric-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.metric-value {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  line-height: 1;
+}
+
+.metric-label {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-top: $spacing-xs;
+}

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -98,7 +98,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
               <div class="date-header">{{ viewDate | date:'fullDate' }}</div>
               <div class="events-list">
                 @for (event of getEventsForDate(viewDate); track event.id) {
-                  <div class="event-item">
+                  <div class="event-item" [class.is-active]="isEventActive(event)">
                     <div class="time">{{ event.start | date:'h:mm a' }}</div>
                     <div class="details">
                       <div class="subject">{{ event.subject }}</div>
@@ -162,7 +162,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                       </div>
                       <div class="day-events">
                         @for (event of getEventsForDate(day); track event.id) {
-                          <div class="event-bubble" [title]="event.subject">
+                          <div class="event-bubble" [class.is-active]="isEventActive(event)" [title]="event.subject">
                             <span class="time">{{ event.start | date:'h:mm a' }}</span>
                             <span class="title">{{ event.subject }}</span>
                           </div>
@@ -204,7 +204,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                       <span class="day-number">{{ day | date:'d' }}</span>
                       <div class="event-dots">
                         @for (event of getEventsForDate(day).slice(0, 3); track event.id) {
-                          <div class="event-dot" [title]="event.subject"></div>
+                          <div class="event-dot" [class.is-active]="isEventActive(event)" [title]="event.subject"></div>
                         }
                         @if (getEventsForDate(day).length > 3) {
                           <div class="plus-more">+{{ getEventsForDate(day).length - 3 }}</div>
@@ -338,6 +338,31 @@ import { ToolSettingsService } from '../services/tool-settings.service';
     .event-item .time { min-width: 80px; color: var(--theme-primary); font-weight: 600; }
     .event-item .subject { font-weight: 600; }
     .event-item .location { font-size: 12px; color: var(--app-text-muted); }
+    
+    .event-item.is-active {
+      background: color-mix(in srgb, var(--theme-primary), transparent 92%);
+      border-left: 4px solid var(--theme-primary);
+      padding-left: 16px;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding-right: 16px;
+      position: relative;
+    }
+    
+    .event-item.is-active::after {
+      content: 'NOW';
+      position: absolute;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--theme-primary);
+      background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
 
     /* Week View */
     .week-view { height: 100%; overflow: hidden; }
@@ -478,6 +503,23 @@ import { ToolSettingsService } from '../services/tool-settings.service';
     }
     .event-bubble .time { font-weight: 700; color: var(--theme-primary); margin-bottom: 2px; white-space: nowrap; }
     .event-bubble .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .event-bubble.is-active {
+      background: var(--theme-primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transform: scale(1.02);
+      z-index: 5;
+      animation: pulse-border 2s infinite;
+    }
+    .event-bubble.is-active .time { color: white; opacity: 0.9; }
+    .event-bubble.is-active .title { font-weight: 600; }
+
+    @keyframes pulse-border {
+      0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--theme-primary), transparent 50%); }
+      70% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-primary), transparent 100%); }
+      100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--theme-primary), transparent 100%); }
+    }
 
     /* Month View */
     .month-view { height: 100%; }
@@ -531,7 +573,13 @@ import { ToolSettingsService } from '../services/tool-settings.service';
       border-radius: 50%;
     }
     .event-dots { display: flex; flex-wrap: wrap; gap: 2px; }
-    .event-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--theme-primary); }
+    .event-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--theme-primary); transition: all 0.2s; }
+    .event-dot.is-active { 
+       background: #ef4444; 
+       transform: scale(1.4); 
+       box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+       z-index: 2;
+    }
     .plus-more { font-size: 9px; color: var(--app-text-muted); }
 
     .btn {
@@ -609,6 +657,8 @@ export class CalendarComponent implements OnInit {
   viewDate = new Date();
   weekDays: Date[] = [];
   monthDays: Date[] = [];
+  now = new Date();
+  private timer: any;
 
   constructor(
     private router: Router,
@@ -715,8 +765,9 @@ export class CalendarComponent implements OnInit {
   }
 
   getWeekMetrics() {
+    // Only include work days (Mon-Fri) in the weekly summary metrics
     const activeDays = this.weekDays.filter(day =>
-      this.displayMode === 'week' || (day.getDay() !== 0 && day.getDay() !== 6)
+      day.getDay() !== 0 && day.getDay() !== 6
     );
 
     let totalAllocated = 0;
@@ -735,8 +786,11 @@ export class CalendarComponent implements OnInit {
   }
 
   getMonthMetrics() {
+    // Only include work days (Mon-Fri) for the current month in the summary
     const activeDays = this.monthDays.filter(day =>
-      day.getMonth() === this.viewDate.getMonth() && (day.getDay() !== 0 && day.getDay() !== 6)
+      day.getMonth() === this.viewDate.getMonth() &&
+      day.getDay() !== 0 &&
+      day.getDay() !== 6
     );
 
     if (activeDays.length === 0) return { allocated: 0, deepWork: 0 };
@@ -832,6 +886,24 @@ export class CalendarComponent implements OnInit {
     if (this.accountId) {
       await this.loadEvents();
     }
+
+    this.timer = setInterval(() => {
+      this.now = new Date();
+      this.realToday = new Date();
+    }, 60000);
+  }
+
+  ngOnDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+  }
+
+  isEventActive(event: any): boolean {
+    if (!event.start || !event.end) return false;
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    return this.now >= start && this.now <= end;
   }
 
   async onUserChange() {

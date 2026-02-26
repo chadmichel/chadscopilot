@@ -1,0 +1,139 @@
+// ===========================================
+// COLORS - Single Source of Truth
+// ===========================================
+
+// ===========================================
+// BASE PALETTE (raw colors - rarely use directly)
+// ===========================================
+
+// Red
+$color-red-50: #fef2f2;
+$color-red-100: #fee2e2;
+$color-red-200: #fecaca;
+$color-red-400: #f87171;
+$color-red-500: #ef4444;
+$color-red-600: #dc2626;
+$color-red-800: #991b1b;
+
+// Amber
+$color-amber-50: #fffbeb;
+$color-amber-100: #fef3c7;
+$color-amber-200: #fde68a;
+$color-amber-500: #f59e0b;
+$color-amber-600: #d97706;
+$color-amber-800: #92400e;
+
+// Green
+$color-green-50: #f0fdf4;
+$color-green-100: #dcfce7;
+$color-green-200: #bbf7d0;
+$color-green-500: #22c55e;
+$color-green-600: #16a34a;
+
+// Blue
+$color-blue-50: #eff6ff;
+$color-blue-100: #dbeafe;
+$color-blue-500: #3b82f6;
+$color-blue-600: #2563eb;
+
+// Sky
+$color-sky-50: #f0f9ff;
+$color-sky-100: #e0f2fe;
+$color-sky-200: #bae6fd;
+$color-sky-500: #0ea5e9;
+$color-sky-600: #0284c7;
+$color-sky-700: #0369a1;
+
+// Purple
+$color-purple-50: #faf5ff;
+$color-purple-100: #ede9fe;
+$color-purple-500: #a855f7;
+$color-purple-600: #7c3aed;
+
+// Teal (positive actions, mark present)
+$color-teal-50: #f0fdfa;
+$color-teal-100: #ccfbf1;
+$color-teal-500: #14b8a6;
+$color-teal-600: #0d9488;
+$color-teal-700: #0f766e;
+
+// Slate (neutrals)
+$color-slate-50: #f8fafc;
+$color-slate-100: #f1f5f9;
+$color-slate-200: #e2e8f0;
+$color-slate-300: #cbd5e1;
+$color-slate-400: #94a3b8;
+$color-slate-500: #64748b;
+$color-slate-600: #475569;
+$color-slate-700: #334155;
+$color-slate-800: #1e293b;
+$color-slate-900: #0f172a;
+
+// ===========================================
+// SEMANTIC TOKENS (use these in components)
+// ===========================================
+
+// Status: Danger (errors, critical items like car seats)
+$color-danger-bg: $color-red-100;
+$color-danger-bg-light: $color-red-200;
+$color-danger-text: $color-red-600;
+$color-danger-text-dark: $color-red-800;
+$color-danger-border: $color-red-500;
+
+// Status: Warning (caution, boosters, medium priority)
+$color-warning-bg: $color-amber-100;
+$color-warning-text: $color-amber-600;
+$color-warning-text-dark: $color-amber-800;
+$color-warning-border: $color-amber-500;
+
+// Status: Success (completed, on-board, positive actions)
+$color-success-bg: $color-green-100;
+$color-success-text: $color-green-600;
+$color-success-border: $color-green-500;
+
+// Status: Info (informational, routes, metrics)
+$color-info-bg: $color-sky-100;
+$color-info-text: $color-sky-600;
+$color-info-border: $color-sky-500;
+
+// Status: Neutral (default, pending, secondary)
+$color-neutral-bg: $color-slate-100;
+$color-neutral-text: $color-slate-500;
+$color-neutral-border: $color-slate-300;
+
+// Status: Purple (special, transitory, temporary)
+$color-purple-bg: $color-purple-100;
+$color-purple-text: $color-purple-600;
+$color-purple-border: $color-purple-500;
+
+// Status: Primary (blue, links, primary actions)
+$color-primary-bg: $color-blue-100;
+$color-primary-text: $color-blue-600;
+$color-primary-border: $color-blue-500;
+
+// ===========================================
+// TEXT COLORS
+// ===========================================
+$color-text-primary: $color-slate-800;
+$color-text-secondary: $color-slate-500;
+$color-text-muted: $color-slate-400;
+$color-text-inverted: white;
+
+// ===========================================
+// BACKGROUND COLORS
+// ===========================================
+$color-bg-page: $color-slate-50;
+$color-bg-card: white;
+$color-bg-hover: $color-slate-50;
+$color-bg-active: $color-slate-100;
+$color-bg-selected: $color-green-50;
+$color-bg-muted: #fafafa;
+
+// ===========================================
+// BORDER COLORS
+// ===========================================
+$color-border-default: $color-slate-200;
+$color-border-hover: $color-slate-300;
+$color-border-muted: $color-slate-300;
+$color-border-selected: $color-green-500;
+$color-border-focus: $color-blue-500;

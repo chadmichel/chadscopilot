@@ -58,8 +58,8 @@
 
   <div class="input-area">
     <div class="input-wrapper">
-      <textarea [(ngModel)]="userInput" (keydown)="onKeyDown($event)" placeholder="Ask Copilot anything..." rows="1"
-        [disabled]="isLoading"></textarea>
+      <textarea #chatInput [(ngModel)]="userInput" (keydown)="onKeyDown($event)" (input)="adjustTextareaHeight()"
+        placeholder="Ask Copilot anything..." rows="1" [disabled]="isLoading"></textarea>
       <button (click)="sendMessage()" [disabled]="!userInput.trim() || isLoading" class="send-button"
         aria-label="Send message">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

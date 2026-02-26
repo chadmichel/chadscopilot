@@ -85,6 +85,7 @@ export class ChatService {
     this.electron.onMessageComplete((workspaceId: string) => {
       this.ngZone.run(() => {
         this.streamingMap.set(workspaceId, false);
+        this.notifyMessagesChange();
       });
     });
 

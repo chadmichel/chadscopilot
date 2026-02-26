@@ -1,0 +1,343 @@
+@use '../../../styles/index' as *;
+
+// ===========================================
+// STUDENT SELECTOR DIALOG - Polished Styles
+// Matches attendance component dialog styling
+// ===========================================
+
+// Dialog sizing
+:host ::ng-deep .student-selector-dialog {
+  width: 600px;
+  height: 55vh;
+
+  .p-dialog-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    padding-bottom: 0;
+  }
+
+  // Tabs fill available space
+  .p-tabs {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    .p-tablist {
+      flex-shrink: 0;
+    }
+
+    .p-tabpanels {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+
+      .p-tabpanel {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+
+        &:not([data-p-active="true"]) {
+          display: none;
+        }
+      }
+    }
+  }
+}
+
+.dialog-title {
+  text-align: center;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  padding-top: $spacing-sm;
+  flex-shrink: 0;
+}
+
+.dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  @include custom-scrollbar;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: $spacing-md;
+
+  :host ::ng-deep .p-button {
+    min-width: 120px;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+// ===========================================
+// SEARCH BAR
+// ===========================================
+
+.search-box {
+  margin-bottom: $spacing-md;
+  flex-shrink: 0;
+}
+
+// ===========================================
+// PERSON CARDS SPACING
+// ===========================================
+
+app-person-card {
+  display: block;
+  margin-bottom: $spacing-sm;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// ===========================================
+// CHILDREN SECTION (direct, for childcare)
+// ===========================================
+
+.children-section-direct {
+  margin-top: $spacing-sm;
+}
+
+// ===========================================
+// ADD CHILD DROPDOWN
+// ===========================================
+
+.add-child-dropdown {
+  margin-top: $spacing-sm;
+  position: relative;
+
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: $spacing-xs $spacing-sm-plus;
+    background-color: $color-bg-card;
+    border: 1px dashed $color-border-default;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-text-secondary;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      border-color: $color-border-focus;
+      color: $color-primary-text;
+      background-color: $color-bg-hover;
+    }
+
+    i {
+      font-size: $font-size-xs-plus;
+    }
+  }
+
+  &__menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: $spacing-xs;
+    min-width: 200px;
+    background-color: $color-bg-card;
+    border: 1px solid $color-border-default;
+    border-radius: $radius-md;
+    box-shadow: $shadow-lg;
+    z-index: $z-dropdown;
+    overflow: hidden;
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-sm;
+    color: $color-text-primary;
+    cursor: pointer;
+    transition: background-color $transition-fast;
+
+    &:hover {
+      background-color: $color-bg-hover;
+    }
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $color-border-default;
+    }
+  }
+}
+
+// ===========================================
+// EXPANDABLE SECTIONS (Accordion)
+// ===========================================
+
+.expandable-sections {
+  margin-top: $spacing-sm;
+
+  :host ::ng-deep {
+    .p-accordion {
+      .p-accordionpanel {
+        margin-bottom: $spacing-xs;
+        border: 1px solid $color-border-default;
+        border-radius: $radius-md;
+        overflow: hidden;
+
+        .p-accordionheader {
+          padding: $spacing-sm $spacing-md;
+          background-color: $color-bg-card;
+          border: none;
+
+          &:hover {
+            background-color: $color-bg-hover;
+          }
+        }
+
+        .p-accordioncontent {
+          padding: $spacing-sm $spacing-md;
+          background-color: $color-bg-page;
+          border-top: 1px solid $color-border-default;
+        }
+      }
+    }
+  }
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+
+  i, app-baby-icon {
+    color: $color-text-secondary;
+  }
+
+  .required-indicator {
+    color: $color-danger-text;
+    font-weight: $font-weight-bold;
+  }
+
+  .selected-preview {
+    color: $color-text-muted;
+    font-weight: $font-weight-normal;
+    font-size: $font-size-xs;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// ===========================================
+// ADDRESS SECTION (inside accordion)
+// ===========================================
+
+.address-change-section {
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+// ===========================================
+// SEATS BADGE
+// ===========================================
+
+.seats-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-text-secondary;
+  background: $color-neutral-bg;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-sm;
+  white-space: nowrap;
+}
+
+// ===========================================
+// TRANSITORY BUTTON (purple add button)
+// ===========================================
+
+.person-card__btn--purple.p-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: $radius-sm;
+  transition: all $transition-base;
+  background: $color-purple-bg;
+  border: 1px solid transparent;
+  color: $color-purple-text;
+
+  .p-button-icon {
+    font-size: $font-size-sm;
+  }
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, $color-purple-bg 90%, black);
+    border-color: $color-purple-border;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// ===========================================
+// PRIMENG OVERRIDES
+// ===========================================
+
+:host ::ng-deep {
+  // Tab styling
+  .p-tabs {
+    .p-tablist {
+      border-bottom: 1px solid $color-border-default;
+      margin-bottom: $spacing-md;
+
+      .p-tab {
+        padding: $spacing-sm $spacing-md;
+        font-weight: $font-weight-medium;
+        color: $color-text-secondary;
+        border-bottom: 2px solid transparent;
+        transition: all $transition-base;
+
+        &:hover {
+          color: $color-text-primary;
+        }
+
+        &.p-tab-active {
+          color: $color-primary-text;
+          border-bottom-color: $color-primary-text;
+        }
+      }
+    }
+  }
+
+  // Checkbox styling
+  .p-checkbox {
+    .p-checkbox-box {
+      border-color: $color-border-default;
+      border-radius: $radius-sm;
+
+      &.p-highlight {
+        background: $color-primary-text;
+        border-color: $color-primary-text;
+      }
+    }
+  }
+}

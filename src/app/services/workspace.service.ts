@@ -6,6 +6,18 @@ export interface EditorSolution {
   editorToolId: string;
 }
 
+export interface ProcessAgent {
+  id: string;
+  type: 'Agent' | 'Code Analysis' | 'UI Analysis';
+  prompt: string;
+  exitCriteria?: string;
+  promptNotes?: string;
+}
+
+export interface WorkProcess {
+  agents: ProcessAgent[];
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -18,6 +30,7 @@ export interface Workspace {
   tools: string;
   extra: string;
   solutions?: EditorSolution[];
+  workProcess?: WorkProcess;
 }
 
 @Injectable({
@@ -46,7 +59,8 @@ export class WorkspaceService {
           taskOrganization: r.taskOrganization || '',
           tools: r.tools || '[]',
           extra: r.extra || '{}',
-          solutions: extra.solutions || []
+          solutions: extra.solutions || [],
+          workProcess: extra.workProcess || { agents: [] }
         };
       });
     }

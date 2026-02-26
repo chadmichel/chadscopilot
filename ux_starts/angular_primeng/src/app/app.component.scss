@@ -1,0 +1,170 @@
+// Layout variables
+$sidebar-width: 260px;
+$sidebar-collapsed-width: 72px;
+$header-height: 56px;
+$footer-height: 48px;
+
+// Main layout container
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+// Main content area
+.main-area {
+  display: flex;
+  flex-direction: column;
+  margin-left: $sidebar-width;
+  width: calc(100% - #{$sidebar-width});
+  min-height: 100vh;
+  transition: margin-left 0.3s ease, width 0.3s ease;
+  min-width: 0;
+  overflow-x: hidden;
+
+  &.no-sidebar {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+.sidebar-collapsed .main-area {
+  margin-left: $sidebar-collapsed-width;
+  width: calc(100% - #{$sidebar-collapsed-width});
+}
+
+// Mobile header (only visible on mobile)
+.mobile-header {
+  display: none;
+  align-items: center;
+  gap: 1rem;
+  height: $header-height;
+  padding: 0 1rem;
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.mobile-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.mobile-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--app-muted);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--app-surface-hover);
+    color: var(--app-text);
+  }
+
+  i {
+    font-size: 1.25rem;
+  }
+}
+
+// Page content
+.page-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+// Footer
+.app-footer {
+  padding: 1rem 1.5rem;
+  background: var(--app-surface);
+  border-top: 1px solid var(--app-border);
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--app-muted);
+}
+
+.version {
+  color: var(--app-muted);
+}
+
+// Responsive styles
+@media (max-width: 1024px) {
+  .main-area {
+    margin-left: $sidebar-collapsed-width;
+    width: calc(100% - #{$sidebar-collapsed-width});
+  }
+
+  .sidebar-collapsed .main-area {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-area {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
+  .page-content {
+    padding: 1rem;
+  }
+}
+
+// Animation for sidebar toggle
+.app-layout {
+  &.sidebar-collapsed {
+    .main-area {
+      margin-left: $sidebar-collapsed-width;
+      width: calc(100% - #{$sidebar-collapsed-width});
+    }
+  }
+}
+
+// Ensure content doesn't overflow
+.page-content {
+  > * {
+    max-width: 100%;
+  }
+}
+
+// Override PrimeNG component backgrounds for consistency
+:host ::ng-deep {
+  .p-card {
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .p-datatable {
+    .p-datatable-header {
+      background: transparent;
+      border: none;
+    }
+  }
+}

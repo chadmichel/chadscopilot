@@ -1,0 +1,53 @@
+# Angular
+.angular/
+dist/
+node_modules/
+tmp/
+out-tsc/
+bazel-out/
+
+# IDEs and editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/
+
+# Visual Studio Code
+.history/*
+
+# Miscellaneous
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+*.log
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment files
+/src/environments/*.js
+/src/environments/*.js.map
+
+# Compiled output
+*.js.map
+*.css.map
+
+# e2e
+/e2e/*.js
+/e2e/*.map
+
+# Only exists if Bazel was run
+/bazel-* 

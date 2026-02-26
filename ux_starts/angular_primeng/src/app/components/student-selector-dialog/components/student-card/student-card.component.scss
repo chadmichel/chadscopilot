@@ -1,0 +1,208 @@
+@use '../../../../../styles/index' as *;
+
+// ===========================================
+// PERSON CARD
+// Unified card component for displaying a person
+// Used in student-selector-dialog for all variants
+// ===========================================
+
+.student-card {
+  display: flex;
+  flex-direction: column;
+  padding: $spacing-sm-plus $spacing-md;
+  background-color: $color-bg-muted;
+  border-radius: $radius-lg;
+  transition: background-color $transition-base;
+
+  &:hover {
+    background-color: $color-bg-active;
+  }
+
+  // Main row: avatar/position + info + actions
+  &__main {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm-plus;
+  }
+
+  // Avatar - gradient circle with initials
+  &__avatar {
+    width: $avatar-size-md;
+    height: $avatar-size-md;
+    min-width: $avatar-size-md;
+    border-radius: $radius-full;
+    background: linear-gradient(135deg, $color-teal-600 0%, $color-sky-600 100%);
+    color: $color-text-inverted;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-base-plus;
+    text-transform: uppercase;
+  }
+
+  // Position badge (for waitlist)
+  &__position {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    background: $color-neutral-bg;
+    border: 2px solid $color-border-default;
+    border-radius: $radius-full;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-bold;
+    color: $color-text-secondary;
+  }
+
+  // Info section - flex: 1 to take available space
+  &__info {
+    flex: 1;
+    min-width: 0; // Allow text truncation
+  }
+
+  // Name with inline badges
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    flex-wrap: wrap;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+    line-height: 1.4;
+  }
+
+  // Subtitle (address, etc.)
+  &__subtitle {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    font-size: $font-size-sm;
+    color: $color-text-muted;
+    margin-top: 2px;
+
+    i {
+      font-size: $font-size-xs;
+    }
+
+    &--clickable {
+      cursor: pointer;
+      transition: color $transition-fast;
+
+      &:hover {
+        color: $color-text-secondary;
+
+        .student-card__edit-icon {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  &__edit-icon {
+    opacity: 0;
+    color: $color-primary-text;
+    font-size: $font-size-xs;
+    transition: opacity $transition-fast;
+  }
+
+  // Secondary text (LL#, date, etc.)
+  &__secondary {
+    font-size: $font-size-sm;
+    color: $color-text-muted;
+    margin-top: 2px;
+  }
+
+  // Actions container
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    flex-wrap: nowrap;
+  }
+
+  // Action buttons - consistent square style
+  &__btn {
+    &.p-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: $radius-sm;
+      transition: all $transition-base;
+
+      .p-button-icon {
+        font-size: $font-size-sm;
+      }
+    }
+
+    // Add button (green)
+    &--add.p-button {
+      background: $color-success-bg;
+      border: 1px solid transparent;
+      color: $color-success-text;
+
+      &:hover:not(:disabled) {
+        background: color-mix(in srgb, $color-success-bg 90%, black);
+        border-color: $color-success-border;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      &:focus {
+        box-shadow: 0 0 0 3px rgba($color-green-500, 0.15);
+      }
+    }
+
+    // Remove button (red)
+    &--remove.p-button {
+      background: $color-danger-bg;
+      border: 1px solid transparent;
+      color: $color-danger-text;
+
+      &:hover:not(:disabled) {
+        background: $color-danger-bg-light;
+        border-color: $color-danger-border;
+      }
+
+      &:focus {
+        box-shadow: 0 0 0 3px rgba($color-red-500, 0.15);
+      }
+    }
+  }
+
+  // Content area for projected content (children, accordions, etc.)
+  &__content {
+    margin-top: $spacing-sm;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  // ===========================================
+  // VARIANT MODIFIERS
+  // ===========================================
+
+  // Transportation variant - no special styling needed currently
+  &--transportation {
+    // Future: any transportation-specific styles
+  }
+
+  // Childcare variant
+  &--childcare {
+    // Future: any childcare-specific styles
+  }
+
+  // Attendance variant - simpler, no children
+  &--attendance {
+    .student-card__content {
+      padding-left: 0;
+    }
+  }
+}

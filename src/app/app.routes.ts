@@ -10,6 +10,7 @@ import { ToolConfigureComponent } from './pages/tool-configure.component';
 import { PreferencesComponent } from './pages/preferences.component';
 import { MermaidBuilderComponent } from './pages/mermaid-builder.component';
 import { PlanEditorComponent } from './pages/plan-editor.component';
+import { WorkProcessRunnerComponent } from './pages/work-process-runner.component';
 import { WorkspaceService } from './services/workspace.service';
 
 export const workspaceTitleResolver: ResolveFn<string> = (route: ActivatedRouteSnapshot) => {
@@ -34,4 +35,5 @@ export const routes: Routes = [
   { path: 'preferences', component: PreferencesComponent, title: 'Preferences' },
   { path: 'mermaid-builder', component: MermaidBuilderComponent, title: 'Mermaid Builder' },
   { path: 'plan-editor', component: PlanEditorComponent, title: 'Plan Editor' },
+  { path: 'work-process-runner', component: WorkProcessRunnerComponent, title: 'Work Process Runner' },
 ];
