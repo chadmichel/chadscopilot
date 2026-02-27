@@ -207,6 +207,11 @@ export class AuthComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    // If we already have a valid session, don't show sign-in.
+    if (this.authService.isLoggedIn()) {
+      this.router.navigate(['/todo']);
+      return;
+    }
     this.loadAuthSetup();
   }
 

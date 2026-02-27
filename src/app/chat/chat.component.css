@@ -221,6 +221,26 @@ textarea:disabled {
   opacity: 0.5;
 }
 
+.attach-button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.attach-button:hover:not(:disabled) {
+  background-color: var(--app-surface);
+  color: var(--theme-primary);
+}
+
 .send-button {
   flex-shrink: 0;
   width: 32px;

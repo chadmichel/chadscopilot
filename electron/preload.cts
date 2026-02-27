@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke('dialog:select-directory'),
 
+  // File picker
+  selectFile: (filters?: { name: string; extensions: string[] }[]): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:select-file', filters),
+
   // --- Workspaces ---
   getWorkspaces: (): Promise<any[]> =>
     ipcRenderer.invoke('db:get-workspaces'),
@@ -180,6 +184,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openWorkProcessRunner: (workspaceId: string): Promise<void> =>
     ipcRenderer.invoke('window:open-work-process-runner', workspaceId),
 
+  uxOpenRunner: (workspaceId: string, designName: string, designPath: string): Promise<void> =>
+    ipcRenderer.invoke('window:open-ux-design-runner', workspaceId, designName, designPath),
+
   // --- File System ---
   readFile: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:read-file', filePath),
@@ -195,6 +202,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   listDirectory: (dirPath: string): Promise<{ name: string; isDirectory: boolean }[]> =>
     ipcRenderer.invoke('fs:list-directory', dirPath),
+
+  // --- UX Design ---
+  uxCreateDesign: (workspaceId: string, name: string, techStack: string, workspacePath: string): Promise<any> =>
+    ipcRenderer.invoke('ux:create-design', workspaceId, name, techStack, workspacePath),
+
+  uxStartDevServer: (designPath: string): Promise<{ success: boolean; port: number }> =>
+    ipcRenderer.invoke('ux:start-dev-server', designPath),
+
+  uxStopDevServer: (designPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('ux:stop-dev-server', designPath),
 
   // --- Calendar ---
   calendarLogin: (): Promise<string | null> =>

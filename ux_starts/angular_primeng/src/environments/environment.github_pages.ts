@@ -16,6 +16,15 @@ export const environment = {
     longTTL: 300, // seconds
   },
   logLevel: 'debug', // none, error, warn, info, debug
+
+  // Tenant configuration
+  tenantId: '',
+
+  // Legacy Cognito auth config (optional)
+  cognitoDomain: '',
+  cognitoClientId: '',
+  cognitoScope: ['email', 'openid'],
+  cognitoRedirectUri: '',
 };
 
 // For easier debugging in development mode

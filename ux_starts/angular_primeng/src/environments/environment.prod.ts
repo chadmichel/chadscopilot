@@ -14,4 +14,13 @@ export const environment = {
     defaultTTL: 300, // seconds
     longTTL: 3600, // seconds
   },
+
+  // Tenant configuration
+  tenantId: '',
+
+  // Legacy Cognito auth config (optional)
+  cognitoDomain: '',
+  cognitoClientId: '',
+  cognitoScope: ['email', 'openid'],
+  cognitoRedirectUri: '',
 };

@@ -159,8 +159,12 @@ export interface SidebarUserInfo {
       flex-direction: column;
       width: 260px;
       height: 100vh;
-      background: linear-gradient(180deg, var(--app-sidebar-bg-start) 0%, var(--app-sidebar-bg-end) 100%);
-      color: var(--app-sidebar-text);
+      background: linear-gradient(
+        180deg,
+        var(--app-sidebar-bg-start, #0b1f3a) 0%,
+        var(--app-sidebar-bg-end, #07162b) 100%
+      );
+      color: var(--app-sidebar-text, #ffffff);
       position: fixed;
       left: 0;
       top: 0;
@@ -324,6 +328,42 @@ export interface SidebarUserInfo {
       background: transparent;
       width: 100%;
       text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* colorful accent strip */
+    .nav-link::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 999px;
+      background: linear-gradient(
+        180deg,
+        var(--app-accent),
+        color-mix(in srgb, var(--app-accent) 45%, #ffffff)
+      );
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    /* subtle colorful glow */
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        100% 120% at 0% 50%,
+        color-mix(in srgb, var(--app-accent) 18%, transparent) 0%,
+        transparent 55%
+      );
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
     }
 
     .nav-link:hover {
@@ -331,13 +371,38 @@ export interface SidebarUserInfo {
       color: var(--app-sidebar-text);
     }
 
+    .nav-link:hover::before {
+      opacity: 0.9;
+      transform: translateX(0);
+    }
+
+    .nav-link:hover::after {
+      opacity: 1;
+    }
+
     .nav-link.active {
-      background: color-mix(in srgb, var(--app-accent) 15%, transparent);
-      color: var(--app-accent);
+      background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--app-accent) 18%, transparent),
+        color-mix(in srgb, var(--app-sidebar-text) 6%, transparent)
+      );
+      color: var(--app-sidebar-text);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--app-accent) 25%, transparent),
+        0 10px 24px -18px color-mix(in srgb, var(--app-accent) 45%, transparent);
     }
 
     .nav-link.active .nav-icon {
       color: var(--app-accent);
+    }
+
+    .nav-link.active::before {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .nav-link.active::after {
+      opacity: 1;
     }
 
     .nav-icon {
@@ -345,6 +410,35 @@ export interface SidebarUserInfo {
       width: 24px;
       text-align: center;
       flex-shrink: 0;
+      position: relative;
+    }
+
+    /* colorful icon chip */
+    .nav-link .nav-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 18%, transparent);
+      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .nav-link:hover .nav-icon {
+      background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 26%, transparent),
+        0 10px 18px -18px color-mix(in srgb, var(--app-accent) 60%, transparent);
+      transform: translateY(-0.5px);
+    }
+
+    .nav-link.active .nav-icon {
+      background: color-mix(in srgb, var(--app-accent) 24%, transparent);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 36%, transparent),
+        0 12px 22px -18px color-mix(in srgb, var(--app-accent) 70%, transparent);
     }
 
     .nav-label {
@@ -463,6 +557,11 @@ export interface SidebarUserInfo {
     .collapsed .nav-link {
       justify-content: center;
       padding: 0.75rem;
+    }
+
+    .collapsed .nav-link::before {
+      top: 10px;
+      bottom: 10px;
     }
 
     .collapsed .user-container {

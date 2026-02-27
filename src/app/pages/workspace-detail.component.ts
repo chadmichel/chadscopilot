@@ -208,7 +208,9 @@ interface Tab {
                             @if (showDesignMenu) {
                               <div class="split-menu">
                                 @for (type of designTypes; track type) {
-                                  <button class="menu-item" (click)="selectDesignType(type)">{{ type | titlecase }}</button>
+                                  <button class="menu-item" (click)="selectDesignType(type)">
+                                    {{ type === 'ux-design' ? 'UX Design' : (type | titlecase) }}
+                                  </button>
                                 }
                               </div>
                             }
@@ -225,10 +227,16 @@ interface Tab {
                         <div class="design-file-list">
                           @for (file of designFiles; track file) {
                             <button class="design-file-item" (click)="openDesign('designs/' + file)">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <path d="M14 2v6h6"/>
-                              </svg>
+                              @if (file.endsWith('.md')) {
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <path d="M14 2v6h6"/>
+                                </svg>
+                              } @else {
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                </svg>
+                              }
                               <span class="design-file-name">{{ file }}</span>
                             </button>
                           }
@@ -524,6 +532,38 @@ interface Tab {
             <div class="dialog-footer">
               <button class="btn-cancel" (click)="cancelNewDesign()">Cancel</button>
               <button class="btn-confirm" (click)="confirmNewDesign()" [disabled]="!newDesignName.trim()">Create Design</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+    @if (showNewUXDesignDialog) {
+      <div class="dialog-overlay">
+        <div class="dialog">
+          <div class="dialog-header">
+            <h3>New UX Design</h3>
+            <button class="dialog-close" (click)="cancelNewUXDesign()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label for="ux-design-name">Enter name (this will be the folder name)</label>
+              <input id="ux-design-name" type="text" class="form-input" [(ngModel)]="newUXDesignName" placeholder="e.g. customer-portal">
+            </div>
+            <div class="form-group" style="margin-top: 16px;">
+              <label for="ux-tech-stack">Select Tech Stack</label>
+              <select id="ux-tech-stack" class="form-input" [(ngModel)]="newUXDesignTechStack">
+                @for (stack of techStacks; track stack) {
+                  <option [value]="stack">{{ formatTechStackLabel(stack) }}</option>
+                }
+              </select>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn-cancel" (click)="cancelNewUXDesign()">Cancel</button>
+              <button class="btn-confirm" [disabled]="!newUXDesignName.trim()" (click)="confirmNewUXDesign()">Create Design</button>
             </div>
           </div>
         </div>
@@ -1602,7 +1642,12 @@ export class WorkspaceDetailComponent implements OnInit {
   isPopout = false;
 
   // Design tab
-  designTypes: string[] = ['mermaid', 'ux', 'system'];
+  designTypes: string[] = ['mermaid', 'ux', 'system', 'ux-design'];
+  showNewUXDesignDialog = false;
+  newUXDesignName = '';
+  newUXDesignTechStack = 'angular_primeng';
+  techStacks = ['angular_primeng'];
+
   selectedDesignType = 'mermaid';
   showDesignMenu = false;
   showSolutionMenu = false;
@@ -1762,15 +1807,29 @@ export class WorkspaceDetailComponent implements OnInit {
     if (!this.workspace) return;
 
     if (!fileName) {
-      this.newDesignName = '';
-      this.showNewDesignDialog = true;
+      if (this.selectedDesignType === 'ux-design') {
+        this.newUXDesignName = '';
+        this.showNewUXDesignDialog = true;
+      } else {
+        this.newDesignName = '';
+        this.showNewDesignDialog = true;
+      }
       return;
     }
 
     const electron = (window as any).electronAPI;
     if (this.selectedDesignType === 'mermaid') {
       await electron?.openMermaidBuilder?.(this.workspace.id, fileName);
+    } else if (fileName.startsWith('designs/')) {
+      // Check if it's a directory (UX Design)
+      const name = fileName.replace('designs/', '');
+      const fullPath = this.workspace.folderPath + '/' + fileName;
+      // In a real app we'd check if it's a dir, but here we can assume if it's not .md it's a UX design
+      if (!fileName.endsWith('.md')) {
+        await electron?.uxOpenRunner?.(this.workspace.id, name, fullPath);
+      }
     }
+
     setTimeout(() => this.loadDesignFiles(), 1000);
   }
 
@@ -1794,6 +1853,32 @@ export class WorkspaceDetailComponent implements OnInit {
     }
     setTimeout(() => this.loadDesignFiles(), 1000);
   }
+
+  async confirmNewUXDesign() {
+    if (!this.workspace || !this.newUXDesignName.trim()) return;
+
+    const electron = (window as any).electronAPI;
+    const name = this.newUXDesignName.trim().replace(/[^a-z0-9_\-]/gi, '_');
+
+    this.showNewUXDesignDialog = false;
+    await electron?.uxCreateDesign?.(this.workspace.id, name, this.newUXDesignTechStack, this.workspace.folderPath);
+
+    setTimeout(() => this.loadDesignFiles(), 1500);
+  }
+
+  cancelNewUXDesign() {
+    this.showNewUXDesignDialog = false;
+    this.newUXDesignName = '';
+  }
+
+  formatTechStackLabel(stack: string): string {
+    if (!stack) return '';
+    return stack
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
 
   cancelNewDesign() {
     this.showNewDesignDialog = false;
@@ -1896,9 +1981,15 @@ export class WorkspaceDetailComponent implements OnInit {
     const electron = (window as any).electronAPI;
     const sep = this.workspace.folderPath.includes('\\') ? '\\' : '/';
     const designsDir = `${this.workspace.folderPath}${sep}designs`;
-    const files: string[] = await electron?.listFiles?.(designsDir, '.md') ?? [];
-    this.designFiles = files.sort();
+
+    // Show both .md files AND directories (UX Designs)
+    const entries = await electron?.listDirectory?.(designsDir) ?? [];
+    this.designFiles = entries
+      .filter((e: any) => e.name.endsWith('.md') || e.isDirectory)
+      .map((e: any) => e.name)
+      .sort();
   }
+
 
   async openEditor(): Promise<void> {
     if (!this.editorTool || !this.workspace) return;

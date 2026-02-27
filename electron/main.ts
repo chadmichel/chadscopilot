@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
+import { spawn, ChildProcess } from 'node:child_process';
 import path from 'path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'url';
@@ -18,6 +19,12 @@ import { CalendarService } from './calendar.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Set application name as early as possible (especially for macOS Dock/Menu)
+app.name = 'What is Done';
+if (app.setName) {
+  app.setName('What is Done');
+}
 
 // Hot reload in dev: restart Electron when dist-electron files change
 if (!app.isPackaged) {
@@ -56,6 +63,7 @@ const gitHubService = new GitHubService();
 const vsCodeService = new VsCodeService();
 const cursorService = new CursorService();
 const antigravityService = new GoogleAntigravityService();
+const uxProcesses = new Map<string, ChildProcess>();
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -151,6 +159,20 @@ function setupIPC(): void {
     if (!mainWindow) return null;
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
+    });
+    if (result.canceled) {
+      return null;
+    } else {
+      return result.filePaths[0];
+    }
+  });
+
+  // File picker
+  ipcMain.handle('dialog:select-file', async (_event, filters?: { name: string; extensions: string[] }[]) => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: filters
     });
     if (result.canceled) {
       return null;
@@ -643,6 +665,101 @@ function setupIPC(): void {
   );
 
   ipcMain.handle(
+    'window:open-ux-design-runner',
+    (_event, workspaceId: string, designName: string, designPath: string) => {
+      const win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 800,
+        minHeight: 600,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.cjs'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+        icon: appIcon,
+        titleBarStyle: 'hiddenInset',
+        backgroundColor: '#1a1a1a',
+        title: `UX Design Runner - ${designName}`,
+      });
+
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        win.loadURL(
+          `http://localhost:4300/#/ux-design-runner?workspaceId=${workspaceId}&designName=${designName}&designPath=${designPath}`,
+        );
+      } else {
+        win.loadFile(
+          path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
+          {
+            hash: `/ux-design-runner?workspaceId=${workspaceId}&designName=${designName}&designPath=${designPath}`,
+          },
+        );
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'ux:create-design',
+    async (
+      _event,
+      _workspaceId: string,
+      name: string,
+      techStack: string,
+      workspacePath: string,
+    ) => {
+      const designPath = path.join(workspacePath, 'designs', name);
+      // Use process.cwd() or similar to find ux_starts?
+      // In dev, it's in the root.
+      const uxStartsPath = path.join(process.cwd(), 'ux_starts');
+      const templatePath = path.join(uxStartsPath, techStack);
+
+      if (!fs.existsSync(designPath)) {
+        fs.mkdirSync(designPath, { recursive: true });
+      }
+
+      // Copy template
+      await fs.promises.cp(templatePath, designPath, { recursive: true });
+
+      // Start npm install in background
+      const installProc = spawn('npm', ['install'], {
+        cwd: designPath,
+        shell: true,
+      });
+      installProc.on('exit', (code) => {
+        console.log(`UX Design ${name} npm install exited with code ${code}`);
+      });
+
+      return { success: true, path: designPath };
+    },
+  );
+
+  ipcMain.handle('ux:start-dev-server', async (_event, designPath: string) => {
+    if (uxProcesses.has(designPath)) {
+      return { success: true, port: 4200 };
+    }
+
+    const proc = spawn('npm', ['start'], { cwd: designPath, shell: true });
+    uxProcesses.set(designPath, proc);
+
+    proc.stdout?.on('data', (data) => console.log(`[UX Dev Server] ${data}`));
+    proc.stderr?.on('data', (data) =>
+      console.error(`[UX Dev Server ERR] ${data}`),
+    );
+
+    return { success: true, port: 4200 };
+  });
+
+  ipcMain.handle('ux:stop-dev-server', async (_event, designPath: string) => {
+    const proc = uxProcesses.get(designPath);
+    if (proc) {
+      proc.kill('SIGINT');
+      uxProcesses.delete(designPath);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle(
     'window:open-plan-editor',
     (_event, workspaceId: string, filePath: string) => {
       const win = new BrowserWindow({
@@ -727,12 +844,6 @@ function setupIPC(): void {
 }
 
 app.whenReady().then(async () => {
-  // Set application name (affects dock and menu on macOS)
-  try {
-    app.name = 'What is Done';
-  } catch (e) {
-    // ignore if not supported
-  }
   // Initialize database + services
   databaseService = new DatabaseService();
   toolSettingsService = new ToolSettingsService(databaseService.getDb());

@@ -14,6 +14,7 @@ declare global {
       onMessageComplete: (callback: (workspaceId: string) => void) => void;
       onError: (callback: (workspaceId: string, error: string) => void) => void;
       selectDirectory: () => Promise<string | null>;
+      selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<string | null>;
       getWorkspaces: () => Promise<any[]>;
       addWorkspace: (id: string, name: string, folderPath: string) => Promise<any>;
       removeWorkspace: (id: string) => Promise<void>;
@@ -116,5 +117,19 @@ export class ChatService {
           'Running in browser mode. The Copilot SDK requires Electron. Use `npm start` to launch with Electron.',
       });
     }
+  }
+
+  async selectFile(filters?: { name: string; extensions: string[] }[]): Promise<string | null> {
+    if (this.electron?.selectFile) {
+      return await this.electron.selectFile(filters);
+    }
+    return null;
+  }
+
+  async readFile(filePath: string): Promise<string | null> {
+    if (this.electron?.readFile) {
+      return await this.electron.readFile(filePath);
+    }
+    return null;
   }
 }

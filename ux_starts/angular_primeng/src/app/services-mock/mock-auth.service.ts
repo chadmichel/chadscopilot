@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
-import { AuthResponse, Profile, TenantInfo } from '../dto/auth.dto';
+import { AuthResponse, AuthSetupResponse, Profile, TenantInfo } from '../dto/auth.dto';
 import { Router } from '@angular/router';
 
 @Injectable({
@@ -70,7 +70,24 @@ export class MockAuthService {
     return true;
   }
 
+  loadAuthSetup(): Observable<AuthSetupResponse> {
+    return of({
+      success: true,
+      message: 'mock',
+      data: {
+        tenant: { id: 'default-tenant-id', name: 'default', allowSelfSignup: false },
+        authMethods: ['passcode'],
+        environment: { nodeEnv: 'mock', hostname: window.location.hostname },
+        allowSelfSignup: false,
+      },
+    });
+  }
+
   signin(username: string, password: string): Observable<AuthResponse> {
+    return of(this.getMockAuthResponse());
+  }
+
+  signinWithPasscode(passcode: string): Observable<AuthResponse> {
     return of(this.getMockAuthResponse());
   }
 
@@ -170,6 +187,11 @@ export class MockAuthService {
 
   async redirectToMicrosoftLogin() {
     console.log('MockAuth: redirectToMicrosoftLogin called');
+    this.isAuthenticatedSubject.next(true);
+  }
+
+  async redirectToGoogleLogin() {
+    console.log('MockAuth: redirectToGoogleLogin called');
     this.isAuthenticatedSubject.next(true);
   }
 

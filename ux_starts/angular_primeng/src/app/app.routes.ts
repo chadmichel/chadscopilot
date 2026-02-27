@@ -3,12 +3,13 @@ import { AuthComponent } from './pages/auth/auth.component';
 
 import { authGuard } from './guards/auth.guard';
 import { TodoListComponent } from './pages/todo/todo-list.component';
+import { LandingComponent } from './pages/landing/landing.component';
 
 export const routes: Routes = [
   {
     path: '',
+    component: LandingComponent,
     pathMatch: 'full',
-    redirectTo: 'todo',
   },
 
   { path: 'auth', component: AuthComponent, title: 'Sign In' },
@@ -29,5 +30,5 @@ export const routes: Routes = [
       ],
     },
   },
-  { path: '**', redirectTo: 'todo' },
+  { path: '**', component: LandingComponent },
 ];

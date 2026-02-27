@@ -6,6 +6,15 @@ export const environment = {
   baseUrl: '/',
   appName: 'Base App [MOCK]',
   version: '1.0.0-mock',
+
+  // Tenant configuration
+  tenantId: '',
+
+  // Legacy Cognito auth config (optional)
+  cognitoDomain: '',
+  cognitoClientId: '',
+  cognitoScope: ['email', 'openid'],
+  cognitoRedirectUri: '',
 };
 
 // For easier debugging in development mode

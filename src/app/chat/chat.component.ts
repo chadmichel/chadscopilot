@@ -61,6 +61,47 @@ export class ChatComponent implements AfterViewInit, AfterViewChecked {
     }
   }
 
+  async uploadFile(): Promise<void> {
+    if (this.isLoading) return;
+
+    const filters = [
+      { name: 'Projects', extensions: ['json', 'csv', 'xlsx', 'txt', 'mpp', 'pdf', 'docx'] },
+      { name: 'All Files', extensions: ['*'] }
+    ];
+
+    const filePath = await this.chatService.selectFile(filters);
+    if (!filePath) return;
+
+    this.isLoading = true;
+    try {
+      const content = await this.chatService.readFile(filePath);
+      if (content === null) {
+        throw new Error('Could not read file');
+      }
+
+      const fileName = filePath.split(/[\\/]/).pop();
+      const displayMessage = `Attached file: ${fileName}`;
+
+      let context = '';
+      if (this.contextProvider) {
+        context = this.contextProvider() + '\n\n';
+      }
+
+      const prompt = `${context}The user has uploaded a file named "${fileName}". 
+Here is its content:
+---
+${content}
+---
+Please analyze this file and help me update the project plan based on it. If it's a project file, try to extract activities, resources, and dates.`;
+
+      await this.chatService.sendMessage(prompt, this.workspaceId, this.folderPath || undefined, displayMessage);
+    } catch (err: any) {
+      alert(`Error uploading file: ${err.message}`);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
