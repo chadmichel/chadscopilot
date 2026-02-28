@@ -213,6 +213,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   uxStopDevServer: (designPath: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('ux:stop-dev-server', designPath),
 
+  designCreateFolder: (workspacePath: string, name: string, type: 'UX' | 'Mermaid', template: string, run: string): Promise<{ success: boolean; path: string }> =>
+    ipcRenderer.invoke('design:create-folder', workspacePath, name, type, template, run),
+
+  uxOpenFinder: (folderPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('ux:open-finder', folderPath),
+
+  uxOpenTerminal: (folderPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('ux:open-terminal', folderPath),
+
+  uxDeleteDesign: (designPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('ux:delete-design', designPath),
+
   // --- Calendar ---
   calendarLogin: (): Promise<string | null> =>
     ipcRenderer.invoke('calendar:login'),

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeImage, shell } from 'electron';
 import { spawn, execSync, ChildProcess } from 'node:child_process';
 import path from 'path';
 import fs from 'node:fs';
@@ -684,16 +684,15 @@ function setupIPC(): void {
       });
 
       const isDev = !app.isPackaged;
+      const queryParams = `workspaceId=${encodeURIComponent(workspaceId)}&designName=${encodeURIComponent(designName)}&designPath=${encodeURIComponent(designPath)}`;
       if (isDev) {
         win.loadURL(
-          `http://localhost:4300/#/ux-design-runner?workspaceId=${workspaceId}&designName=${designName}&designPath=${designPath}`,
+          `http://localhost:4300/#/ux-design-runner?${queryParams}`,
         );
       } else {
         win.loadFile(
           path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
-          {
-            hash: `/ux-design-runner?workspaceId=${workspaceId}&designName=${designName}&designPath=${designPath}`,
-          },
+          { hash: `/ux-design-runner?${queryParams}` },
         );
       }
     },
@@ -721,6 +720,17 @@ function setupIPC(): void {
       // Copy template
       await fs.promises.cp(templatePath, designPath, { recursive: true });
 
+      // Create design info file
+      const designType = {
+        type: 'UX',
+        template: techStack,
+        run: 'npm run start:mock -- --port 7777',
+      };
+      await fs.promises.writeFile(
+        path.join(designPath, 'designtype.json'),
+        JSON.stringify(designType, null, 2),
+      );
+
       // Start npm install and await it
       return new Promise((resolve, reject) => {
         const installProc = spawn('npm', ['install'], {
@@ -743,6 +753,36 @@ function setupIPC(): void {
         });
       });
     },
+  );
+
+  ipcMain.handle(
+    'design:create-folder',
+    async (
+      _event,
+      workspacePath: string,
+      name: string,
+      type: 'UX' | 'Mermaid',
+      template: string = '',
+      run: string = ''
+    ) => {
+      const designPath = path.join(workspacePath, 'designs', name);
+      if (!fs.existsSync(designPath)) {
+        fs.mkdirSync(designPath, { recursive: true });
+      }
+
+      const designType = {
+        type,
+        template,
+        run,
+      };
+
+      await fs.promises.writeFile(
+        path.join(designPath, 'designtype.json'),
+        JSON.stringify(designType, null, 2),
+      );
+
+      return { success: true, path: designPath };
+    }
   );
 
   async function killProcessOnPort(port: number) {
@@ -798,6 +838,59 @@ function setupIPC(): void {
       uxProcesses.delete(designPath);
     }
     return { success: true };
+  });
+
+  ipcMain.handle('ux:open-finder', async (_event, folderPath: string) => {
+    const normalizedPath = path.normalize(folderPath);
+    console.log(`[IPC] ux:open-finder called for: ${normalizedPath}`);
+    try {
+      if (!fs.existsSync(normalizedPath)) {
+        console.error(`[IPC] Path does not exist: ${normalizedPath}`);
+        return { success: false, error: 'Path does not exist' };
+      }
+      await shell.openPath(normalizedPath);
+      return { success: true };
+    } catch (err) {
+      console.error(`[IPC] Failed to open finder:`, err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('ux:open-terminal', async (_event, folderPath: string) => {
+    const normalizedPath = path.normalize(folderPath);
+    console.log(`[IPC] ux:open-terminal called for: ${normalizedPath}`);
+    try {
+      if (!fs.existsSync(normalizedPath)) {
+        console.error(`[IPC] Path does not exist: ${normalizedPath}`);
+        return { success: false, error: 'Path does not exist' };
+      }
+
+      if (process.platform === 'darwin') {
+        spawn('open', ['-a', 'Terminal', normalizedPath]);
+      } else if (process.platform === 'win32') {
+        spawn('cmd.exe', ['/c', 'start', 'cmd.exe'], { cwd: normalizedPath });
+      } else {
+        spawn('x-terminal-emulator', [], { cwd: normalizedPath });
+      }
+      return { success: true };
+    } catch (err) {
+      console.error(`[IPC] Failed to open terminal:`, err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('ux:delete-design', async (_event, designPath: string) => {
+    console.log(`[IPC] ux:delete-design called for: ${designPath}`);
+    try {
+      if (fs.existsSync(designPath)) {
+        await fs.promises.rm(designPath, { recursive: true, force: true });
+        return { success: true };
+      }
+      return { success: false, error: 'Path does not exist' };
+    } catch (err) {
+      console.error(`[IPC] Failed to delete design:`, err);
+      return { success: false, error: String(err) };
+    }
   });
 
   ipcMain.handle(

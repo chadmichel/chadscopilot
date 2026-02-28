@@ -230,19 +230,27 @@ interface Tab {
                       @if (designFiles.length > 0) {
                         <div class="design-file-list">
                           @for (file of designFiles; track file) {
-                            <button class="design-file-item" (click)="openDesign('designs/' + file)">
-                              @if (file.endsWith('.md')) {
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                  <path d="M14 2v6h6"/>
+                            <div class="design-file-row">
+                              <button class="design-file-item" (click)="openDesign('designs/' + file)">
+                                @if (file.endsWith('.md')) {
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <path d="M14 2v6h6"/>
+                                  </svg>
+                                } @else {
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                  </svg>
+                                }
+                                <span class="design-file-name">{{ file }}</span>
+                              </button>
+                              <button class="delete-design-btn" (click)="deleteDesign(file, $event)" title="Delete design">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                 </svg>
-                              } @else {
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                                </svg>
-                              }
-                              <span class="design-file-name">{{ file }}</span>
-                            </button>
+                              </button>
+                            </div>
                           }
                         </div>
                       } @else {
@@ -1194,6 +1202,36 @@ interface Tab {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .design-file-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .design-file-row .design-file-item {
+        flex: 1;
+      }
+      .delete-design-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        opacity: 0;
+      }
+      .design-file-row:hover .delete-design-btn {
+        opacity: 1;
+      }
+      .delete-design-btn:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+      }
 
       /* Toolbar button */
       .toolbar-btn {
@@ -1684,7 +1722,7 @@ export class WorkspaceDetailComponent implements OnInit {
   private isResizingAgent = false;
 
   // Design tab
-  designTypes: string[] = ['mermaid', 'ux', 'system', 'ux-design'];
+  designTypes: string[] = ['mermaid', 'system', 'ux-design'];
   showNewUXDesignDialog = false;
   isCreatingUXDesign = false;
   newUXDesignName = '';
@@ -1864,16 +1902,66 @@ export class WorkspaceDetailComponent implements OnInit {
     if (this.selectedDesignType === 'mermaid') {
       await electron?.openMermaidBuilder?.(this.workspace.id, fileName);
     } else if (fileName.startsWith('designs/')) {
-      // Check if it's a directory (UX Design)
       const name = fileName.replace('designs/', '');
       const fullPath = this.workspace.folderPath + '/' + fileName;
-      // In a real app we'd check if it's a dir, but here we can assume if it's not .md it's a UX design
+
       if (!fileName.endsWith('.md')) {
-        await electron?.uxOpenRunner?.(this.workspace.id, name, fullPath);
+        // Try to read meta file
+        const metaPath = `${fullPath}/designtype.json`;
+        const oldMetaPath = `${fullPath}/design-meta.json`;
+        let metaStr = await electron?.readFile?.(metaPath);
+        if (!metaStr) {
+          metaStr = await electron?.readFile?.(oldMetaPath);
+        }
+
+        let designType: 'UX' | 'Mermaid' | null = null;
+        if (metaStr) {
+          try {
+            const meta = JSON.parse(metaStr);
+            // Support both old and new formats
+            if (meta.type === 'UX' || meta.type === 'ux-design') {
+              designType = 'UX';
+            } else if (meta.type === 'Mermaid') {
+              designType = 'Mermaid';
+            }
+          } catch (e) {
+            console.error('Failed to parse meta file', e);
+          }
+        } else if (!fileName.endsWith('.md')) {
+          // Fallback for older designs
+          designType = 'UX';
+        }
+
+        if (designType === 'UX') {
+          await electron?.uxOpenRunner?.(this.workspace.id, name, fullPath);
+        } else if (designType === 'Mermaid') {
+          // For now, if we had mermaid folders we'd find the .md inside
+          // but mermaid is currently mostly single files. 
+          // If we support mermaid folders later, we'd handle it here.
+          const mdFile = `designs/${name}/${name}.md`;
+          await electron?.openMermaidBuilder?.(this.workspace.id, mdFile);
+        }
       }
     }
 
     setTimeout(() => this.loadDesignFiles(), 1000);
+  }
+
+  async deleteDesign(fileName: string, event: Event) {
+    event.stopPropagation();
+    if (!this.workspace) return;
+
+    if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+
+    const electron = (window as any).electronAPI;
+    const fullPath = this.workspace.folderPath + '/designs/' + fileName;
+
+    const result = await electron.uxDeleteDesign(fullPath);
+    if (result.success) {
+      await this.loadDesignFiles();
+    } else {
+      alert('Failed to delete design: ' + result.error);
+    }
   }
 
   async confirmNewDesign() {
@@ -1892,7 +1980,22 @@ export class WorkspaceDetailComponent implements OnInit {
 
     this.showNewDesignDialog = false;
     if (this.selectedDesignType === 'mermaid') {
-      await electron?.openMermaidBuilder?.(this.workspace.id, file);
+      const designPath = await electron?.designCreateFolder?.(
+        this.workspace.folderPath,
+        sanitized,
+        'Mermaid',
+        '',
+        ''
+      );
+
+      const mdPath = `designs/${sanitized}/${sanitized}.md`;
+      const fullMdPath = `${this.workspace.folderPath}/${mdPath}`;
+
+      // Create initial content if it doesn't exist
+      const initialContent = `graph TD\n  A[Start] --> B(Process)\n  B --> C{Decision}\n  C --> D[Result 1]\n  C --> E[Result 2]`;
+      await electron?.writeFile?.(fullMdPath, initialContent);
+
+      await electron?.openMermaidBuilder?.(this.workspace.id, mdPath);
     }
     setTimeout(() => this.loadDesignFiles(), 1000);
   }

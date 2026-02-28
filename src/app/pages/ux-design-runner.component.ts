@@ -27,6 +27,22 @@ import { ChatComponent } from '../chat/chat.component';
           </div>
 
           <div class="button-group">
+            <button class="action-btn" (click)="openFinder()">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              Files
+            </button>
+            <button class="action-btn" (click)="openTerminal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5"/>
+                <line x1="12" y1="19" x2="20" y2="19"/>
+              </svg>
+              Terminal
+            </button>
+          </div>
+
+          <div class="button-group">
             @if (!isServerRunning) {
               <button class="action-btn start-btn" (click)="startServer()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -335,6 +351,20 @@ export class UXDesignRunnerComponent implements OnInit, OnDestroy {
   async restartServer() {
     await this.stopServer();
     setTimeout(() => this.startServer(), 1000);
+  }
+
+  async openFinder() {
+    console.log('Opening Finder for path:', this.designPath);
+    const electron = (window as any).electronAPI;
+    const result = await electron.uxOpenFinder(this.designPath);
+    console.log('Open Finder result:', result);
+  }
+
+  async openTerminal() {
+    console.log('Opening Terminal for path:', this.designPath);
+    const electron = (window as any).electronAPI;
+    const result = await electron.uxOpenTerminal(this.designPath);
+    console.log('Open Terminal result:', result);
   }
 
   contextProvider = () => {
