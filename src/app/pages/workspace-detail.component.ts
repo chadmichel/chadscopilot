@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -83,7 +83,7 @@ interface Tab {
         </div>
 
         <div class="split-layout">
-          <div class="agent-panel" [class.collapsed]="agentCollapsed">
+          <div class="agent-panel" [class.collapsed]="agentCollapsed" [style.flex]="agentCollapsed ? '0 0 44px' : 'none'" [style.width.px]="agentCollapsed ? 44 : agentPanelWidth">
             @if (!agentCollapsed) {
               <div class="agent-header">
                 <select class="agent-select"
@@ -141,6 +141,10 @@ interface Tab {
               </svg>
             </button>
           </div>
+
+          @if (!agentCollapsed) {
+            <div class="resizer agent-resizer" (mousedown)="startAgentResizing($event)"></div>
+          }
 
           <div class="right-panel" [class.collapsed]="tabsCollapsed">
             @if (!tabsCollapsed) {
@@ -570,6 +574,18 @@ interface Tab {
       </div>
     }
 
+    @if (isCreatingUXDesign) {
+      <div class="dialog-overlay">
+        <div class="dialog">
+          <div class="dialog-body">
+            <div class="spinner-container">
+              <div class="spinner"></div>
+              <p>Creating your UX Design project... this may take a few moments while we copy files and run npm install.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
     @if (showAgentFlowDialog) {
       <div class="dialog-overlay">
         <div class="dialog" style="width: 500px;">
@@ -611,6 +627,7 @@ interface Tab {
       </div>
     }
   `,
+
   styles: [
     `
     :host {
@@ -743,19 +760,21 @@ interface Tab {
         border-right: 1px solid var(--app-border);
         overflow: visible;
         position: relative;
-        transition: flex 0.2s ease;
         display: flex;
         flex-direction: column;
       }
-      app-chat {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
+      .resizer {
+        width: 4px;
+        cursor: col-resize;
+        background: transparent;
+        transition: background 0.2s;
+        z-index: 10;
+        margin-left: -2px;
+        margin-right: -2px;
+        flex-shrink: 0;
       }
-      .agent-panel.collapsed {
-        flex: 0 0 44px;
-        min-width: 44px;
+      .resizer:hover, .resizer:active {
+        background: var(--theme-primary);
       }
       .right-panel {
         flex: 1;
@@ -1630,6 +1649,27 @@ interface Tab {
         transform: translateY(-2px);
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
       }
+
+      .spinner-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        gap: 16px;
+        text-align: center;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--app-border);
+        border-top-color: var(--theme-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
     `,
   ],
 })
@@ -1640,10 +1680,13 @@ export class WorkspaceDetailComponent implements OnInit {
   tabsCollapsed = false;
   editorTool: Tool | null = null;
   isPopout = false;
+  agentPanelWidth = 450;
+  private isResizingAgent = false;
 
   // Design tab
   designTypes: string[] = ['mermaid', 'ux', 'system', 'ux-design'];
   showNewUXDesignDialog = false;
+  isCreatingUXDesign = false;
   newUXDesignName = '';
   newUXDesignTechStack = 'angular_primeng';
   techStacks = ['angular_primeng'];
@@ -1861,9 +1904,27 @@ export class WorkspaceDetailComponent implements OnInit {
     const name = this.newUXDesignName.trim().replace(/[^a-z0-9_\-]/gi, '_');
 
     this.showNewUXDesignDialog = false;
-    await electron?.uxCreateDesign?.(this.workspace.id, name, this.newUXDesignTechStack, this.workspace.folderPath);
+    this.isCreatingUXDesign = true;
 
-    setTimeout(() => this.loadDesignFiles(), 1500);
+    try {
+      const result = await electron?.uxCreateDesign?.(
+        this.workspace.id,
+        name,
+        this.newUXDesignTechStack,
+        this.workspace.folderPath
+      );
+
+      if (result && result.success) {
+        // Open the runner window
+        await electron?.uxOpenRunner?.(this.workspace.id, name, result.path);
+      }
+    } catch (err) {
+      console.error('Failed to create UX design:', err);
+    } finally {
+      this.isCreatingUXDesign = false;
+      this.newUXDesignName = '';
+      setTimeout(() => this.loadDesignFiles(), 500);
+    }
   }
 
   cancelNewUXDesign() {
@@ -2105,5 +2166,25 @@ export class WorkspaceDetailComponent implements OnInit {
 
   goBack(): void {
     this.router.navigate(['/workspaces']);
+  }
+
+  startAgentResizing(event: MouseEvent) {
+    this.isResizingAgent = true;
+    event.preventDefault();
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (this.isResizingAgent) {
+      const newWidth = event.clientX;
+      if (newWidth >= 200 && newWidth <= 800) {
+        this.agentPanelWidth = newWidth;
+      }
+    }
+  }
+
+  @HostListener('window:mouseup')
+  onMouseUp() {
+    this.isResizingAgent = false;
   }
 }

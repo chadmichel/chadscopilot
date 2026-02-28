@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -53,7 +53,7 @@ import { ChatComponent } from '../chat/chat.component';
       </div>
 
       <div class="runner-content">
-        <div class="left-panel">
+        <div class="left-panel" [style.width.px]="leftPanelWidth">
           <app-chat 
             [workspaceId]="sessionId" 
             [folderPath]="designPath"
@@ -61,8 +61,18 @@ import { ChatComponent } from '../chat/chat.component';
           ></app-chat>
         </div>
 
+        <div class="resizer" (mousedown)="startResizing($event)"></div>
+
         <div class="right-panel">
-          @if (isServerRunning) {
+          @if (isServerLoading) {
+            <div class="preview-placeholder">
+              <div class="placeholder-content">
+                <div class="spinner"></div>
+                <h3>Starting Development Server...</h3>
+                <p>Angular is compiling your design. This usually takes 10-30 seconds.</p>
+              </div>
+            </div>
+          } @else if (isServerRunning) {
             <iframe [src]="safeUrl" class="preview-iframe"></iframe>
           } @else {
             <div class="preview-placeholder">
@@ -177,13 +187,29 @@ import { ChatComponent } from '../chat/chat.component';
       min-height: 0;
     }
     .left-panel {
-      flex: 1;
+      width: 450px;
+      min-width: 200px;
+      max-width: 800px;
+      flex-shrink: 0;
       border-right: 1px solid var(--app-border);
       display: flex;
       flex-direction: column;
     }
+    .resizer {
+      width: 4px;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 0.2s;
+      z-index: 10;
+      margin-left: -2px;
+      margin-right: -2px;
+    }
+    .resizer:hover, .resizer:active {
+      background: var(--theme-primary);
+    }
     .right-panel {
-      flex: 1.5;
+      flex: 1;
+      min-width: 0;
       background: #000;
       display: flex;
       flex-direction: column;
@@ -223,6 +249,18 @@ import { ChatComponent } from '../chat/chat.component';
     .start-btn-large:hover {
       transform: scale(1.05);
     }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--app-border);
+      border-top-color: var(--theme-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   `]
 })
 export class UXDesignRunnerComponent implements OnInit, OnDestroy {
@@ -231,8 +269,11 @@ export class UXDesignRunnerComponent implements OnInit, OnDestroy {
   designPath: string = '';
   sessionId: string = '';
   isServerRunning: boolean = false;
+  isServerLoading: boolean = false;
   safeUrl: SafeResourceUrl | null = null;
-  serverPort: number = 4200;
+  serverPort: number = 7777;
+  leftPanelWidth: number = 450;
+  private isResizing = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -250,11 +291,38 @@ export class UXDesignRunnerComponent implements OnInit, OnDestroy {
 
   async startServer() {
     const electron = (window as any).electronAPI;
+    this.isServerLoading = true;
     const result = await electron.uxStartDevServer(this.designPath);
     if (result.success) {
-      this.isServerRunning = true;
       this.serverPort = result.port;
+
+      // Poll until server is ready
+      const maxAttempts = 30;
+      let attempts = 0;
+      while (attempts < maxAttempts) {
+        const up = await this.checkServerAvailability(this.serverPort);
+        if (up) {
+          this.isServerRunning = true;
+          this.isServerLoading = false;
+          this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(`http://localhost:${this.serverPort}`);
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        attempts++;
+      }
+
+      this.isServerLoading = false;
+      this.isServerRunning = true; // Show it anyway after timeout
       this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(`http://localhost:${this.serverPort}`);
+    }
+  }
+
+  private async checkServerAvailability(port: number): Promise<boolean> {
+    try {
+      const resp = await fetch(`http://localhost:${port}`, { mode: 'no-cors' });
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -279,5 +347,26 @@ Focus on creating a beautiful, modern, and functional design using Angular and P
 
   ngOnDestroy() {
     this.stopServer();
+  }
+
+  startResizing(event: MouseEvent) {
+    this.isResizing = true;
+    event.preventDefault();
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (!this.isResizing) return;
+
+    // Calculate new width
+    const newWidth = event.clientX;
+    if (newWidth >= 200 && newWidth <= 800) {
+      this.leftPanelWidth = newWidth;
+    }
+  }
+
+  @HostListener('window:mouseup')
+  onMouseUp() {
+    this.isResizing = false;
   }
 }

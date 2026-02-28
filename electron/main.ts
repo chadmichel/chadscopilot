@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
-import { spawn, ChildProcess } from 'node:child_process';
+import { spawn, execSync, ChildProcess } from 'node:child_process';
 import path from 'path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'url';
@@ -721,25 +721,59 @@ function setupIPC(): void {
       // Copy template
       await fs.promises.cp(templatePath, designPath, { recursive: true });
 
-      // Start npm install in background
-      const installProc = spawn('npm', ['install'], {
-        cwd: designPath,
-        shell: true,
-      });
-      installProc.on('exit', (code) => {
-        console.log(`UX Design ${name} npm install exited with code ${code}`);
-      });
+      // Start npm install and await it
+      return new Promise((resolve, reject) => {
+        const installProc = spawn('npm', ['install'], {
+          cwd: designPath,
+          shell: true,
+        });
 
-      return { success: true, path: designPath };
+        installProc.on('exit', (code) => {
+          console.log(`UX Design ${name} npm install exited with code ${code}`);
+          if (code === 0) {
+            resolve({ success: true, path: designPath });
+          } else {
+            resolve({ success: false, error: `npm install failed with code ${code}` });
+          }
+        });
+
+        installProc.on('error', (err) => {
+          console.error(`Failed to start npm install: ${err}`);
+          reject(err);
+        });
+      });
     },
   );
 
+  async function killProcessOnPort(port: number) {
+    try {
+      const cmd = process.platform === 'win32'
+        ? `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port}') do taskkill /f /pid %a`
+        : `lsof -ti:${port} | xargs kill -9`;
+      execSync(cmd);
+      console.log(`Successfully killed process on port ${port}`);
+    } catch (err) {
+      // This often fails if no process is running on the port, which is fine
+    }
+  }
+
   ipcMain.handle('ux:start-dev-server', async (_event, designPath: string) => {
+    const defaultPort = 7777;
     if (uxProcesses.has(designPath)) {
-      return { success: true, port: 4200 };
+      return { success: true, port: defaultPort };
     }
 
-    const proc = spawn('npm', ['start'], { cwd: designPath, shell: true });
+    // Kill any process on the target port AND the old default port just in case
+    await killProcessOnPort(defaultPort);
+    await killProcessOnPort(7021);
+
+    // Force the port regardless of what is in package.json
+    const command = 'npm run start:mock -- --port 7777';
+    const proc = spawn(command, {
+      cwd: designPath,
+      shell: true,
+      detached: true
+    });
     uxProcesses.set(designPath, proc);
 
     proc.stdout?.on('data', (data) => console.log(`[UX Dev Server] ${data}`));
@@ -747,13 +781,20 @@ function setupIPC(): void {
       console.error(`[UX Dev Server ERR] ${data}`),
     );
 
-    return { success: true, port: 4200 };
+    return { success: true, port: defaultPort };
   });
 
   ipcMain.handle('ux:stop-dev-server', async (_event, designPath: string) => {
     const proc = uxProcesses.get(designPath);
-    if (proc) {
-      proc.kill('SIGINT');
+    if (proc && proc.pid) {
+      try {
+        // Kill the entire process group (the shell and all its children)
+        process.kill(-proc.pid, 'SIGINT');
+      } catch (err) {
+        console.error(`Failed to kill UX dev server process group for ${designPath}:`, err);
+        // Fallback to killing just the process if group kill fails
+        try { proc.kill('SIGINT'); } catch (e) { }
+      }
       uxProcesses.delete(designPath);
     }
     return { success: true };
