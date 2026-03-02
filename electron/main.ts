@@ -799,8 +799,9 @@ function setupIPC(): void {
   }
 
   ipcMain.handle('ux:start-dev-server', async (_event, designPath: string) => {
+    const normalizedPath = path.normalize(designPath);
     const defaultPort = 7777;
-    if (uxProcesses.has(designPath)) {
+    if (uxProcesses.has(normalizedPath)) {
       return { success: true, port: defaultPort };
     }
 
@@ -811,7 +812,7 @@ function setupIPC(): void {
     // Read from designtype.json if it exists
     let runCommand = 'npm run start:mock -- --port 7777';
     try {
-      const metaPath = path.join(designPath, 'designtype.json');
+      const metaPath = path.join(normalizedPath, 'designtype.json');
       if (fs.existsSync(metaPath)) {
         const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
         if (meta.run) runCommand = meta.run;
@@ -822,11 +823,11 @@ function setupIPC(): void {
 
     const command = runCommand;
     const proc = spawn(command, {
-      cwd: designPath,
+      cwd: normalizedPath,
       shell: true,
       detached: true
     });
-    uxProcesses.set(designPath, proc);
+    uxProcesses.set(normalizedPath, proc);
 
     proc.stdout?.on('data', (data) => console.log(`[UX Dev Server] ${data}`));
     proc.stderr?.on('data', (data) =>
@@ -876,23 +877,30 @@ function setupIPC(): void {
   });
 
   ipcMain.handle('ux:stop-dev-server', async (_event, designPath: string) => {
-    const proc = uxProcesses.get(designPath);
+    const normalizedPath = path.normalize(designPath);
+    console.log(`[IPC] ux:stop-dev-server called for: ${normalizedPath}`);
+
+    const proc = uxProcesses.get(normalizedPath);
     if (proc && proc.pid) {
       try {
-        // Kill the entire process group (the shell and all its children)
-        process.kill(-proc.pid, 'SIGINT');
+        console.log(`[IPC] Killing process group -${proc.pid}`);
+        // Shoot for the whole process group
+        process.kill(-proc.pid, 'SIGKILL');
       } catch (err) {
-        console.error(`Failed to kill UX dev server process group for ${designPath}:`, err);
-        // Fallback to killing just the process if group kill fails
-        try { proc.kill('SIGINT'); } catch (e) { }
+        console.error(`Failed to kill UX dev server process group -${proc.pid}:`, err);
+        try { proc.kill('SIGKILL'); } catch (e) { }
       }
-      uxProcesses.delete(designPath);
+      uxProcesses.delete(normalizedPath);
     }
 
-    const watcher = designWatchers.get(designPath);
+    // Also explicitly kill anything on 7777 as a safety net
+    await killProcessOnPort(7777);
+
+    const watcher = designWatchers.get(normalizedPath);
     if (watcher) {
+      console.log(`[Watch] Closing watcher for ${normalizedPath}`);
       watcher.close();
-      designWatchers.delete(designPath);
+      designWatchers.delete(normalizedPath);
     }
 
     return { success: true };
