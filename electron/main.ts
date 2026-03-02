@@ -64,6 +64,7 @@ const vsCodeService = new VsCodeService();
 const cursorService = new CursorService();
 const antigravityService = new GoogleAntigravityService();
 const uxProcesses = new Map<string, ChildProcess>();
+const designWatchers = new Map<string, fs.FSWatcher>();
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -724,7 +725,7 @@ function setupIPC(): void {
       const designType = {
         type: 'UX',
         template: techStack,
-        run: 'npm run start:mock -- --port 7777',
+        run: techStack === 'angular_primeng' ? 'npm run start:mock -- --port 7777' : 'npm run start',
       };
       await fs.promises.writeFile(
         path.join(designPath, 'designtype.json'),
@@ -807,8 +808,19 @@ function setupIPC(): void {
     await killProcessOnPort(defaultPort);
     await killProcessOnPort(7021);
 
-    // Force the port regardless of what is in package.json
-    const command = 'npm run start:mock -- --port 7777';
+    // Read from designtype.json if it exists
+    let runCommand = 'npm run start:mock -- --port 7777';
+    try {
+      const metaPath = path.join(designPath, 'designtype.json');
+      if (fs.existsSync(metaPath)) {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        if (meta.run) runCommand = meta.run;
+      }
+    } catch (e) {
+      console.warn('Failed to read designtype.json for start command', e);
+    }
+
+    const command = runCommand;
     const proc = spawn(command, {
       cwd: designPath,
       shell: true,
@@ -824,6 +836,45 @@ function setupIPC(): void {
     return { success: true, port: defaultPort };
   });
 
+  ipcMain.handle('ux:watch-design', async (event, designPath: string) => {
+    const normalizedPath = path.normalize(designPath);
+    if (designWatchers.has(normalizedPath)) {
+      console.log(`[Watch] Already watching: ${normalizedPath}`);
+      return { success: true };
+    }
+
+    try {
+      console.log(`[Watch] Setting up watcher for: ${normalizedPath}`);
+      const watcher = fs.watch(normalizedPath, { recursive: true }, (eventType, filename) => {
+        if (filename && !filename.startsWith('.') && !filename.includes('node_modules')) {
+          console.log(`[Watch] File ${eventType} in ${normalizedPath}: ${filename}`);
+          // Notify the window that requested the watch
+          const win = BrowserWindow.fromWebContents(event.sender);
+          if (win) {
+            console.log(`[Watch] Notifying renderer for change in: ${normalizedPath}`);
+            win.webContents.send('ux:design-changed', normalizedPath);
+          }
+        }
+      });
+      designWatchers.set(normalizedPath, watcher);
+      return { success: true };
+    } catch (err) {
+      console.error(`Failed to watch design path ${normalizedPath}:`, err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('ux:unwatch-design', async (_event, designPath: string) => {
+    const normalizedPath = path.normalize(designPath);
+    const watcher = designWatchers.get(normalizedPath);
+    if (watcher) {
+      watcher.close();
+      designWatchers.delete(normalizedPath);
+      console.log(`[Watch] Stopped watching: ${normalizedPath}`);
+    }
+    return { success: true };
+  });
+
   ipcMain.handle('ux:stop-dev-server', async (_event, designPath: string) => {
     const proc = uxProcesses.get(designPath);
     if (proc && proc.pid) {
@@ -837,6 +888,13 @@ function setupIPC(): void {
       }
       uxProcesses.delete(designPath);
     }
+
+    const watcher = designWatchers.get(designPath);
+    if (watcher) {
+      watcher.close();
+      designWatchers.delete(designPath);
+    }
+
     return { success: true };
   });
 

@@ -1,0 +1,64 @@
+body {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 1)),
+    radial-gradient(circle at 10% 0%, rgba(120, 82, 255, 0.08), transparent 35%),
+    radial-gradient(circle at 90% 20%, rgba(255, 193, 7, 0.12), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(25, 135, 84, 0.08), transparent 45%);
+  min-height: 100vh;
+}
+
+.sketch-navbar {
+  background: #3f3f3f !important;
+}
+
+.sketch-navbar .navbar-brand {
+  color: #fff !important;
+}
+
+.sketch-header-tabs {
+  border-bottom: 0;
+}
+
+.sketch-header-tabs .nav-link {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: transparent;
+}
+
+.sketch-header-tabs .nav-link:hover {
+  border-color: transparent;
+  color: #fff;
+}
+
+.sketch-header-tabs .nav-link.active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.list-group-item {
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.list-group-item:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.todo-text {
+  word-break: break-word;
+}
+
+.todo-text.done {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.todo-row {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.todo-actions .btn {
+  padding: 0.2rem 0.5rem;
+}

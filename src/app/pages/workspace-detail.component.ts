@@ -1727,7 +1727,7 @@ export class WorkspaceDetailComponent implements OnInit {
   isCreatingUXDesign = false;
   newUXDesignName = '';
   newUXDesignTechStack = 'angular_primeng';
-  techStacks = ['angular_primeng'];
+  techStacks = ['angular_primeng', 'sketch'];
 
   selectedDesignType = 'mermaid';
   showDesignMenu = false;
@@ -1899,48 +1899,49 @@ export class WorkspaceDetailComponent implements OnInit {
     }
 
     const electron = (window as any).electronAPI;
-    if (this.selectedDesignType === 'mermaid') {
+
+    // If it's a markdown file, it's definitely Mermaid
+    if (fileName.endsWith('.md')) {
       await electron?.openMermaidBuilder?.(this.workspace.id, fileName);
-    } else if (fileName.startsWith('designs/')) {
+      setTimeout(() => this.loadDesignFiles(), 1000);
+      return;
+    }
+
+    // For directories (likely UX or a newer Mermaid folder), check for metadata
+    if (fileName.startsWith('designs/')) {
       const name = fileName.replace('designs/', '');
       const fullPath = this.workspace.folderPath + '/' + fileName;
 
-      if (!fileName.endsWith('.md')) {
-        // Try to read meta file
-        const metaPath = `${fullPath}/designtype.json`;
-        const oldMetaPath = `${fullPath}/design-meta.json`;
-        let metaStr = await electron?.readFile?.(metaPath);
-        if (!metaStr) {
-          metaStr = await electron?.readFile?.(oldMetaPath);
-        }
+      // Try reading designtype.json or design-meta.json
+      let metaStr = await electron?.readFile?.(`${fullPath}/designtype.json`);
+      if (!metaStr) {
+        metaStr = await electron?.readFile?.(`${fullPath}/design-meta.json`);
+      }
 
-        let designType: 'UX' | 'Mermaid' | null = null;
-        if (metaStr) {
-          try {
-            const meta = JSON.parse(metaStr);
-            // Support both old and new formats
-            if (meta.type === 'UX' || meta.type === 'ux-design') {
-              designType = 'UX';
-            } else if (meta.type === 'Mermaid') {
-              designType = 'Mermaid';
-            }
-          } catch (e) {
-            console.error('Failed to parse meta file', e);
+      let designType: 'UX' | 'Mermaid' | null = null;
+      if (metaStr) {
+        try {
+          const meta = JSON.parse(metaStr);
+          if (meta.type === 'UX' || meta.type === 'ux-design') {
+            designType = 'UX';
+          } else if (meta.type === 'Mermaid') {
+            designType = 'Mermaid';
           }
-        } else if (!fileName.endsWith('.md')) {
-          // Fallback for older designs
-          designType = 'UX';
+        } catch (e) {
+          console.error('Failed to parse meta file', e);
         }
+      } else {
+        // Fallback for older designs or un-meta'd folders
+        // If it's not .md, assume UX runner for now unless the UI toggle is mermaid
+        designType = this.selectedDesignType === 'mermaid' ? 'Mermaid' : 'UX';
+      }
 
-        if (designType === 'UX') {
-          await electron?.uxOpenRunner?.(this.workspace.id, name, fullPath);
-        } else if (designType === 'Mermaid') {
-          // For now, if we had mermaid folders we'd find the .md inside
-          // but mermaid is currently mostly single files. 
-          // If we support mermaid folders later, we'd handle it here.
-          const mdFile = `designs/${name}/${name}.md`;
-          await electron?.openMermaidBuilder?.(this.workspace.id, mdFile);
-        }
+      if (designType === 'UX') {
+        await electron?.uxOpenRunner?.(this.workspace.id, name, fullPath);
+      } else if (designType === 'Mermaid') {
+        // Check for folder-based mermaid first
+        const mdFile = `designs/${name}/${name}.md`;
+        await electron?.openMermaidBuilder?.(this.workspace.id, mdFile);
       }
     }
 
@@ -2037,6 +2038,8 @@ export class WorkspaceDetailComponent implements OnInit {
 
   formatTechStackLabel(stack: string): string {
     if (!stack) return '';
+    if (stack === 'angular_primeng') return 'Angular + PrimeNG';
+    if (stack === 'sketch') return 'Basic Sketch (HTML/JS)';
     return stack
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))

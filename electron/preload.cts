@@ -225,6 +225,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   uxDeleteDesign: (designPath: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('ux:delete-design', designPath),
 
+  uxWatchDesign: (designPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('ux:watch-design', designPath),
+
+  uxUnwatchDesign: (designPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('ux:unwatch-design', designPath),
+
+  onUXDesignChanged: (callback: (designPath: string) => void): void => {
+    ipcRenderer.on('ux:design-changed', (_event, designPath) => callback(designPath));
+  },
+
   // --- Calendar ---
   calendarLogin: (): Promise<string | null> =>
     ipcRenderer.invoke('calendar:login'),

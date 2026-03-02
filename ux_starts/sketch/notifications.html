@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notifications • Sketch Todo</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/sketchy/bootstrap.min.css"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="sketch-header">
+      <nav class="navbar navbar-expand-lg sketch-navbar" data-bs-theme="dark">
+        <div class="container gap-3">
+          <a class="navbar-brand fw-bold text-white" href="./index.html">Sketch Todo</a>
+
+          <ul class="nav nav-tabs sketch-header-tabs mb-0 me-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="./index.html">Tasks</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="./projects.html">Projects</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="./notifications.html">
+                Notifications
+              </a>
+            </li>
+          </ul>
+
+          <div class="d-flex gap-2 align-items-center">
+            <span class="badge text-bg-light">7 updates</span>
+            <button class="btn btn-outline-light btn-sm" type="button" disabled>Mark all read</button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container py-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+        <div>
+          <h1 class="h4 mb-1">Notifications</h1>
+          <p class="text-muted mb-0">A list of updates (activity feed sketch).</p>
+        </div>
+        <div class="btn-group" role="group" aria-label="Notification filters">
+          <button class="btn btn-secondary active" type="button">All</button>
+          <button class="btn btn-secondary" type="button" disabled>Unread</button>
+          <button class="btn btn-secondary" type="button" disabled>Mentions</button>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-12 col-lg-7">
+          <div class="card shadow-sm">
+            <div class="card-body p-0">
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                      <div class="fw-semibold">Task completed</div>
+                      <div class="text-muted small">“Write project brief for next sprint”</div>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge text-bg-success">New</span>
+                      <div class="text-muted small mt-1">2m ago</div>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                      <div class="fw-semibold">Task added</div>
+                      <div class="text-muted small">“Refine onboarding flow sketch”</div>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge text-bg-success">New</span>
+                      <div class="text-muted small mt-1">12m ago</div>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                      <div class="fw-semibold">Project updated</div>
+                      <div class="text-muted small">Work • Sprint tasks reprioritized</div>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge text-bg-secondary">Info</span>
+                      <div class="text-muted small mt-1">1h ago</div>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                      <div class="fw-semibold">Reminder</div>
+                      <div class="text-muted small">3 tasks due today</div>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge text-bg-warning">Heads up</span>
+                      <div class="text-muted small mt-1">3h ago</div>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item">
+                  <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                      <div class="fw-semibold">Sync complete</div>
+                      <div class="text-muted small">Local changes saved</div>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge text-bg-secondary">Info</span>
+                      <div class="text-muted small mt-1">Yesterday</div>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h5 mb-2">Notification settings (sketch)</h2>
+              <p class="text-muted">
+                Placeholder panel for preferences, delivery channels, and digest settings.
+              </p>
+
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="n1" checked />
+                <label class="form-check-label" for="n1">Task updates</label>
+              </div>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="n2" checked />
+                <label class="form-check-label" for="n2">Project updates</label>
+              </div>
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="n3" />
+                <label class="form-check-label" for="n3">Weekly digest</label>
+              </div>
+
+              <hr class="my-3" />
+
+              <button class="btn btn-outline-primary w-100" type="button" disabled>
+                Save preferences
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      (() => {
+        if (!("EventSource" in window)) return;
+        const url = new URL("/__hmr", window.location.href);
+        const es = new EventSource(url);
+        es.addEventListener("reload", () => window.location.reload());
+      })();
+    </script>
+  </body>
+</html>
+

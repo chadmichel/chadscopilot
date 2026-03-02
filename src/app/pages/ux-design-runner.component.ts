@@ -303,6 +303,40 @@ export class UXDesignRunnerComponent implements OnInit, OnDestroy {
     this.sessionId = `ux-design-${this.designName}-${Date.now()}`;
 
     this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(`http://localhost:${this.serverPort}`);
+
+    const electron = (window as any).electronAPI;
+    if (electron?.onUXDesignChanged) {
+      electron.onUXDesignChanged((path: string) => {
+        console.log('[Runner] Change detected in path:', path);
+        // Be permissive with path matching due to potential symlinks/case sensitivity
+        const isMatch = this.designPath && (
+          path.toLowerCase().includes(this.designPath.toLowerCase()) ||
+          this.designPath.toLowerCase().includes(path.toLowerCase())
+        );
+
+        if (isMatch && this.isServerRunning) {
+          console.log('[Runner] Match found! Reloading preview...');
+          this.reloadIframe();
+        } else {
+          console.log('[Runner] Path mismatch or server not running. Match:', isMatch, 'Running:', this.isServerRunning);
+        }
+      });
+    }
+
+    // Auto-start server if designPath is set
+    if (this.designPath && !this.isServerRunning) {
+      this.startServer();
+    }
+  }
+
+  private reloadIframe() {
+    // Force a full re-render of the iframe by toggling safeUrl
+    const currentUrl = `http://localhost:${this.serverPort}?t=${Date.now()}`;
+    this.safeUrl = null;
+
+    setTimeout(() => {
+      this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(currentUrl);
+    }, 50);
   }
 
   async startServer() {
@@ -330,6 +364,9 @@ export class UXDesignRunnerComponent implements OnInit, OnDestroy {
       this.isServerLoading = false;
       this.isServerRunning = true; // Show it anyway after timeout
       this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(`http://localhost:${this.serverPort}`);
+
+      // Start watching
+      await electron.uxWatchDesign(this.designPath);
     }
   }
 
