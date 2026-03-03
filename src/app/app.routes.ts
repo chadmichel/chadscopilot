@@ -12,6 +12,8 @@ import { MermaidBuilderComponent } from './pages/mermaid-builder.component';
 import { PlanEditorComponent } from './pages/plan-editor.component';
 import { WorkProcessRunnerComponent } from './pages/work-process-runner.component';
 import { UXDesignRunnerComponent } from './pages/ux-design-runner.component';
+import { TimeComponent } from './pages/time.component';
+import { BackupComponent } from './pages/backup.component';
 import { WorkspaceService } from './services/workspace.service';
 
 export const workspaceTitleResolver: ResolveFn<string> = (route: ActivatedRouteSnapshot) => {
@@ -38,4 +40,6 @@ export const routes: Routes = [
   { path: 'plan-editor', component: PlanEditorComponent, title: 'Plan Editor' },
   { path: 'work-process-runner', component: WorkProcessRunnerComponent, title: 'Work Process Runner' },
   { path: 'ux-design-runner', component: UXDesignRunnerComponent, title: 'UX Design Runner' },
+  { path: 'time', component: TimeComponent, title: 'Time Tracker' },
+  { path: 'backup', component: BackupComponent, title: 'Backup / Restore' },
 ];

@@ -148,6 +148,69 @@ export class CopilotService {
         handler: async () => {
           return this.syncLogService?.getAll() || [];
         }
+      }),
+      defineTool('list_time_logs', {
+        description: 'Lists activity tracking logs for a specific date (YYYY-MM-DD). Use this to provide insights on how a user spent their time.',
+        parameters: {
+          type: 'object',
+          properties: {
+            date: { type: 'string', description: 'The date in YYYY-MM-DD format. Defaults to today if not provided.' }
+          }
+        },
+        handler: async ({ date }: { date?: string }) => {
+          const targetDate = date || new Date().toISOString().split('T')[0];
+          return this.databaseService?.getTimeLogs(targetDate) || [];
+        }
+      }),
+      defineTool('get_daily_time_summary', {
+        description: 'Provides a summarized breakdown of time spent per workspace for a specific date.',
+        parameters: {
+          type: 'object',
+          properties: {
+            date: { type: 'string', description: 'The date in YYYY-MM-DD format. Defaults to today if not provided.' }
+          }
+        },
+        handler: async ({ date }: { date?: string }) => {
+          const targetDate = date || new Date().toISOString().split('T')[0];
+          const logs = this.databaseService?.getTimeLogs(targetDate) || [];
+          const totalSlots = logs.length;
+          if (totalSlots === 0) return { totalMinutes: 0, breakdown: [] };
+
+          const counts: Record<string, number> = {};
+          logs.forEach(l => {
+            const key = l.workspaceId || 'Other Activity';
+            counts[key] = (counts[key] || 0) + 1;
+          });
+
+          const workspaces = this.databaseService?.getAllWorkspaces() || [];
+          const breakdown = Object.entries(counts).map(([id, count]) => {
+            const ws = workspaces.find(w => w.id === id);
+            return {
+              name: ws ? ws.name : id,
+              minutes: count * 5,
+              percentage: (count / totalSlots) * 100
+            };
+          });
+
+          return {
+            totalMinutes: totalSlots * 5,
+            breakdown
+          };
+        }
+      }),
+      defineTool('update_time_log_notes', {
+        description: 'Updates the notes for a specific activity log entry.',
+        parameters: {
+          type: 'object',
+          properties: {
+            logId: { type: 'string', description: 'The ID of the time log entry' },
+            notes: { type: 'string', description: 'The new notes content' }
+          },
+          required: ['logId', 'notes']
+        },
+        handler: async ({ logId, notes }: { logId: string, notes: string }) => {
+          return this.databaseService?.updateTimeLogNotes(logId, notes);
+        }
       })
     ];
 
@@ -193,6 +256,20 @@ export class CopilotService {
     } finally {
       entry.callbacks = null;
     }
+  }
+
+  async generateSummary(prompt: string): Promise<string> {
+    if (!this.client) throw new Error('CopilotClient not initialized');
+    const config = buildSessionConfig();
+    const session = await this.client.createSession(config);
+    let fullText = '';
+    session.on((event: any) => {
+      if (event.type === 'assistant.message_delta') {
+        fullText += event.data.deltaContent;
+      }
+    });
+    await session.sendAndWait({ prompt });
+    return fullText;
   }
 
   async getAuthStatus(): Promise<GetAuthStatusResponse | null> {

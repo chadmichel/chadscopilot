@@ -21,6 +21,7 @@ const SEED_TOOLS: Omit<Tool, 'id'>[] = [
   { title: 'VS Code', description: 'Visual Studio Code editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'Cursor', description: 'Cursor AI editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'Google Antigravity', description: 'Google Antigravity editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'JetBrains Rider', description: 'JetBrains Rider editor', isEnabled: false, toolType: 'editor', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'MCP', description: 'Model Context Protocol server', isEnabled: false, toolType: 'mcp', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'RAG', description: 'Retrieval-Augmented Generation', isEnabled: false, toolType: 'rag', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'Github Repo', description: 'GitHub repository integration', isEnabled: false, toolType: 'repository', prompt: '', localPath: '', token: '', useGitHubToken: true, organization: '', extra: '{}' },

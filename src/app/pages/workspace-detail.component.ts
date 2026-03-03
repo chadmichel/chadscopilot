@@ -662,7 +662,8 @@ interface Tab {
         border-bottom: 1px solid var(--app-border);
         flex-shrink: 0;
         position: relative;
-        z-index: 100;
+        z-index: 1000;
+        overflow: visible;
       }
       .back-btn {
         display: flex;
@@ -1312,7 +1313,7 @@ interface Tab {
         border: 1px solid var(--app-border);
         border-radius: 8px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        z-index: 100;
+        z-index: 1100;
         overflow: hidden;
       }
       .menu-item {
@@ -1367,7 +1368,7 @@ interface Tab {
         width: 180px;
         right: 0;
         top: calc(100% + 4px);
-        z-index: 1000;
+        z-index: 1100;
         background: var(--app-surface);
         border: 1px solid var(--app-border);
         border-radius: 8px;
@@ -2171,6 +2172,8 @@ export class WorkspaceDetailComponent implements OnInit {
       await electron?.cursorOpen?.(folderPath, cliPath);
     } else if (title.includes('antigravity')) {
       await electron?.antigravityOpen?.(folderPath, cliPath);
+    } else if (title.includes('rider')) {
+      await electron?.riderOpen?.(folderPath, cliPath);
     }
   }
 
@@ -2194,6 +2197,8 @@ export class WorkspaceDetailComponent implements OnInit {
       await electron?.cursorOpen?.(folderPath, cliPath);
     } else if (title.includes('antigravity')) {
       await electron?.antigravityOpen?.(folderPath, cliPath);
+    } else if (title.includes('rider')) {
+      await electron?.riderOpen?.(folderPath, cliPath);
     }
   }
 

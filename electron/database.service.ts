@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { app } from 'electron';
 import path from 'path';
+import crypto from 'node:crypto';
 
 export interface WorkspaceRow {
   id: string;
@@ -72,6 +73,22 @@ export interface SyncLogRow {
   level: string;
   message: string;
   detail: string;
+  createdAt: string;
+}
+
+export interface TimeLogRow {
+  id: string;
+  appName: string;
+  windowTitle: string;
+  folderPath: string;
+  workspaceId: string;
+  timestamp: string;
+  notes: string;
+}
+
+export interface DailySummaryRow {
+  date: string;
+  summary: string;
   createdAt: string;
 }
 
@@ -165,7 +182,6 @@ export class DatabaseService {
     try { this.db.exec('ALTER TABLE tasks RENAME COLUMN projectId TO workspaceId'); } catch { /* already renamed or column doesn't exist */ }
 
     // Projects table (external project integrations)
-    // Drop if it exists with wrong schema (from legacy migration bug)
     const projectsCols = this.db.prepare("PRAGMA table_info(projects)").all() as unknown as { name: string }[];
     if (projectsCols.length > 0 && !projectsCols.some((c) => c.name === 'toolId')) {
       this.db.exec('DROP TABLE projects');
@@ -225,6 +241,30 @@ export class DatabaseService {
         createdAt TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+
+    // Time logs table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS time_logs (
+        id TEXT PRIMARY KEY,
+        appName TEXT,
+        windowTitle TEXT,
+        folderPath TEXT,
+        workspaceId TEXT,
+        timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Migrate time_logs: add notes column
+    try { this.db.exec("ALTER TABLE time_logs ADD COLUMN notes TEXT DEFAULT ''"); } catch { /* already exists */ }
+
+    // Daily summaries table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS daily_summaries (
+        date TEXT PRIMARY KEY,
+        summary TEXT NOT NULL,
+        createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
   }
 
   // --- Workspaces ---
@@ -275,6 +315,50 @@ export class DatabaseService {
   removeWorkspace(id: string): void {
     const stmt = this.db.prepare('DELETE FROM workspaces WHERE id = ?');
     stmt.run(id);
+  }
+
+  // --- Time Logs ---
+
+  addTimeLog(appName: string, windowTitle: string, folderPath: string, workspaceId: string, timestamp: string): void {
+    const id = crypto.randomUUID();
+    const stmt = this.db.prepare(
+      'INSERT INTO time_logs (id, appName, windowTitle, folderPath, workspaceId, timestamp) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    stmt.run(id, appName, windowTitle, folderPath, workspaceId, timestamp);
+  }
+
+  getTimeLogs(date: string): TimeLogRow[] {
+    const stmt = this.db.prepare(
+      `SELECT id, appName, windowTitle, folderPath, workspaceId, timestamp, notes 
+       FROM time_logs 
+       WHERE date(timestamp) = date(?)
+       ORDER BY timestamp DESC`
+    );
+    return stmt.all(date) as unknown as TimeLogRow[];
+  }
+
+  updateTimeLog(id: string, workspaceId: string): void {
+    const stmt = this.db.prepare('UPDATE time_logs SET workspaceId = ? WHERE id = ?');
+    stmt.run(workspaceId, id);
+  }
+
+  updateTimeLogNotes(id: string, notes: string): void {
+    const stmt = this.db.prepare('UPDATE time_logs SET notes = ? WHERE id = ?');
+    stmt.run(notes, id);
+  }
+
+  // --- Daily Summaries ---
+
+  getDailySummary(date: string): DailySummaryRow | null {
+    const stmt = this.db.prepare('SELECT date, summary, createdAt FROM daily_summaries WHERE date = ?');
+    return stmt.get(date) as unknown as DailySummaryRow | undefined || null;
+  }
+
+  setDailySummary(date: string, summary: string): void {
+    const stmt = this.db.prepare(
+      'INSERT INTO daily_summaries (date, summary) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET summary=excluded.summary'
+    );
+    stmt.run(date, summary);
   }
 
   close(): void {

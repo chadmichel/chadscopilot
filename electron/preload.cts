@@ -152,6 +152,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copilotGetAuthStatus: (): Promise<any> =>
     ipcRenderer.invoke('copilot:auth-status'),
 
+  copilotGenerateSummary: (prompt: string): Promise<string> =>
+    ipcRenderer.invoke('copilot:generate-summary', prompt),
+
+  dbGetDailySummary: (date: string): Promise<{ date: string, summary: string } | null> =>
+    ipcRenderer.invoke('db:get-daily-summary', date),
+
+  dbSetDailySummary: (date: string, summary: string): Promise<void> =>
+    ipcRenderer.invoke('db:set-daily-summary', date, summary),
+
   // --- Editor services ---
   vscodeFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>
     ipcRenderer.invoke('editor:vscode-find'),
@@ -170,6 +179,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   antigravityOpen: (folderPath: string, cliPath?: string): Promise<boolean> =>
     ipcRenderer.invoke('editor:antigravity-open', folderPath, cliPath),
+
+  riderFindInstallation: (): Promise<{ found: boolean; path: string; cli: string }> =>
+    ipcRenderer.invoke('editor:rider-find'),
+
+  riderOpen: (folderPath: string, cliPath?: string): Promise<boolean> =>
+    ipcRenderer.invoke('editor:rider-open', folderPath, cliPath),
 
   // --- Popout workspace window ---
   popoutWorkspace: (workspaceId: string, workspaceName: string): Promise<void> =>
@@ -247,4 +262,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   calendarLogout: (): Promise<void> =>
     ipcRenderer.invoke('calendar:logout'),
+
+  // --- Time ---
+  timeGetLogs: (date: string): Promise<any[]> =>
+    ipcRenderer.invoke('time:get-logs', date),
+
+  timeUpdateLog: (id: string, workspaceId: string): Promise<void> =>
+    ipcRenderer.invoke('time:update-log', id, workspaceId),
+
+  timeUpdateNotes: (id: string, notes: string): Promise<void> =>
+    ipcRenderer.invoke('time:update-notes', id, notes),
+
+  // --- Database Backup/Restore ---
+  dbBackup: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('db:backup'),
+
+  dbRestore: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('db:restore'),
 });

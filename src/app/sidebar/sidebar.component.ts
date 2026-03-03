@@ -37,6 +37,7 @@ export class SidebarComponent {
             icon: 'workspaces',
           },
           { label: 'Calendar', route: '/calendar', icon: 'calendar' },
+          { label: 'Time', route: '/time', icon: 'time' },
         ],
       },
       {
@@ -44,6 +45,7 @@ export class SidebarComponent {
         items: [
           { label: 'Tools', route: '/tools', icon: 'tools' },
           { label: 'Preferences', route: '/preferences', icon: 'preferences' },
+          { label: 'Backup / Restore', route: '/backup', icon: 'backup' },
         ],
       },
     ];

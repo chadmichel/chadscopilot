@@ -13,7 +13,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
       <div class="header">
         <div class="title-section">
           <div class="selectors">
-            <select class="view-select" [(ngModel)]="displayMode">
+            <select class="view-select" [(ngModel)]="displayMode" (ngModelChange)="onDisplayModeChange()">
               <option value="day">Day</option>
               <option value="work-week">Work Week</option>
               <option value="week">Week</option>
@@ -95,7 +95,14 @@ import { ToolSettingsService } from '../services/tool-settings.service';
           <!-- DAY VIEW -->
           @if (displayMode === 'day') {
             <div class="day-view">
-              <div class="date-header">{{ viewDate | date:'fullDate' }}</div>
+              <div class="date-header">
+                {{ viewDate | date:'fullDate' }}
+                <button class="summary-btn" [class.generating]="generatingFor[viewDate.toISOString().split('T')[0]]" (click)="openSummary(viewDate)" title="View daily AI summary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+              </div>
               <div class="events-list">
                 @for (event of getEventsForDate(viewDate); track event.id) {
                   <div class="event-item" [class.is-active]="isEventActive(event)">
@@ -135,7 +142,14 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                     <div class="week-col" [class.is-today]="isToday(day)">
                       <div class="day-header">
                         <span class="day-name">{{ day | date:'EEE' }}</span>
-                        <span class="day-num">{{ day | date:'d' }}</span>
+                        <div class="day-num-row">
+                          <span class="day-num">{{ day | date:'d' }}</span>
+                          <button class="summary-btn" [class.generating]="generatingFor[day.toISOString().split('T')[0]]" (click)="openSummary(day)" title="View daily AI summary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                          </button>
+                        </div>
                         <div class="day-metrics">
                           @let metrics = getDayMetrics(day);
                           <div class="metric-item" title="% of 9am-5pm allocated to meetings">
@@ -201,7 +215,14 @@ import { ToolSettingsService } from '../services/tool-settings.service';
                     <div class="month-day" 
                          [class.is-today]="isToday(day)"
                          [class.other-month]="day.getMonth() !== viewDate.getMonth()">
-                      <span class="day-number">{{ day | date:'d' }}</span>
+                      <div class="day-num-row">
+                        <span class="day-number">{{ day | date:'d' }}</span>
+                        <button class="summary-btn tiny" [class.generating]="generatingFor[day.toISOString().split('T')[0]]" (click)="openSummary(day)" title="View daily AI summary">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                        </button>
+                      </div>
                       <div class="event-dots">
                         @for (event of getEventsForDate(day).slice(0, 3); track event.id) {
                           <div class="event-dot" [class.is-active]="isEventActive(event)" [title]="event.subject"></div>
@@ -218,6 +239,19 @@ import { ToolSettingsService } from '../services/tool-settings.service';
           }
         }
       </div>
+
+      <!-- Summary Popup -->
+      @if (showSummaryPopup) {
+        <div class="summary-overlay" (click)="showSummaryPopup = false">
+          <div class="summary-card" (click)="$event.stopPropagation()">
+            <h3>AI Summary: {{ selectedSummaryDate }}</h3>
+            <div class="summary-text">{{ selectedSummaryText }}</div>
+            <div class="summary-footer">
+              <button class="btn btn-primary" (click)="showSummaryPopup = false">Close</button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -641,6 +675,69 @@ import { ToolSettingsService } from '../services/tool-settings.service';
       justify-content: flex-end;
       gap: 12px;
     }
+
+    /* Summary Button */
+    .summary-btn {
+      background: transparent;
+      border: 1px solid var(--app-border);
+      color: var(--theme-primary);
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    .summary-btn:hover {
+      background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+      border-color: var(--theme-primary);
+    }
+    .summary-btn.generating {
+      opacity: 0.5;
+      cursor: wait;
+      animation: pulse 1s infinite alternate;
+    }
+    .summary-btn svg { width: 14px; height: 14px; }
+    .summary-btn.tiny { width: 18px; height: 18px; margin-left: 4px; }
+    .summary-btn.tiny svg { width: 10px; height: 10px; }
+
+    .day-num-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    @keyframes pulse { from { opacity: 0.3; } to { opacity: 0.8; } }
+
+    /* Summary Modal */
+    .summary-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .summary-card {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .summary-card h3 { font-size: 18px; margin: 0 0 16px 0; font-weight: 700; color: var(--app-text); border-bottom: 1px solid var(--app-border); padding-bottom: 12px; }
+    .summary-text { font-size: 14px; line-height: 1.6; color: var(--app-text); margin-bottom: 24px; }
+    .summary-footer { display: flex; justify-content: flex-end; }
   `],
 })
 export class CalendarComponent implements OnInit {
@@ -652,6 +749,12 @@ export class CalendarComponent implements OnInit {
   isSyncing = false;
   isAddingEmail = false;
   newEmail = '';
+
+  dailySummaries: Record<string, string> = {};
+  generatingFor: Record<string, boolean> = {};
+  showSummaryPopup = false;
+  selectedSummaryDate = '';
+  selectedSummaryText = '';
 
   realToday = new Date();
   viewDate = new Date();
@@ -869,6 +972,12 @@ export class CalendarComponent implements OnInit {
     }
     this.viewDate = new Date(this.viewDate); // Trigger change detection
     this.calculateGrids();
+    this.loadSummariesForDays(this.getVisibleDays());
+  }
+
+  onDisplayModeChange() {
+    this.calculateGrids();
+    this.loadSummariesForDays(this.getVisibleDays());
   }
 
   async ngOnInit() {
@@ -950,6 +1059,80 @@ export class CalendarComponent implements OnInit {
   async loadEvents() {
     if (!this.selectedUserId) return;
     this.events = await this.electron.calendarGetEvents(this.selectedUserId);
+    this.loadSummariesForDays(this.getVisibleDays());
+  }
+
+  getVisibleDays(): Date[] {
+    if (this.displayMode === 'day') return [this.viewDate];
+    if (this.displayMode === 'month') return this.monthDays;
+    return this.weekDays;
+  }
+
+  async loadSummariesForDays(days: Date[]) {
+    for (const day of days) {
+      const dateStr = day.toISOString().split('T')[0];
+      if (this.dailySummaries[dateStr]) continue;
+
+      const saved = await this.electron.dbGetDailySummary(dateStr);
+      if (saved) {
+        this.dailySummaries[dateStr] = saved.summary;
+      } else {
+        // Auto-generate
+        this.generateSummaryForDay(day);
+      }
+    }
+  }
+
+  async generateSummaryForDay(day: Date) {
+    const dateStr = day.toISOString().split('T')[0];
+    if (this.generatingFor[dateStr]) return;
+    this.generatingFor[dateStr] = true;
+
+    try {
+      // Gather data
+      const tasks = await this.electron.getTasks();
+      const dailyTasks = tasks.filter((t: any) => {
+        const d = new Date(t.lastUpdatedAt).toISOString().split('T')[0];
+        return d === dateStr;
+      });
+
+      const meetings = this.getEventsForDate(day);
+
+      // Time logs
+      const logs = await this.electron.timeGetLogs(dateStr);
+      const totalSlots = logs.length;
+      const counts: Record<string, number> = {};
+      logs.forEach((l: any) => {
+        const key = l.workspaceId || 'Other Activity';
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      const timeStr = Object.entries(counts).map(([id, count]) => `${id}: ${count * 5}m`).join(', ');
+
+      const prompt = `Generate a one-paragraph summary for ${dateStr} based on the following:
+Tasks Worked On: ${dailyTasks.map((t: any) => t.title).join(', ') || 'None'}
+Status of Tasks: ${dailyTasks.map((t: any) => t.status).join(', ') || 'N/A'}
+Meetings: ${meetings.map((m: any) => m.subject).join(', ') || 'None'}
+Time Breakdown: ${timeStr || 'No activity logged'}
+
+Format the output as a single concise paragraph focusing on progress and focus for the day.`;
+
+      const summary = await this.electron.copilotGenerateSummary(prompt);
+      if (summary) {
+        await this.electron.dbSetDailySummary(dateStr, summary.trim());
+        this.dailySummaries[dateStr] = summary.trim();
+      }
+    } catch (err) {
+      console.error('Failed to generate summary', err);
+    } finally {
+      this.generatingFor[dateStr] = false;
+    }
+  }
+
+  openSummary(day: Date) {
+    const dateStr = day.toISOString().split('T')[0];
+    this.selectedSummaryDate = day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    this.selectedSummaryText = this.dailySummaries[dateStr] || 'Summary is still being generated...';
+    this.showSummaryPopup = true;
   }
 
   async goToSettings() {

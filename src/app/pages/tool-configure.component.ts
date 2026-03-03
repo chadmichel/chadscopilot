@@ -1357,6 +1357,8 @@ export class ToolConfigureComponent implements OnInit {
       result = await electron?.cursorFindInstallation?.();
     } else if (title.includes('antigravity')) {
       result = await electron?.antigravityFindInstallation?.();
+    } else if (title.includes('rider')) {
+      result = await electron?.riderFindInstallation?.();
     }
 
     if (result) {

@@ -16,6 +16,8 @@ import { VsCodeService } from './vscode.service.js';
 import { CursorService } from './cursor.service.js';
 import { GoogleAntigravityService } from './google-antigravity.service.js';
 import { CalendarService } from './calendar.service.js';
+import { TimeService } from './time.service.js';
+import { RiderService } from './rider.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,9 +61,11 @@ let projectsService: ProjectsService | null = null;
 let syncLogService: SyncLogService | null = null;
 let workspaceAgentsService: WorkspaceAgentsService | null = null;
 let calendarService: CalendarService | null = null;
+let timeService: TimeService | null = null;
 const gitHubService = new GitHubService();
 const vsCodeService = new VsCodeService();
 const cursorService = new CursorService();
+const riderService = new RiderService();
 const antigravityService = new GoogleAntigravityService();
 const uxProcesses = new Map<string, ChildProcess>();
 const designWatchers = new Map<string, fs.FSWatcher>();
@@ -107,7 +111,52 @@ function mapGitHubStatus(status: string | null): string {
 }
 
 function setupIPC(): void {
+  ipcMain.removeHandler('db:backup');
+  ipcMain.handle('db:backup', async () => {
+    try {
+      const dbPath = path.join(app.getPath('userData'), 'chadscopilot.db');
+      const { filePath } = await dialog.showSaveDialog({
+        title: 'Backup Database',
+        defaultPath: 'chadscopilot_backup.db',
+        filters: [{ name: 'SQLite Database', extensions: ['db'] }]
+      });
+
+      if (filePath) {
+        fs.copyFileSync(dbPath, filePath);
+        return { success: true };
+      }
+      return { success: false };
+    } catch (err) {
+      console.error('Backup failed:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.removeHandler('db:restore');
+  ipcMain.handle('db:restore', async () => {
+    try {
+      const { filePaths } = await dialog.showOpenDialog({
+        title: 'Restore Database',
+        filters: [{ name: 'SQLite Database', extensions: ['db'] }],
+        properties: ['openFile']
+      });
+
+      if (filePaths && filePaths[0]) {
+        const dbPath = path.join(app.getPath('userData'), 'chadscopilot.db');
+        fs.copyFileSync(filePaths[0], dbPath);
+        app.relaunch();
+        app.exit();
+        return { success: true };
+      }
+      return { success: false };
+    } catch (err) {
+      console.error('Restore failed:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
   // Copilot chat — workspace-scoped
+  ipcMain.removeHandler('copilot:send-message');
   ipcMain.handle(
     'copilot:send-message',
     async (
@@ -154,6 +203,22 @@ function setupIPC(): void {
       }
     },
   );
+
+  ipcMain.removeHandler('copilot:generate-summary');
+  ipcMain.handle('copilot:generate-summary', async (_event, prompt: string) => {
+    if (!copilotService) throw new Error('Copilot service not initialized');
+    return await copilotService.generateSummary(prompt);
+  });
+
+  ipcMain.handle('db:get-daily-summary', (_event, date: string) => {
+    if (!databaseService) throw new Error('Database service not initialized');
+    return databaseService.getDailySummary(date);
+  });
+
+  ipcMain.handle('db:set-daily-summary', (_event, date: string, summary: string) => {
+    if (!databaseService) throw new Error('Database service not initialized');
+    return databaseService.setDailySummary(date, summary);
+  });
 
   // Directory picker
   ipcMain.handle('dialog:select-directory', async () => {
@@ -543,10 +608,24 @@ function setupIPC(): void {
     return antigravityService.findInstallation();
   });
 
+  ipcMain.removeHandler('editor:antigravity-open');
   ipcMain.handle(
     'editor:antigravity-open',
     (_event, folderPath: string, cliPath?: string) => {
       return antigravityService.open(folderPath, cliPath);
+    },
+  );
+
+  ipcMain.removeHandler('editor:rider-find');
+  ipcMain.handle('editor:rider-find', () => {
+    return riderService.findInstallation();
+  });
+
+  ipcMain.removeHandler('editor:rider-open');
+  ipcMain.handle(
+    'editor:rider-open',
+    (_event, folderPath: string, cliPath?: string) => {
+      return riderService.open(folderPath, cliPath);
     },
   );
 
@@ -1034,12 +1113,29 @@ function setupIPC(): void {
 
   ipcMain.handle('calendar:get-events', (_event, userId: string) => {
     if (!calendarService) throw new Error('Calendar service not initialized');
+    if (!userId) return calendarService.getAllEvents();
     return calendarService.getEvents(userId);
   });
 
   ipcMain.handle('calendar:logout', async () => {
     if (!calendarService) throw new Error('Calendar service not initialized');
     return calendarService.logout();
+  });
+
+  // --- Time ---
+  ipcMain.handle('time:get-logs', async (_event, date: string) => {
+    if (!databaseService) throw new Error('Database service not initialized');
+    return databaseService.getTimeLogs(date);
+  });
+
+  ipcMain.handle('time:update-log', (_event, id: string, workspaceId: string) => {
+    if (!databaseService) throw new Error('Database service not initialized');
+    return databaseService.updateTimeLog(id, workspaceId);
+  });
+
+  ipcMain.handle('time:update-notes', (_event, id: string, notes: string) => {
+    if (!databaseService) throw new Error('Database service not initialized');
+    return databaseService.updateTimeLogNotes(id, notes);
   });
 }
 
@@ -1052,6 +1148,8 @@ app.whenReady().then(async () => {
   syncLogService = new SyncLogService(databaseService.getDb());
   workspaceAgentsService = new WorkspaceAgentsService(databaseService.getDb());
   calendarService = new CalendarService(databaseService.getDb());
+  timeService = new TimeService(databaseService, calendarService);
+  timeService.startTracking();
   console.log('Database initialized');
 
   // Initialize Copilot

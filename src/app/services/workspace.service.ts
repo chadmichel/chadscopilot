@@ -39,6 +39,13 @@ export interface Workspace {
 export class WorkspaceService {
   workspaces: Workspace[] = [];
 
+  async getWorkspaces(): Promise<Workspace[]> {
+    if (this.workspaces.length === 0) {
+      await this.loadWorkspaces();
+    }
+    return this.workspaces;
+  }
+
   private get electron() {
     return (window as any).electronAPI;
   }
