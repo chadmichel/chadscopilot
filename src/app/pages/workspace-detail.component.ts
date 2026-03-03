@@ -11,7 +11,7 @@ import { ProjectsService, Project } from '../services/projects.service';
 import { WorkspaceAgentsService, WorkspaceAgent } from '../services/workspace-agents.service';
 import { FileExplorerComponent } from './file-explorer.component';
 
-type TabId = 'plan' | 'design' | 'tasks' | 'work-process' | 'explorer';
+type TabId = 'plan' | 'design' | 'tasks' | 'work-process' | 'explorer' | 'notes';
 
 interface Tab {
   id: TabId;
@@ -261,37 +261,7 @@ interface Tab {
                     </div>
                   }
                   @case ('tasks') {
-                    @if (selectedTask) {
-                      <div class="task-detail">
-                        <button class="task-detail-back" (click)="closeTaskDetail()">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                               stroke="currentColor" stroke-width="2">
-                            <path d="M19 12H5"/>
-                            <path d="M12 19l-7-7 7-7"/>
-                          </svg>
-                          Back to tasks
-                        </button>
-                        <div class="task-detail-header">
-                          <h3>{{ selectedTask.title }}</h3>
-                          <span class="task-status-badge"
-                                [class.status-pending]="selectedTask.status === 'pending'"
-                                [class.status-in-progress]="selectedTask.status === 'in_progress'"
-                                [class.status-done]="selectedTask.status === 'done'">
-                            {{ selectedTask.status === 'in_progress' ? 'In Progress' : selectedTask.status === 'done' ? 'Done' : 'Backlog' }}
-                          </span>
-                        </div>
-                        @if (selectedTask.description) {
-                          <div class="task-detail-desc">{{ selectedTask.description }}</div>
-                        }
-                        <button class="start-work-btn" (click)="startWorkOnTask(selectedTask)">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                               stroke="currentColor" stroke-width="2">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                          </svg>
-                          Start Work on Task
-                        </button>
-                      </div>
-                    } @else if (workspaceTasks.length === 0) {
+                    @if (workspaceTasks.length === 0) {
                       <div class="placeholder">
                         @if (!workspace.taskToolId) {
                           <p>No task tool configured. Use the gear icon on the Workspaces page to set one.</p>
@@ -446,6 +416,62 @@ interface Tab {
                   }
                   @case ('explorer') {
                     <app-file-explorer [folderPath]="workspace.folderPath"></app-file-explorer>
+                  }
+                  @case ('notes') {
+                    <div class="notes-tab">
+                      <div class="tab-header">
+                        <div style="display: flex; gap: 8px; width: 100%; justify-content: space-between; align-items: center;">
+                          <h3>Workspace Notes</h3>
+                          <div style="display: flex; gap: 8px;">
+                            <button class="add-btn" (click)="showNewNoteDialog = true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                              </svg>
+                              New Note
+                            </button>
+                            <button class="toolbar-btn toolbar-btn-secondary" (click)="loadNoteFiles()" title="Refresh notes">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      @if (noteFiles.length > 0) {
+                        <div class="notes-file-list">
+                          @for (note of noteFiles; track note) {
+                            <div class="notes-file-row">
+                              <button class="notes-file-item" (click)="openNote(note)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <path d="M14 2v6h6"/>
+                                  <path d="M16 13H8"/>
+                                  <path d="M16 17H8"/>
+                                  <path d="M10 9H8"/>
+                                </svg>
+                                <span class="notes-file-name">{{ note.replace('.md', '') }}</span>
+                              </button>
+                              <button class="delete-note-btn" (click)="deleteNote(note, $event)" title="Delete note">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      } @else {
+                        <div class="empty-state">
+                          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6"/>
+                          </svg>
+                          <p>No notes created yet. Click "New Note" to start writing.</p>
+                        </div>
+                      }
+                    </div>
                   }
                 }
               </div>
@@ -630,6 +656,93 @@ interface Tab {
               <button class="btn-cancel" (click)="cancelAgentFlow()">Cancel</button>
               <button class="btn-confirm" (click)="saveAgentFlow()" [disabled]="!agentFlowData.prompt.trim()">Save Agent</button>
             </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (selectedTask) {
+      <div class="dialog-overlay" (click)="closeTaskDetail()" style="z-index: 2000;">
+        <div class="dialog" style="width: 550px; max-height: 85vh;" (click)="$event.stopPropagation()">
+          <div class="dialog-header">
+            <h3>Task Details</h3>
+            <button class="dialog-close" (click)="closeTaskDetail()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div style="margin-bottom: 24px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase; margin-bottom: 8px;">Title</div>
+              <div style="font-size: 18px; font-weight: 600; color: var(--app-text);">{{ selectedTask.title }}</div>
+            </div>
+
+            @if (selectedTask.description) {
+              <div style="margin-bottom: 24px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase; margin-bottom: 8px;">Description</div>
+                <div style="font-size: 14px; line-height: 1.6; color: var(--app-text); white-space: pre-wrap; background: var(--app-background); padding: 12px; border-radius: 8px; border: 1px solid var(--app-border);">{{ selectedTask.description }}</div>
+              </div>
+            }
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+              <div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase; margin-bottom: 8px;">Status</div>
+                <div style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+                            background: color-mix(in srgb, {{ selectedTask.status === 'in_progress' ? 'var(--theme-primary)' : selectedTask.status === 'done' ? '#22c55e' : 'var(--app-text-muted)' }}, transparent 85%);
+                            color: {{ selectedTask.status === 'in_progress' ? 'var(--theme-primary)' : selectedTask.status === 'done' ? '#22c55e' : 'var(--app-text-muted)' }};">
+                  {{ selectedTask.status === 'in_progress' ? 'In Progress' : selectedTask.status === 'done' ? 'Done' : 'Backlog' }}
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 24px; border-top: 1px solid var(--app-border);">
+              <button class="start-work-btn" style="justify-content: center; width: 100%;" (click)="startWorkOnTask(selectedTask)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Start Work on Task
+              </button>
+              
+              <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 12px;">
+                @let ghUrl = getGithubUrl(selectedTask);
+                @if (ghUrl) {
+                  <button (click)="openExternal(ghUrl)" 
+                          style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #24292f; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                    </svg>
+                    View on GitHub
+                  </button>
+                }
+                <button class="btn-cancel" style="margin: 0;" (click)="closeTaskDetail()">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (showNewNoteDialog) {
+      <div class="dialog-overlay" (click)="showNewNoteDialog = false">
+        <div class="dialog" (click)="$event.stopPropagation()">
+          <div class="dialog-header">
+            <h3>Create New Note</h3>
+            <button class="dialog-close" (click)="showNewNoteDialog = false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label for="noteName">Note Name</label>
+              <input id="noteName" type="text" class="form-input" [(ngModel)]="newNoteName" placeholder="Enter note name..." (keyup.enter)="createNote()" autofocus />
+            </div>
+          </div>
+          <div class="dialog-footer">
+            <button class="btn-cancel" (click)="showNewNoteDialog = false">Cancel</button>
+            <button class="btn-confirm" (click)="createNote()" [disabled]="!newNoteName.trim()">Create Note</button>
           </div>
         </div>
       </div>
@@ -970,14 +1083,16 @@ interface Tab {
         display: flex;
         gap: 12px;
         flex: 1;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
         padding: 12px 16px;
       }
       .task-column {
         flex: 1;
         display: flex;
         flex-direction: column;
-        min-width: 0;
+        min-width: 250px;
+        min-height: 0;
         background: var(--app-background);
         border: 1px solid var(--app-border);
         border-radius: 8px;
@@ -1008,6 +1123,7 @@ interface Tab {
       .task-col-body {
         flex: 1;
         overflow-y: auto;
+        min-height: 0;
         padding: 8px;
         display: flex;
         flex-direction: column;
@@ -1564,6 +1680,131 @@ interface Tab {
         border-color: var(--theme-primary);
         transform: scale(1.1);
       }
+
+      /* Notes tab */
+      .notes-tab {
+        padding: 24px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .notes-file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .notes-file-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
+        color: var(--app-text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: left;
+      }
+      .notes-file-item:hover {
+        border-color: var(--theme-primary);
+        color: var(--theme-primary);
+      }
+      .notes-file-item svg {
+        color: var(--app-text-muted);
+        flex-shrink: 0;
+      }
+      .notes-file-item:hover svg {
+        color: var(--theme-primary);
+      }
+      .notes-file-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .notes-file-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .notes-file-row .notes-file-item {
+        flex: 1;
+      }
+      .delete-note-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        opacity: 0;
+      }
+      .notes-file-row:hover .delete-note-btn {
+        opacity: 1;
+      }
+      .delete-note-btn:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+      }
+      .empty-state {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 40px;
+        color: var(--app-text-muted);
+        background: color-mix(in srgb, var(--app-surface), transparent 50%);
+        border: 2px dashed var(--app-border);
+        border-radius: 20px;
+        gap: 12px;
+        text-align: center;
+        font-size: 14px;
+      }
+      .tab-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .tab-header h3 {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+      .add-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--theme-primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      .add-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        opacity: 0.95;
+      }
       .flow-connector {
         width: 2px;
         height: 40px;
@@ -1653,7 +1894,7 @@ interface Tab {
         font-size: 14px;
         line-height: 1;
       }
-      .node-box:hover .node-remove {
+      .node-box:hover .node-remove, .note-card:hover .node-remove {
         display: flex;
       }
       .flow-empty {
@@ -1757,7 +1998,13 @@ export class WorkspaceDetailComponent implements OnInit {
     { id: 'tasks', label: 'Tasks' },
     { id: 'work-process', label: 'Work Process' },
     { id: 'explorer', label: 'Explorer' },
+    { id: 'notes', label: 'Notes' },
   ];
+
+  // Notes tab
+  noteFiles: string[] = [];
+  showNewNoteDialog = false;
+  newNoteName = '';
 
   // Agent Flow tab
   showAgentFlowDialog = false;
@@ -1785,14 +2032,14 @@ export class WorkspaceDetailComponent implements OnInit {
       this.workspace = this.workspaceService.getWorkspace(id);
       if (this.workspace) {
         this.activeAgentId = this.workspace.id;
-        localStorage.setItem('chadscopilot_last_workspace_id', id);
+        this.workspaceService.setLastWorkspaceId(id);
         await this.loadEditorTool();
         await this.loadWorkspaceTasks();
         await this.loadAgents();
         await this.loadDesignFiles();
         await this.loadPlanFiles();
       } else {
-        localStorage.removeItem('chadscopilot_last_workspace_id');
+        this.workspaceService.setLastWorkspaceId(null);
       }
     }
   }
@@ -1846,6 +2093,9 @@ export class WorkspaceDetailComponent implements OnInit {
     this.activeTab = tabId;
     if (tabId !== 'tasks') {
       this.selectedTask = null;
+    }
+    if (tabId === 'notes') {
+      this.loadNoteFiles();
     }
   }
 
@@ -2156,6 +2406,74 @@ export class WorkspaceDetailComponent implements OnInit {
       .filter((e: any) => e.name.endsWith('.md') || e.isDirectory)
       .map((e: any) => e.name)
       .sort();
+  }
+
+  getGithubUrl(task: Task): string | null {
+    try {
+      const extra = JSON.parse(task.extra);
+      return extra.url || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async openExternal(url: string) {
+    const electron = (window as any).electronAPI;
+    await electron?.openExternal?.(url);
+  }
+
+  // Notes tab logic
+  async loadNoteFiles() {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    const entries = await electron?.listDirectory?.(this.workspace.folderPath + '/notes');
+    if (entries) {
+      this.noteFiles = entries
+        .filter((e: any) => e.name.endsWith('.md'))
+        .map((e: any) => e.name);
+    } else {
+      this.noteFiles = [];
+    }
+  }
+
+  async createNote() {
+    if (!this.workspace || !this.newNoteName.trim()) return;
+    const name = this.newNoteName.trim();
+    const fileName = `notes/${name}.md`;
+    const electron = (window as any).electronAPI;
+
+    // Create notes directory if it doesn't exist
+    await electron?.createFolder?.(this.workspace.folderPath, 'notes');
+
+    // Create empty note file
+    await electron?.writeFile?.(this.workspace.folderPath + '/' + fileName, `# ${name}\n\nStart writing...`);
+
+    this.showNewNoteDialog = false;
+    this.newNoteName = '';
+    await this.loadNoteFiles();
+    this.openNote(fileName);
+  }
+
+  async openNote(fileName: string) {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    const fullPath = this.workspace.folderPath + (fileName.startsWith('/') ? fileName : '/' + fileName);
+    await electron?.openNoteEditor?.(this.workspace.id, fullPath);
+  }
+
+  async deleteNote(fileName: string, event: Event) {
+    event.stopPropagation();
+    if (!this.workspace) return;
+    if (!confirm(`Are you sure you want to delete "${fileName.replace('.md', '')}"?`)) return;
+
+    const electron = (window as any).electronAPI;
+    const fullPath = this.workspace.folderPath + '/notes/' + fileName;
+
+    // Using uxDeleteDesign as a generic file/folder delete for now as it uses fs.rm
+    const result = await electron.uxDeleteDesign(fullPath);
+    if (result.success) {
+      await this.loadNoteFiles();
+    }
   }
 
 

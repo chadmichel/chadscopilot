@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 export interface EditorSolution {
   name: string;
@@ -38,6 +39,17 @@ export interface Workspace {
 })
 export class WorkspaceService {
   workspaces: Workspace[] = [];
+  private lastWorkspaceIdSubject = new BehaviorSubject<string | null>(localStorage.getItem('chadscopilot_last_workspace_id'));
+  lastWorkspaceId$: Observable<string | null> = this.lastWorkspaceIdSubject.asObservable();
+
+  setLastWorkspaceId(id: string | null) {
+    if (id) {
+      localStorage.setItem('chadscopilot_last_workspace_id', id);
+    } else {
+      localStorage.removeItem('chadscopilot_last_workspace_id');
+    }
+    this.lastWorkspaceIdSubject.next(id);
+  }
 
   async getWorkspaces(): Promise<Workspace[]> {
     if (this.workspaces.length === 0) {
@@ -109,7 +121,7 @@ export class WorkspaceService {
     }
     this.workspaces = this.workspaces.filter((w) => w.id !== id);
     if (localStorage.getItem('chadscopilot_last_workspace_id') === id) {
-      localStorage.removeItem('chadscopilot_last_workspace_id');
+      this.setLastWorkspaceId(null);
     }
   }
 }

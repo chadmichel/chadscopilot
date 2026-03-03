@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { WorkspaceService } from '../services/workspace.service';
+import { map } from 'rxjs';
 
 interface NavItem {
   label: string;
@@ -21,11 +23,11 @@ interface NavSection {
   styleUrl: './sidebar.component.css',
 })
 export class SidebarComponent {
+  private workspaceService = inject(WorkspaceService);
   collapsed = false;
 
-  get sections(): NavSection[] {
-    const lastWorkspaceId = localStorage.getItem('chadscopilot_last_workspace_id');
-    return [
+  sections$ = this.workspaceService.lastWorkspaceId$.pipe(
+    map(lastWorkspaceId => [
       {
         title: 'Main',
         items: [
@@ -48,8 +50,8 @@ export class SidebarComponent {
           { label: 'Backup / Restore', route: '/backup', icon: 'backup' },
         ],
       },
-    ];
-  }
+    ])
+  );
 
   toggle(): void {
     this.collapsed = !this.collapsed;

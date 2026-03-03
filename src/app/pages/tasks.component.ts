@@ -65,7 +65,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
               (cdkDropListDropped)="onDrop($event, 'pending')"
             >
               @for (task of backlogTasks; track task.id) {
-                <div class="task-card pending" cdkDrag [cdkDragData]="task">
+                <div class="task-card pending" cdkDrag [cdkDragData]="task" (click)="showTaskDetail(task)">
                   <div class="task-title">{{ task.title }}</div>
                   @if (task.description) {
                     <div class="task-desc">{{ task.description }}</div>
@@ -94,7 +94,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
               (cdkDropListDropped)="onDrop($event, 'in_progress')"
             >
               @for (task of inProgressTasks; track task.id) {
-                <div class="task-card in-progress" cdkDrag [cdkDragData]="task">
+                <div class="task-card in-progress" cdkDrag [cdkDragData]="task" (click)="showTaskDetail(task)">
                   <div class="task-title">{{ task.title }}</div>
                   @if (task.description) {
                     <div class="task-desc">{{ task.description }}</div>
@@ -123,7 +123,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
               (cdkDropListDropped)="onDrop($event, 'done')"
             >
               @for (task of completeTasks; track task.id) {
-                <div class="task-card done" cdkDrag [cdkDragData]="task">
+                <div class="task-card done" cdkDrag [cdkDragData]="task" (click)="showTaskDetail(task)">
                   <div class="task-title">{{ task.title }}</div>
                   @if (task.description) {
                     <div class="task-desc">{{ task.description }}</div>
@@ -136,6 +136,65 @@ import { ToolSettingsService } from '../services/tool-settings.service';
               @if (completeTasks.length === 0) {
                 <div class="column-empty">No tasks</div>
               }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Task Detail Dialog -->
+      @if (selectedTask) {
+        <div class="dialog-overlay" (click)="closeTaskDetail()">
+          <div class="dialog task-dialog" (click)="$event.stopPropagation()">
+            <div class="dialog-header">
+              <h3>Task Details</h3>
+              <button class="dialog-close" (click)="closeTaskDetail()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div class="dialog-body">
+              <div class="detail-section">
+                <div class="detail-label">Title</div>
+                <div class="detail-value title-val">{{ selectedTask.title }}</div>
+              </div>
+
+              @if (selectedTask.description) {
+                <div class="detail-section">
+                  <div class="detail-label">Description</div>
+                  <div class="detail-value desc-val">{{ selectedTask.description }}</div>
+                </div>
+              }
+
+              <div class="detail-grid">
+                <div class="detail-section">
+                  <div class="detail-label">Status</div>
+                  <div class="detail-value">
+                    <span class="status-badge" [class]="selectedTask.status">
+                      {{ selectedTask.status === 'in_progress' ? 'In Progress' : (selectedTask.status | titlecase) }}
+                    </span>
+                  </div>
+                </div>
+                @if (getProjectName(selectedTask); as projectName) {
+                  <div class="detail-section">
+                    <div class="detail-label">Project</div>
+                    <div class="detail-value">{{ projectName }}</div>
+                  </div>
+                }
+              </div>
+
+              @let ghUrl = getGithubUrl(selectedTask);
+              <div class="dialog-footer">
+                @if (ghUrl) {
+                  <button class="btn-github" (click)="openInGithub(ghUrl)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                    </svg>
+                    View on GitHub
+                  </button>
+                }
+                <button class="btn-close" (click)="closeTaskDetail()">Close</button>
+              </div>
             </div>
           </div>
         </div>
@@ -260,7 +319,9 @@ import { ToolSettingsService } from '../services/tool-settings.service';
         display: flex;
         gap: 16px;
         flex: 1;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 8px; /* Space for horizontal scrollbar */
       }
 
       /* Columns */
@@ -268,7 +329,8 @@ import { ToolSettingsService } from '../services/tool-settings.service';
         flex: 1;
         display: flex;
         flex-direction: column;
-        min-width: 0;
+        min-width: 300px;
+        min-height: 0;
         background: var(--app-background);
         border: 1px solid var(--app-border);
         border-radius: 10px;
@@ -299,6 +361,7 @@ import { ToolSettingsService } from '../services/tool-settings.service';
       .column-body {
         flex: 1;
         overflow-y: auto;
+        min-height: 0;
         padding: 12px;
         display: flex;
         flex-direction: column;
@@ -381,6 +444,152 @@ import { ToolSettingsService } from '../services/tool-settings.service';
       .column-body.cdk-drop-list-dragging .task-card:not(.cdk-drag-placeholder) {
         transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
       }
+
+      /* Dialog Styles */
+      .dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        padding: 24px;
+      }
+      .dialog {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 550px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        animation: dialog-show 0.2s ease-out;
+      }
+      @keyframes dialog-show {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .dialog-header {
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--app-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .dialog-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .dialog-close {
+        background: transparent;
+        border: none;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        display: flex;
+        transition: all 0.15s;
+      }
+      .dialog-close:hover {
+        background: var(--app-background);
+        color: var(--app-text);
+      }
+      .dialog-body {
+        padding: 24px;
+        overflow-y: auto;
+      }
+      .detail-section {
+        margin-bottom: 20px;
+      }
+      .detail-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--app-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+      .detail-value {
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--app-text);
+      }
+      .title-val {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .desc-val {
+        white-space: pre-wrap;
+        background: var(--app-background);
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--app-border);
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .status-badge.pending { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+      .status-badge.in_progress { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+      .status-badge.done { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+
+      .dialog-footer {
+        margin-top: 12px;
+        padding-top: 24px;
+        border-top: 1px solid var(--app-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+      .btn-close {
+        padding: 10px 20px;
+        background: var(--app-background);
+        border: 1px solid var(--app-border);
+        color: var(--app-text);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-close:hover {
+        border-color: var(--theme-primary);
+        color: var(--theme-primary);
+      }
+      .btn-github {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: #24292f;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .btn-github:hover {
+        opacity: 0.9;
+      }
     `,
   ],
 })
@@ -389,6 +598,7 @@ export class TasksComponent implements OnInit {
   syncing = false;
   selectedProjectId = 'all';
   projects: Project[] = [];
+  selectedTask: Task | null = null;
 
   private allTasks: Task[] = [];
   private projectNameCache = new Map<string, string>();
@@ -439,6 +649,27 @@ export class TasksComponent implements OnInit {
     const ghProjectId = this.parseGhProjectId(task);
     if (!ghProjectId) return '';
     return this.projectNameCache.get(ghProjectId) || '';
+  }
+
+  showTaskDetail(task: Task) {
+    this.selectedTask = task;
+  }
+
+  closeTaskDetail() {
+    this.selectedTask = null;
+  }
+
+  getGithubUrl(task: Task): string | null {
+    try {
+      const extra = JSON.parse(task.extra);
+      return extra.url || null;
+    } catch {
+      return null;
+    }
+  }
+
+  openInGithub(url: string) {
+    (window as any).electronAPI.openExternal(url);
   }
 
   private parseGhProjectId(task: Task): string {

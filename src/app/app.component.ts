@@ -50,7 +50,7 @@ export class AppComponent implements OnInit {
 
   private updateSidebarVisibility() {
     const url = this.router.url;
-    const isSpecialView = url.includes('plan-editor') || url.includes('mermaid-builder') || url.includes('work-process-runner') || url.includes('ux-design-runner');
+    const isSpecialView = url.includes('plan-editor') || url.includes('mermaid-builder') || url.includes('work-process-runner') || url.includes('ux-design-runner') || url.includes('note-editor');
     this.isPopout = window.location.hash.includes('popout=1') || window.location.search.includes('popout=1') || isSpecialView;
   }
 }

@@ -12,7 +12,7 @@
   </div>
 
   <div class="sidebar-content">
-    @for (section of sections; track section.title) {
+    @for (section of (sections$ | async); track section.title) {
     <div class="nav-section">
       @if (!collapsed) {
       <div class="section-title">{{ section.title }}</div>

@@ -652,6 +652,18 @@ function setupIPC(): void {
     return fs.existsSync(filePath);
   });
 
+  ipcMain.handle('fs:create-folder', async (_event, parentPath: string, folderName: string) => {
+    try {
+      const dirPath = path.join(parentPath, folderName);
+      if (!fs.existsSync(dirPath)) {
+        await fs.promises.mkdir(dirPath, { recursive: true });
+      }
+      return true;
+    } catch (err) {
+      return false;
+    }
+  });
+
   ipcMain.handle('fs:list-files', async (_event, dirPath: string, extension?: string) => {
     try {
       const exists = fs.existsSync(dirPath);
@@ -1019,9 +1031,13 @@ function setupIPC(): void {
       }
       return { success: true };
     } catch (err) {
-      console.error(`[IPC] Failed to open terminal:`, err);
+      console.error(`[IPC] Failed to start terminal:`, err);
       return { success: false, error: String(err) };
     }
+  });
+
+  ipcMain.handle('shell:open-external', async (_event, url: string) => {
+    await shell.openExternal(url);
   });
 
   ipcMain.handle('ux:delete-design', async (_event, designPath: string) => {
@@ -1095,6 +1111,37 @@ function setupIPC(): void {
         win.loadFile(
           path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
           { hash: `/work-process-runner?workspaceId=${workspaceId}` },
+        );
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'window:open-note-editor',
+    (_event, workspaceId: string, filePath: string) => {
+      const win = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        minWidth: 800,
+        minHeight: 600,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.cjs'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+        icon: appIcon,
+        titleBarStyle: 'hiddenInset',
+        backgroundColor: '#1a1a1a',
+        title: 'Note Editor',
+      });
+
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        win.loadURL(`http://localhost:4300/#/note-editor?workspaceId=${workspaceId}&filePath=${filePath}`);
+      } else {
+        win.loadFile(
+          path.join(__dirname, '../dist/chadscopilot/browser/index.html'),
+          { hash: `/note-editor?workspaceId=${workspaceId}&filePath=${filePath}` },
         );
       }
     },

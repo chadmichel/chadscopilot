@@ -14,6 +14,7 @@ import { WorkProcessRunnerComponent } from './pages/work-process-runner.componen
 import { UXDesignRunnerComponent } from './pages/ux-design-runner.component';
 import { TimeComponent } from './pages/time.component';
 import { BackupComponent } from './pages/backup.component';
+import { NoteEditorComponent } from './pages/note-editor.component';
 import { WorkspaceService } from './services/workspace.service';
 
 export const workspaceTitleResolver: ResolveFn<string> = (route: ActivatedRouteSnapshot) => {
@@ -38,6 +39,7 @@ export const routes: Routes = [
   { path: 'preferences', component: PreferencesComponent, title: 'Preferences' },
   { path: 'mermaid-builder', component: MermaidBuilderComponent, title: 'Mermaid Builder' },
   { path: 'plan-editor', component: PlanEditorComponent, title: 'Plan Editor' },
+  { path: 'note-editor', component: NoteEditorComponent, title: 'Note Editor' },
   { path: 'work-process-runner', component: WorkProcessRunnerComponent, title: 'Work Process Runner' },
   { path: 'ux-design-runner', component: UXDesignRunnerComponent, title: 'UX Design Runner' },
   { path: 'time', component: TimeComponent, title: 'Time Tracker' },

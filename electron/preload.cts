@@ -218,6 +218,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listDirectory: (dirPath: string): Promise<{ name: string; isDirectory: boolean }[]> =>
     ipcRenderer.invoke('fs:list-directory', dirPath),
 
+  createFolder: (parentPath: string, folderName: string): Promise<boolean> =>
+    ipcRenderer.invoke('fs:create-folder', parentPath, folderName),
+
   // --- UX Design ---
   uxCreateDesign: (workspaceId: string, name: string, techStack: string, workspacePath: string): Promise<any> =>
     ipcRenderer.invoke('ux:create-design', workspaceId, name, techStack, workspacePath),
@@ -279,4 +282,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   dbRestore: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('db:restore'),
+
+  openNoteEditor: (workspaceId: string, filePath: string): Promise<void> =>
+    ipcRenderer.invoke('window:open-note-editor', workspaceId, filePath),
+
+  openExternal: (url: string): Promise<void> =>
+    ipcRenderer.invoke('shell:open-external', url),
 });
