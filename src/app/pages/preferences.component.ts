@@ -34,9 +34,16 @@ import { ThemeService, AppTheme } from '../services/theme.service';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        height: 100%;
+        overflow: hidden;
+      }
       .page {
         padding: 32px;
         color: var(--app-text);
+        height: 100%;
+        overflow-y: auto;
       }
       h2 {
         font-size: 24px;

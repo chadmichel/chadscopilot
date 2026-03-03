@@ -418,6 +418,11 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        height: 100%;
+        overflow: hidden;
+      }
       .page {
         padding: 24px 28px;
         color: var(--app-text);

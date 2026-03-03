@@ -29,6 +29,7 @@ const SEED_TOOLS: Omit<Tool, 'id'>[] = [
   { title: 'Project Design', description: 'Project design documentation', isEnabled: true, toolType: 'project design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'System Design', description: 'System design documentation', isEnabled: true, toolType: 'system design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'UX Design', description: 'UX design documentation', isEnabled: true, toolType: 'ux design', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
+  { title: 'Terminal', description: 'System terminal', isEnabled: true, toolType: 'terminal', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
   { title: 'Outlook Calendar', description: 'Microsoft Outlook calendar integration', isEnabled: false, toolType: 'calendar', prompt: '', localPath: '', token: '', useGitHubToken: false, organization: '', extra: '{}' },
 ];
 

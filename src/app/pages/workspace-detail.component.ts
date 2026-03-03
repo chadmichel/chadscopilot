@@ -80,6 +80,15 @@ interface Tab {
               </svg>
             </button>
           }
+          @if (terminalTool) {
+            <button class="popout-btn" [style.margin-left]="isPopout ? 'auto' : '8px'" (click)="openTerminal()" title="Launch Terminal here">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5"/>
+                <line x1="12" y1="19" x2="20" y2="19"/>
+              </svg>
+            </button>
+          }
         </div>
 
         <div class="split-layout">
@@ -1959,6 +1968,7 @@ export class WorkspaceDetailComponent implements OnInit {
   agentCollapsed = false;
   tabsCollapsed = false;
   editorTool: Tool | null = null;
+  terminalTool: Tool | null = null;
   isPopout = false;
   agentPanelWidth = 450;
   private isResizingAgent = false;
@@ -2034,6 +2044,7 @@ export class WorkspaceDetailComponent implements OnInit {
         this.activeAgentId = this.workspace.id;
         this.workspaceService.setLastWorkspaceId(id);
         await this.loadEditorTool();
+        await this.loadTerminalTool();
         await this.loadWorkspaceTasks();
         await this.loadAgents();
         await this.loadDesignFiles();
@@ -2345,6 +2356,21 @@ export class WorkspaceDetailComponent implements OnInit {
     this.editorTool = this.toolSettingsService.tools.find(
       (t) => t.id === this.workspace!.editorToolId
     ) ?? null;
+  }
+
+  private async loadTerminalTool(): Promise<void> {
+    if (this.toolSettingsService.tools.length === 0) {
+      await this.toolSettingsService.loadTools();
+    }
+    this.terminalTool = this.toolSettingsService.tools.find(
+      (t) => t.toolType === 'terminal' && t.isEnabled
+    ) ?? null;
+  }
+
+  async openTerminal() {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    await electron.uxOpenTerminal(this.workspace.folderPath);
   }
 
   private async loadWorkspaceTasks(): Promise<void> {

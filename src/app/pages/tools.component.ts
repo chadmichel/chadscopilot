@@ -53,6 +53,10 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
                       <path d="M4.93 19.07l2.83-2.83"/>
                       <path d="M16.24 7.76l2.83-2.83"/>
                     }
+                    @case ('terminal') {
+                      <polyline points="4 17 10 11 4 5"/>
+                      <line x1="12" y1="19" x2="20" y2="19"/>
+                    }
                     @case ('rag') {
                       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
                     }
@@ -94,6 +98,11 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        height: 100%;
+        overflow: hidden;
+      }
       .page {
         padding: 24px 28px;
         color: var(--app-text);
