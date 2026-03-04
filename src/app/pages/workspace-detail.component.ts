@@ -11,7 +11,7 @@ import { ProjectsService, Project } from '../services/projects.service';
 import { WorkspaceAgentsService, WorkspaceAgent } from '../services/workspace-agents.service';
 import { FileExplorerComponent } from './file-explorer.component';
 
-type TabId = 'plan' | 'design' | 'tasks' | 'work-process' | 'explorer' | 'notes';
+type TabId = 'plan' | 'design' | 'tasks' | 'analysis' | 'work-process' | 'explorer' | 'notes';
 
 interface Tab {
   id: TabId;
@@ -426,6 +426,65 @@ interface Tab {
                   @case ('explorer') {
                     <app-file-explorer [folderPath]="workspace.folderPath"></app-file-explorer>
                   }
+                  @case ('analysis') {
+                    <div class="analysis-tab">
+                      @if (analysisReports.length > 0) {
+                        <div class="tab-header">
+                          <div style="display: flex; gap: 8px; width: 100%; justify-content: space-between; align-items: center;">
+                            <h3>Code Analysis</h3>
+                            <button class="add-btn" (click)="startAnalysis()">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="m9 12 2 2 4-4"/>
+                              </svg>
+                              New Analysis Run
+                            </button>
+                          </div>
+                        </div>
+                      }
+
+                      <div class="analysis-content" [class.centered]="analysisReports.length === 0">
+                        @if (analysisReports.length === 0) {
+                          <div class="analysis-launch-center">
+                            <div class="launch-icon-box">
+                              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="m9 12 2 2 4-4"/>
+                              </svg>
+                            </div>
+                            <h2>Code Quality Analysis</h2>
+                            <p>Analyze cyclomatic complexity and code maintainability with Lizard. Generate comprehensive reports to identify technical debt.</p>
+                            <button class="run-analysis-center-btn" (click)="startAnalysis()">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="m9 12 2 2 4-4"/>
+                              </svg>
+                              New Analysis Run
+                            </button>
+                          </div>
+                        } @else {
+                          <div class="notes-file-list">
+                            @for (report of analysisReports; track report.name) {
+                              <div class="notes-file-row">
+                                <div class="notes-file-item" (click)="openAnalysisReport(report.path)">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                  </svg>
+                                  <span class="file-name">{{ report.name }}</span>
+                                </div>
+                                <div class="file-actions">
+                                  <button class="open-report-btn" (click)="openAnalysisReport(report.path)">Open Report</button>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
                   @case ('notes') {
                     <div class="notes-tab">
                       <div class="tab-header">
@@ -629,6 +688,86 @@ interface Tab {
         </div>
       </div>
     }
+    @if (showAnalysisDialog) {
+      <div class="dialog-overlay">
+        <div class="dialog">
+          <div class="dialog-header">
+            <h3>Comprehensive Code Analysis</h3>
+            <button class="dialog-close" (click)="showAnalysisDialog = false" [disabled]="isAnalyzing">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <p style="font-size: 13px; color: var(--app-text-muted); margin-bottom: 20px;">
+              This will perform Complexity, Dependency, SAST, and Tech Detection analysis.
+            </p>
+
+            @if (analysisDeps) {
+              <div class="deps-check">
+                <div class="dep-item" [class.ok]="analysisDeps.python">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    @if (analysisDeps.python) { <path d="M20 6L9 17l-5-5"/> } 
+                    @else { <path d="M18 6L6 18M6 6l12 12"/> }
+                  </svg>
+                  Python {{ analysisDeps.python ? 'Installed' : 'Missing' }}
+                </div>
+                <div class="dep-item" [class.ok]="analysisDeps.lizard">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    @if (analysisDeps.lizard) { <path d="M20 6L9 17l-5-5"/> } 
+                    @else { <path d="M18 6L6 18M6 6l12 12"/> }
+                  </svg>
+                  Lizard {{ analysisDeps.lizard ? 'Installed' : 'Missing (pip install lizard)' }}
+                </div>
+              </div>
+
+              @if (analysisDeps.python && analysisDeps.lizard) {
+                <div class="form-group" style="margin-top: 20px;">
+                  <label for="analysis-folder">Sub-folder (optional)</label>
+                  <input id="analysis-folder" type="text" class="form-input" [(ngModel)]="analysisSubFolder" placeholder="e.g. src/app" [disabled]="isAnalyzing" />
+                </div>
+
+                @if (isAnalyzing) {
+                  <div class="analyzing-state">
+                    <div class="spinner"></div>
+                    <p>Performing comprehensive scan...</p>
+                    <span style="font-size: 11px; color: var(--app-text-muted);">Tech Detection • Complexity • Dependencies • SAST</span>
+                  </div>
+                } @else if (analysisError) {
+                  <div class="error-box" style="margin-top: 10px; margin-bottom: 10px; color: #ef4444; font-size: 12px;">
+                    {{ analysisError }}
+                  </div>
+                } @else if (lastAnalysisReportPath) {
+                   <div class="success-box" style="margin-top: 20px; text-align: center;">
+                     <p>Analysis complete!</p>
+                     <button class="btn-confirm" (click)="openAnalysisReport(lastAnalysisReportPath)" style="margin-top: 10px; width: 100%;">Open Report</button>
+                   </div>
+                }
+
+                <div class="dialog-footer" style="margin-top: 20px;">
+                  <button class="btn-cancel" (click)="showAnalysisDialog = false" [disabled]="isAnalyzing">Close</button>
+                  @if (!isAnalyzing) {
+                    <button class="btn-confirm" (click)="runLizardAnalysis()">{{ lastAnalysisReportPath ? 'Run Again' : 'Run Analysis' }}</button>
+                  }
+                </div>
+              } @else {
+                <div class="dialog-footer" style="margin-top: 20px;">
+                  <button class="btn-cancel" (click)="showAnalysisDialog = false">Close</button>
+                  <button class="btn-confirm" (click)="checkAnalysisDeps()">Re-check</button>
+                </div>
+              }
+            } @else {
+              <div class="analyzing-state">
+                <div class="spinner"></div>
+                <p>Checking dependencies...</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
     @if (showAgentFlowDialog) {
       <div class="dialog-overlay">
         <div class="dialog" style="width: 500px;">
@@ -1956,6 +2095,90 @@ interface Tab {
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }
+      .success-box {
+        background: color-mix(in srgb, #22c55e, transparent 90%);
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #22c55e;
+        color: #166534;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      .deps-check {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: var(--app-background);
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid var(--app-border);
+      }
+      .dep-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ef4444; }
+      .dep-item.ok { color: #22c55e; }
+      .analyzing-state { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 20px; margin-bottom: 20px; }
+      .open-report-btn:hover { background: color-mix(in srgb, var(--theme-primary), transparent 90%); border-color: var(--theme-primary); }
+
+      .analysis-content.centered {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .analysis-launch-center {
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .launch-icon-box {
+        width: 80px;
+        height: 80px;
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--theme-primary);
+        margin-bottom: 8px;
+      }
+      .analysis-launch-center h2 {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0;
+        color: var(--app-text);
+      }
+      .analysis-launch-center p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--app-text-muted);
+        margin: 0;
+      }
+      .run-analysis-center-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 28px;
+        background: #0d9488; /* Teal color like in screenshot */
+        color: white;
+        border: none;
+        border-radius: 40px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+      }
+      .run-analysis-center-btn:hover {
+        transform: translateY(-2px);
+        background: #11a89b;
+        box-shadow: 0 8px 20px rgba(13, 148, 136, 0.4);
+      }
+      .run-analysis-center-btn:active {
+        transform: translateY(0);
+      }
+
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
@@ -2006,6 +2229,7 @@ export class WorkspaceDetailComponent implements OnInit {
     { id: 'plan', label: 'Plan' },
     { id: 'design', label: 'Design' },
     { id: 'tasks', label: 'Tasks' },
+    { id: 'analysis', label: 'Analysis' },
     { id: 'work-process', label: 'Work Process' },
     { id: 'explorer', label: 'Explorer' },
     { id: 'notes', label: 'Notes' },
@@ -2017,6 +2241,15 @@ export class WorkspaceDetailComponent implements OnInit {
   newNoteName = '';
 
   // Agent Flow tab
+  // Analysis tab
+  analysisReports: { name: string, path: string }[] = [];
+  showAnalysisDialog = false;
+  isAnalyzing = false;
+  analysisSubFolder = '';
+  analysisDeps: { python: boolean, lizard: boolean } | null = null;
+  analysisError: string | null = null;
+  lastAnalysisReportPath: string | null = null;
+
   showAgentFlowDialog = false;
   editingAgentIndex: number | null = null;
   agentFlowData: ProcessAgent = { id: '', type: 'Agent', prompt: '', exitCriteria: '', promptNotes: '' };
@@ -2046,6 +2279,7 @@ export class WorkspaceDetailComponent implements OnInit {
         await this.loadEditorTool();
         await this.loadTerminalTool();
         await this.loadWorkspaceTasks();
+        await this.loadAnalysisReports();
         await this.loadAgents();
         await this.loadDesignFiles();
         await this.loadPlanFiles();
@@ -2371,6 +2605,46 @@ export class WorkspaceDetailComponent implements OnInit {
     if (!this.workspace) return;
     const electron = (window as any).electronAPI;
     await electron.uxOpenTerminal(this.workspace.folderPath);
+  }
+
+  async loadAnalysisReports() {
+    if (!this.workspace) return;
+    const electron = (window as any).electronAPI;
+    this.analysisReports = await electron.analysisListReports(this.workspace.folderPath);
+  }
+
+  async checkAnalysisDeps() {
+    const electron = (window as any).electronAPI;
+    this.analysisDeps = await electron.analysisCheckDependencies();
+  }
+
+  async startAnalysis() {
+    this.showAnalysisDialog = true;
+    this.analysisError = null;
+    this.analysisSubFolder = '';
+    this.lastAnalysisReportPath = null;
+    await this.checkAnalysisDeps();
+  }
+
+  async runLizardAnalysis() {
+    if (!this.workspace) return;
+    this.isAnalyzing = true;
+    this.analysisError = null;
+    this.lastAnalysisReportPath = null;
+    const electron = (window as any).electronAPI;
+    const result = await electron.analysisRunFull(this.workspace.folderPath, this.analysisSubFolder);
+    this.isAnalyzing = false;
+    if (result.success) {
+      this.lastAnalysisReportPath = result.reportPath!;
+      await this.loadAnalysisReports();
+    } else {
+      this.analysisError = result.error;
+    }
+  }
+
+  async openAnalysisReport(path: string) {
+    const electron = (window as any).electronAPI;
+    await electron.openExternal(`file://${path}`);
   }
 
   private async loadWorkspaceTasks(): Promise<void> {

@@ -253,6 +253,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('ux:design-changed', (_event, designPath) => callback(designPath));
   },
 
+  // --- Analysis ---
+  analysisCheckDependencies: (): Promise<{ python: boolean; lizard: boolean }> =>
+    ipcRenderer.invoke('analysis:check-dependencies'),
+
+  analysisRunLizard: (workspacePath: string, subFolder?: string): Promise<{ success: boolean; reportPath?: string; error?: string }> =>
+    ipcRenderer.invoke('analysis:run-lizard', workspacePath, subFolder),
+
+  analysisListReports: (workspacePath: string): Promise<string[]> =>
+    ipcRenderer.invoke('analysis:list-reports', workspacePath),
+
+  analysisRunFull: (workspacePath: string, subFolder?: string): Promise<{ success: boolean; reportPath?: string; error?: string }> =>
+    ipcRenderer.invoke('analysis:run-full', workspacePath, subFolder),
+
   // --- Calendar ---
   calendarLogin: (): Promise<string | null> =>
     ipcRenderer.invoke('calendar:login'),

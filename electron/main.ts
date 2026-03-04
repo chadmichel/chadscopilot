@@ -1054,6 +1054,263 @@ function setupIPC(): void {
     }
   });
 
+  // --- Analysis ---
+  ipcMain.handle('analysis:check-dependencies', async () => {
+    const check = (cmd: string) => {
+      try {
+        execSync(cmd, { stdio: 'ignore' });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const hasPython = check('python3 --version') || check('python --version');
+    const hasLizard = check('lizard --version');
+    return { python: hasPython, lizard: hasLizard };
+  });
+
+  ipcMain.handle('analysis:run-lizard', async (_event, workspacePath: string, subFolder?: string) => {
+    const analysisFolder = path.join(workspacePath, 'analysis');
+    try {
+      if (!fs.existsSync(analysisFolder)) {
+        await fs.promises.mkdir(analysisFolder, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const reportName = `complexity_report_${timestamp.split('.')[0]}.html`;
+      const reportPath = path.join(analysisFolder, reportName);
+      const targetPath = subFolder ? path.join(workspacePath, subFolder) : workspacePath;
+
+      // lizard --html -o output target
+      const cmd = `lizard --html -o "${reportPath}" "${targetPath}"`;
+      console.log(`[IPC] Running analysis: ${cmd}`);
+
+      const { exec } = await import('node:child_process');
+      return new Promise((resolve) => {
+        exec(cmd, (error, stdout, stderr) => {
+          if (error) {
+            console.error('[IPC] Analysis failed:', error, stderr);
+            resolve({ success: false, error: stderr || error.message });
+          } else {
+            resolve({ success: true, reportPath });
+          }
+        });
+      });
+    } catch (err) {
+      console.error('[IPC] Analysis creation failed:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
+  ipcMain.handle('analysis:list-reports', async (_event, workspacePath: string) => {
+    try {
+      const analysisFolder = path.join(workspacePath, 'analysis');
+      if (!fs.existsSync(analysisFolder)) return [];
+      const files = await fs.promises.readdir(analysisFolder);
+      return files
+        .filter(f => f.endsWith('.html'))
+        .map(f => ({ name: f, path: path.join(analysisFolder, f) }))
+        .sort((a, b) => b.name.localeCompare(a.name));
+    } catch (err) {
+      return [];
+    }
+  });
+
+  ipcMain.handle('analysis:run-full', async (_event, workspacePath: string, subFolder?: string) => {
+    const analysisFolder = path.join(workspacePath, 'analysis');
+    try {
+      if (!fs.existsSync(analysisFolder)) {
+        await fs.promises.mkdir(analysisFolder, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const reportName = `full_analysis_${timestamp}.html`;
+      const reportPath = path.join(analysisFolder, reportName);
+      const targetPath = subFolder ? path.join(workspacePath, subFolder) : workspacePath;
+
+      const reportData: any = {
+        scanTime: new Date().toLocaleString(),
+        target: targetPath,
+        technologies: [],
+        dependencies: [],
+        sast: [],
+        complexity: null
+      };
+
+      // 1. Technology Detection
+      const techFlags = [
+        { file: 'package.json', name: 'Node.js/NPM' },
+        { file: 'tsconfig.json', name: 'TypeScript' },
+        { file: 'angular.json', name: 'Angular' },
+        { file: 'requirements.txt', name: 'Python' },
+        { file: 'go.mod', name: 'Go' },
+        { file: 'Dockerfile', name: 'Docker' },
+        { file: '.gitignore', name: 'Git' }
+      ];
+      for (const tech of techFlags) {
+        if (fs.existsSync(path.join(workspacePath, tech.file))) {
+          reportData.technologies.push(tech.name);
+        }
+      }
+
+      // 2. Dependency Analysis (Node.js focus)
+      const pkgPath = path.join(workspacePath, 'package.json');
+      if (fs.existsSync(pkgPath)) {
+        try {
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+          reportData.dependencies = Object.entries(deps).map(([name, version]) => ({ name, version }));
+        } catch (e) { }
+      }
+
+      // 3. SAST Scan (Recursive RegEx)
+      const sastRules = [
+        { name: 'Hardcoded Secret', regex: /(API_KEY|SECRET|PASSWORD|TOKEN)\s*[:=]\s*["'][^"']{8,}["']/i, severity: 'High' },
+        { name: 'Unsafe Eval', regex: /\beval\s*\(/, severity: 'High' },
+        { name: 'Unsafe innerHTML', regex: /\.innerHTML\s*=/, severity: 'Medium' },
+        { name: 'Unsafe concat in SQL', regex: /\s(SELECT|INSERT|UPDATE|DELETE)\s.*?\s\+\s/i, severity: 'Medium' }
+      ];
+
+      const walk = async (dir: string) => {
+        const files = await fs.promises.readdir(dir, { withFileTypes: true });
+        for (const file of files) {
+          const res = path.resolve(dir, file.name);
+          if (file.isDirectory()) {
+            if (file.name === 'node_modules' || file.name === '.git' || file.name === 'dist') continue;
+            await walk(res);
+          } else {
+            const ext = path.extname(file.name);
+            if (['.ts', '.js', '.html', '.py', '.go'].includes(ext)) {
+              const content = await fs.promises.readFile(res, 'utf8');
+              const lines = content.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                for (const rule of sastRules) {
+                  if (rule.regex.test(lines[i])) {
+                    reportData.sast.push({
+                      rule: rule.name,
+                      severity: rule.severity,
+                      file: path.relative(workspacePath, res),
+                      line: i + 1,
+                      snippet: lines[i].trim().substring(0, 100)
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      };
+      await walk(targetPath);
+
+      // 4. Complexity (Lizard)
+      try {
+        const { exec } = await import('node:child_process');
+        const lizardCmd = `lizard "${targetPath}"`;
+        console.log(`[IPC] Running lizard: ${lizardCmd}`);
+        const lizardOutput = await new Promise<string>((resolve, reject) => {
+          exec(lizardCmd, (err, stdout, stderr) => {
+            if (err) {
+              console.error('[IPC] Lizard exec error:', err, stderr);
+              resolve("Lizard analysis failed or not installed. Error: " + (stderr || err.message));
+            } else {
+              resolve(stdout);
+            }
+          });
+        });
+        reportData.complexitySummary = lizardOutput;
+      } catch (e) {
+        console.error('[IPC] Lizard error:', e);
+        reportData.complexitySummary = "Lizard analysis failed.";
+      }
+
+      // 5. Generate HTML Report
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Code Analysis Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 0 auto; padding: 40px; background: #f9fafb; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 24px; margin-bottom: 24px; border: 1px solid #e5e7eb; }
+    h1 { color: #111827; margin-bottom: 8px; }
+    h2 { border-bottom: 2px solid #f3f4f6; padding-bottom: 8px; margin-top: 0; color: #374151; font-size: 1.25rem; }
+    .meta { color: #6b7280; font-size: 0.875rem; margin-bottom: 32px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; margin-right: 4px; background: #f3f4f6; color: #4b5563; }
+    .severity-High { color: #991b1b; background: #fee2e2; }
+    .severity-Medium { color: #92400e; background: #fef3c7; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th { text-align: left; padding: 12px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; }
+    td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.875rem; }
+    pre { background: #1f2937; color: #f9fafb; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 0.8125rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .tech-item { display: inline-block; padding: 4px 12px; background: #eff6ff; color: #1d4ed8; border-radius: 6px; font-weight: 500; margin: 4px; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <h1>Code Analysis Report</h1>
+  <div class="meta">Generated on ${reportData.scanTime} for ${reportData.target}</div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Technologies Detected</h2>
+      <div style="margin: -4px;">
+        ${reportData.technologies.map((t: string) => `<span class="tech-item">${t}</span>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <h2>Dependency Summary</h2>
+      <p>Total dependencies: <strong>${reportData.dependencies.length}</strong></p>
+      <div style="max-height: 150px; overflow-y: auto;">
+        ${reportData.dependencies.slice(0, 10).map((d: any) => `<div class="badge">${d.name} @ ${d.version}</div>`).join('')}
+        ${reportData.dependencies.length > 10 ? '<div>...</div>' : ''}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>SAST Security Findings</h2>
+    @if reportData.sast.length === 0
+    <p style="color: #059669;">No potential vulnerabilities detected.</p>
+    @else
+    <table>
+      <thead>
+        <tr><th>Issue</th><th>Severity</th><th>File</th><th>Line</th></tr>
+      </thead>
+      <tbody>
+        ${reportData.sast.map((s: any) => `
+          <tr>
+            <td><strong>${s.rule}</strong></td>
+            <td><span class="badge severity-${s.severity}">${s.severity}</span></td>
+            <td>${s.file}</td>
+            <td>${s.line}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    @endif
+  </div>
+
+  <div class="card">
+    <h2>Complexity Analysis (Lizard Summary)</h2>
+    <pre>${reportData.complexitySummary}</pre>
+  </div>
+
+</body>
+</html>
+      `.replace(/@if (.*)\n/g, (m, cond) => {
+        try {
+          // Check if condition is true by evaluating it in a controlled way or just simpler
+          const isTrue = cond.includes('sast.length === 0') ? reportData.sast.length === 0 : true;
+          return isTrue ? '' : '<!-- ';
+        } catch (e) { return ''; }
+      }).replace(/@else\n/g, '-->').replace(/@endif\n/g, '');
+
+      fs.writeFileSync(reportPath, htmlContent);
+      return { success: true, reportPath };
+    } catch (err) {
+      console.error('[IPC] Full analysis failed:', err);
+      return { success: false, error: String(err) };
+    }
+  });
+
   ipcMain.handle(
     'window:open-plan-editor',
     (_event, workspaceId: string, filePath: string) => {
