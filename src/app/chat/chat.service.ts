@@ -23,6 +23,7 @@ declare global {
       exists: (filePath: string) => Promise<boolean>;
       openMermaidBuilder: (workspaceId: string, filePath: string) => Promise<void>;
       openPlanEditor: (workspaceId: string, filePath: string) => Promise<void>;
+      convertMppToXml: (mppPath: string) => Promise<{ success: boolean; xmlPath?: string; error?: string }>;
     };
   }
 }
@@ -131,5 +132,12 @@ export class ChatService {
       return await this.electron.readFile(filePath);
     }
     return null;
+  }
+
+  async convertMppToXml(mppPath: string): Promise<{ success: boolean; xmlPath?: string; error?: string }> {
+    if (this.electron?.convertMppToXml) {
+      return await this.electron.convertMppToXml(mppPath);
+    }
+    return { success: false, error: 'Electron not available' };
   }
 }

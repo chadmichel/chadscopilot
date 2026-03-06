@@ -215,6 +215,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFile: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('fs:read-file', filePath),
 
+  convertMppToXml: (mppPath: string): Promise<{ success: boolean; xmlPath?: string; error?: string }> =>
+    ipcRenderer.invoke('mpp:convert-to-xml', mppPath),
+
   writeFile: (filePath: string, content: string): Promise<boolean> =>
     ipcRenderer.invoke('fs:write-file', filePath, content),
 

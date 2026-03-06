@@ -65,7 +65,7 @@ export class ChatComponent implements AfterViewInit, AfterViewChecked {
     if (this.isLoading) return;
 
     const filters = [
-      { name: 'Projects', extensions: ['json', 'csv', 'xlsx', 'txt', 'mpp', 'pdf', 'docx'] },
+      { name: 'Projects', extensions: ['json', 'csv', 'xlsx', 'txt', 'mpp', 'pdf', 'docx', 'xml'] },
       { name: 'All Files', extensions: ['*'] }
     ];
 
@@ -74,25 +74,36 @@ export class ChatComponent implements AfterViewInit, AfterViewChecked {
 
     this.isLoading = true;
     try {
-      const content = await this.chatService.readFile(filePath);
+      let finalFilePath = filePath;
+      let displayMessage = `Attached file: ${filePath.split(/[\\/]/).pop()}`;
+
+      if (filePath.toLowerCase().endsWith('.mpp')) {
+        const result = await this.chatService.convertMppToXml(filePath);
+        if (result.success && result.xmlPath) {
+          finalFilePath = result.xmlPath;
+          displayMessage = `Attached MS Project file: ${filePath.split(/[\\/]/).pop()} (transpiled to XML)`;
+        } else {
+          throw new Error('Failed to convert MPP file: ' + (result.error || 'Unknown error'));
+        }
+      }
+
+      const content = await this.chatService.readFile(finalFilePath);
       if (content === null) {
         throw new Error('Could not read file');
       }
 
       const fileName = filePath.split(/[\\/]/).pop();
-      const displayMessage = `Attached file: ${fileName}`;
-
       let context = '';
       if (this.contextProvider) {
         context = this.contextProvider() + '\n\n';
       }
 
       const prompt = `${context}The user has uploaded a file named "${fileName}". 
-Here is its content:
+Here is its content (XML/Text):
 ---
-${content}
+${content.substring(0, 100000)} ${content.length > 100000 ? '...[truncated due to size]' : ''}
 ---
-Please analyze this file and help me update the project plan based on it. If it's a project file, try to extract activities, resources, and dates.`;
+Please analyze this file and help me update the project plan based on it. If it's a project file, extract activities, resources, and dates.`;
 
       await this.chatService.sendMessage(prompt, this.workspaceId, this.folderPath || undefined, displayMessage);
     } catch (err: any) {

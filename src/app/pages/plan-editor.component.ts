@@ -1293,12 +1293,18 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
     if (!file) return;
 
+    let finalXmlPath = file;
     if (file.toLowerCase().endsWith('.mpp')) {
-      alert('Direct .MPP parsing is coming soon. Please export your project to "MS Project XML" and import that for now.');
-      return;
+      const conversionAlert = alert('Converting MPP to XML... This might take a few seconds.');
+      const result = await this.chatService.convertMppToXml(file);
+      if (!result.success || !result.xmlPath) {
+        alert('Failed to convert MPP: ' + result.error);
+        return;
+      }
+      finalXmlPath = result.xmlPath;
     }
 
-    const content = await this.chatService.readFile(file);
+    const content = await this.chatService.readFile(finalXmlPath);
     if (!content) {
       alert('Failed to read file');
       return;

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, dialog, nativeImage, shell, screen } from 'electron';
-import { spawn, execSync, ChildProcess } from 'node:child_process';
+import { spawn, execSync, exec, ChildProcess } from 'node:child_process';
 import path from 'path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'url';
@@ -800,6 +800,27 @@ function setupIPC(): void {
     } catch (err) {
       return null;
     }
+  });
+
+  ipcMain.handle('mpp:convert-to-xml', async (_event, mppPath: string) => {
+    const xmlPath = mppPath + '.xml';
+    const projectRoot = app.getAppPath();
+    const scriptsDir = path.join(projectRoot, 'scripts/utils');
+    const absoluteCp = `${scriptsDir}:${path.join(scriptsDir, '.mpp_venv/lib/python3.13/site-packages/mpxj/lib/*')}`;
+
+    return new Promise((resolve) => {
+      console.log(`[IPC] Converting MPP: ${mppPath} using Java helper`);
+      exec(`java -cp "${absoluteCp}" MPPToXML "${mppPath}" "${xmlPath}"`, { cwd: scriptsDir }, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`[IPC] MPP conversion error: ${error.message}`);
+          console.error(`[IPC] Stderr: ${stderr}`);
+          resolve({ success: false, error: stderr || error.message });
+        } else {
+          console.log(`[IPC] MPP conversion success: ${xmlPath}`);
+          resolve({ success: true, xmlPath });
+        }
+      });
+    });
   });
 
   ipcMain.handle('fs:write-file', async (_event, filePath: string, content: string) => {
