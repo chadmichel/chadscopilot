@@ -5,6 +5,8 @@ import {
   ElementRef,
   AfterViewInit,
   AfterViewChecked,
+  Output,
+  EventEmitter
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -25,6 +27,9 @@ export class ChatComponent implements AfterViewInit, AfterViewChecked {
   @Input() folderPath: string = '';
   @Input() contextProvider: (() => string) | null = null;
   @Input() hideJson: boolean = false;
+  @Input() showImportPrompt: boolean = true;
+
+  @Output() fileSelected = new EventEmitter<string>();
 
   userInput = '';
   isLoading = false;
@@ -65,12 +70,24 @@ export class ChatComponent implements AfterViewInit, AfterViewChecked {
     if (this.isLoading) return;
 
     const filters = [
-      { name: 'Projects', extensions: ['json', 'csv', 'xlsx', 'txt', 'mpp', 'pdf', 'docx', 'xml'] },
+      { name: 'Project Files (MPP, XML, JSON)', extensions: ['mpp', 'xml', 'json'] },
+      { name: 'Common Documents', extensions: ['csv', 'xlsx', 'txt', 'pdf', 'docx'] },
       { name: 'All Files', extensions: ['*'] }
     ];
 
     const filePath = await this.chatService.selectFile(filters);
     if (!filePath) return;
+
+    // Check if it's a project file for import prompt
+    const ext = filePath.toLowerCase().split('.').pop() || '';
+    const isProjectFile = ['mpp', 'xml', 'json'].includes(ext);
+
+    if (this.showImportPrompt && isProjectFile) {
+      if (confirm(`This looks like a project file. Would you like to IMPORT it into your current plan directly? (Click Cancel to just send to AI)`)) {
+        this.fileSelected.emit(filePath);
+        return;
+      }
+    }
 
     this.isLoading = true;
     try {
@@ -79,9 +96,9 @@ export class ChatComponent implements AfterViewInit, AfterViewChecked {
 
       if (filePath.toLowerCase().endsWith('.mpp')) {
         const result = await this.chatService.convertMppToXml(filePath);
-        if (result.success && result.xmlPath) {
-          finalFilePath = result.xmlPath;
-          displayMessage = `Attached MS Project file: ${filePath.split(/[\\/]/).pop()} (transpiled to XML)`;
+        if (result.success && result.jsonPath) {
+          finalFilePath = result.jsonPath;
+          displayMessage = `Attached MS Project file: ${filePath.split(/[\\/]/).pop()} (transpiled to JSON)`;
         } else {
           throw new Error('Failed to convert MPP file: ' + (result.error || 'Unknown error'));
         }

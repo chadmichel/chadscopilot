@@ -23,7 +23,7 @@ declare global {
       exists: (filePath: string) => Promise<boolean>;
       openMermaidBuilder: (workspaceId: string, filePath: string) => Promise<void>;
       openPlanEditor: (workspaceId: string, filePath: string) => Promise<void>;
-      convertMppToXml: (mppPath: string) => Promise<{ success: boolean; xmlPath?: string; error?: string }>;
+      convertMppToXml: (mppPath: string) => Promise<{ success: boolean; xmlPath?: string; jsonPath?: string; error?: string }>;
     };
   }
 }
@@ -134,7 +134,7 @@ export class ChatService {
     return null;
   }
 
-  async convertMppToXml(mppPath: string): Promise<{ success: boolean; xmlPath?: string; error?: string }> {
+  async convertMppToXml(mppPath: string): Promise<{ success: boolean; xmlPath?: string; jsonPath?: string; error?: string }> {
     if (this.electron?.convertMppToXml) {
       return await this.electron.convertMppToXml(mppPath);
     }

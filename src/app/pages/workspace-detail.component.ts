@@ -189,13 +189,28 @@ interface Tab {
                       @if (planFiles.length > 0) {
                         <div class="design-file-list">
                           @for (file of planFiles; track file) {
-                            <button class="design-file-item" (click)="openPlan('plans/' + file)">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <path d="M14 2v6h6"/>
-                              </svg>
-                              <span class="design-file-name">{{ file }}</span>
-                            </button>
+                            <div class="design-file-row">
+                              <button class="design-file-item" (click)="openPlan('plans/' + file)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <path d="M14 2v6h6"/>
+                                </svg>
+                                <span class="design-file-name">{{ file }}</span>
+                              </button>
+                              <div class="file-actions-row">
+                                <button class="action-icon-btn" (click)="duplicatePlan(file, $event)" title="Duplicate plan">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                  </svg>
+                                </button>
+                                <button class="delete-design-btn" (click)="deletePlan(file, $event)" title="Delete plan">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
                           }
                         </div>
                       } @else {
@@ -1494,10 +1509,42 @@ interface Tab {
       .design-file-row:hover .delete-design-btn {
         opacity: 1;
       }
-      .delete-design-btn:hover {
+      .delete-design-btn:hover, .delete-note-btn:hover, .delete-plan-btn:hover {
         background: rgba(239, 68, 68, 0.1);
         border-color: rgba(239, 68, 68, 0.2);
         color: #ef4444;
+      }
+
+      .action-icon-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        opacity: 0;
+      }
+      .design-file-row:hover .action-icon-btn,
+      .design-file-row:hover .delete-design-btn,
+      .design-file-row:hover .delete-note-btn,
+      .design-file-row:hover .delete-plan-btn {
+        opacity: 1;
+      }
+      .action-icon-btn:hover {
+        background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+        border-color: color-mix(in srgb, var(--theme-primary), transparent 85%);
+        color: var(--theme-primary);
+      }
+      
+      .file-actions-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
       }
 
       /* Toolbar button */
@@ -2387,6 +2434,49 @@ export class WorkspaceDetailComponent implements OnInit {
   cancelNewPlan() {
     this.showNewPlanDialog = false;
     this.newPlanName = '';
+  }
+
+  async duplicatePlan(fileName: string, event: Event) {
+    event.stopPropagation();
+    if (!this.workspace) return;
+
+    const electron = (window as any).electronAPI;
+    const fullPath = this.workspace.folderPath + '/plans/' + fileName;
+
+    // Read the file
+    const content = await electron?.readFile?.(fullPath);
+    if (!content) {
+      alert('Failed to read plan file for duplication.');
+      return;
+    }
+
+    // Generate new name
+    const baseName = fileName.replace('.json', '');
+    let newFileName = `plans/${baseName}_copy.json`;
+
+    // Simple check/collision avoidance could be here, but for now just underscore copy
+    const newFullPath = this.workspace.folderPath + '/' + newFileName;
+
+    await electron?.writeFile?.(newFullPath, content);
+    await this.loadPlanFiles();
+  }
+
+  async deletePlan(fileName: string, event: Event) {
+    event.stopPropagation();
+    if (!this.workspace) return;
+
+    if (!confirm(`Are you sure you want to delete plan "${fileName}"?`)) return;
+
+    const electron = (window as any).electronAPI;
+    const fullPath = this.workspace.folderPath + '/plans/' + fileName;
+
+    // Using uxDeleteDesign as a generic file/folder delete for now as it uses fs.rm
+    const result = await electron.uxDeleteDesign(fullPath);
+    if (result.success) {
+      await this.loadPlanFiles();
+    } else {
+      alert('Failed to delete plan: ' + result.error);
+    }
   }
 
   async openDesign(fileName?: string) {

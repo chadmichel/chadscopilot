@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -115,7 +115,8 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
             [workspaceId]="'plan-' + workspaceId"
             [folderPath]="workspace?.folderPath || ''"
             [contextProvider]="getPlanContext"
-            [hideJson]="true">
+            [hideJson]="true"
+            (fileSelected)="importProject($event)">
           </app-chat>
         </div>
 
@@ -148,10 +149,17 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                     </svg>
                     Add Resource
                   </button>
+                  <button class="toolbar-btn toolbar-btn-secondary" (click)="resetTracking()" title="Reset all activity completion">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                      <path d="M3 3v5h5"/>
+                    </svg>
+                    Reset Tracking
+                  </button>
                 </div>
 
-                @if (plan.resources.length > 0) {
-                  <div class="section-label">Resources</div>
+                <div class="resources-section" [style.height.px]="resourcesHeight">
+                  <div class="section-label">Resources ({{plan.resources.length}})</div>
                   <div class="table-wrapper">
                     <table class="data-table">
                       <thead>
@@ -185,11 +193,16 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                         }
                       </tbody>
                     </table>
+                    @if (plan.resources.length === 0) {
+                      <div class="empty-state">No resources defined. Add one to assign to activities.</div>
+                    }
                   </div>
-                }
+                </div>
 
-                <div class="section-label">Activities</div>
-                @if (plan.activities.length > 0) {
+                <div class="resizer-h" [class.resizing]="isResizingResources" (mousedown)="startResizingResources($event)"></div>
+
+                <div class="activities-section">
+                  <div class="section-label">Activities ({{plan.activities.length}})</div>
                   <div class="table-wrapper">
                     <table class="data-table">
                       <thead>
@@ -262,14 +275,15 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                                  </svg>
                                </button>
                              </td>
-                           </tr>
-                         }
+                          </tr>
+                        }
                       </tbody>
                     </table>
+                    @if (plan.activities.length === 0) {
+                      <div class="empty-state">No activities defined yet. Click "Add Activity" or ask the AI to generate some.</div>
+                    }
                   </div>
-                } @else {
-                  <div class="empty-state">No activities yet. Click "Add Activity" or ask the AI to generate a plan.</div>
-                }
+                </div>
               </div>
             }
 
@@ -617,10 +631,37 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     .activities-container {
       flex: 1;
       padding: 16px;
-      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      overflow: hidden; /* Let internal sections handle scroll */
+    }
+
+    .resources-section, .activities-section {
+      display: flex;
+      flex-direction: column;
+      min-height: 100px;
+      overflow: hidden;
+    }
+
+    .activities-section {
+      flex: 1;
+    }
+
+    .resizer-h {
+      height: 6px;
+      cursor: row-resize;
+      background: var(--app-border);
+      margin: 4px 0;
+      border-radius: 3px;
+      transition: background 0.2s, height 0.2s;
+      flex-shrink: 0;
+      width: 100%;
+    }
+
+    .resizer-h:hover, .resizer-h.resizing {
+      background: var(--theme-primary);
+      height: 8px;
     }
 
     .toolbar {
@@ -646,6 +687,15 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       border-color: var(--theme-primary);
       color: var(--theme-primary);
     }
+    .toolbar-btn-secondary {
+      background: transparent;
+      opacity: 0.8;
+      border-style: dashed;
+    }
+    .toolbar-btn-secondary:hover {
+      opacity: 1;
+      background: color-mix(in srgb, var(--theme-primary), transparent 95%);
+    }
 
     .section-label {
       font-size: 11px;
@@ -657,7 +707,9 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     }
 
     .table-wrapper {
-      overflow-x: auto;
+      flex: 1;
+      overflow: auto;
+      min-height: 0;
     }
 
     .data-table {
@@ -1260,10 +1312,34 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   ganttMinDate = '';
   ganttMaxDate = '';
   ganttZoom = 100;
+  resourcesHeight = 200;
+  isResizingResources = false;
+  private resizeStartY = 0;
+  private resizeStartHeight = 0;
   private ganttRangeMs = 1;
   private ganttStartMs = 0;
   private chatSub?: Subscription;
   private saveSubject = new Subject<void>();
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (this.isResizingResources) {
+      const deltaY = event.clientY - this.resizeStartY;
+      this.resourcesHeight = Math.max(80, this.resizeStartHeight + deltaY);
+    }
+  }
+
+  @HostListener('window:mouseup')
+  onMouseUp() {
+    this.isResizingResources = false;
+  }
+
+  startResizingResources(event: MouseEvent) {
+    this.isResizingResources = true;
+    this.resizeStartY = event.clientY;
+    this.resizeStartHeight = this.resourcesHeight;
+    event.preventDefault();
+  }
 
   getPlanContext = (): string => {
     const json = JSON.stringify(this.plan, null, 2);
@@ -1277,7 +1353,8 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     private workspaceService: WorkspaceService,
     private chatService: ChatService,
     private planEngine: PlanEngineService,
-    private planImport: PlanImportService
+    private planImport: PlanImportService,
+    private el: ElementRef
   ) {
     this.workspaceService.loadWorkspaces();
     this.saveSubject.pipe(debounceTime(1000)).subscribe(() => {
@@ -1285,33 +1362,49 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     });
   }
 
-  async importProject(): Promise<void> {
-    const file = await this.chatService.selectFile([
-      { name: 'MS Project XML', extensions: ['xml'] },
-      { name: 'MS Project MPP', extensions: ['mpp'] }
-    ]);
+  async importProject(existingFilePath?: string): Promise<void> {
+    let file = existingFilePath;
+    if (!file) {
+      const selected = await this.chatService.selectFile([
+        { name: 'MS Project Files (MPP, XML)', extensions: ['mpp', 'xml'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]);
+      file = selected || undefined;
+    }
 
     if (!file) return;
 
-    let finalXmlPath = file;
+    let finalPath = file;
+    let isJson = file.toLowerCase().endsWith('.json');
+    let isXml = file.toLowerCase().endsWith('.xml');
+
     if (file.toLowerCase().endsWith('.mpp')) {
-      const conversionAlert = alert('Converting MPP to XML... This might take a few seconds.');
+      alert('Converting MPP for processing... This might take a few seconds.');
       const result = await this.chatService.convertMppToXml(file);
       if (!result.success || !result.xmlPath) {
         alert('Failed to convert MPP: ' + result.error);
         return;
       }
-      finalXmlPath = result.xmlPath;
+      // User specifically asked to convert to XML then import the XML
+      finalPath = result.xmlPath;
+      isXml = true;
+      isJson = false;
     }
 
-    const content = await this.chatService.readFile(finalXmlPath);
+    const content = await this.chatService.readFile(finalPath);
     if (!content) {
-      alert('Failed to read file');
+      alert('Failed to read file: ' + finalPath);
       return;
     }
 
     try {
-      const importedData = this.planImport.parseMspdiXml(content);
+      let importedData;
+      if (isJson) {
+        importedData = this.planImport.parseMpxjJson(content);
+      } else {
+        // This handles both direct XML files and the XML generated from MPP
+        importedData = this.planImport.parseMspdiXml(content);
+      }
 
       // Basic merge/replace logic
       if (confirm(`Imported project with ${importedData.activities.length} activities and ${importedData.resources.length} resources. Replace current plan?`)) {
@@ -1326,7 +1419,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
       }
     } catch (err: any) {
       console.error(err);
-      alert('Error parsing XML: ' + err.message);
+      alert('Error parsing data: ' + err.message);
     }
   }
 
@@ -1512,6 +1605,18 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
       act.actualFinishDate = new Date().toISOString().split('T')[0];
       act.percentComplete = 100;
     }
+    this.markDirty();
+    this.recalculateDates();
+  }
+
+  resetTracking() {
+    if (!confirm('Are you sure you want to reset all tracking? This will set all activities to 0% complete and recalculate dates.')) return;
+
+    for (const act of this.plan.activities) {
+      act.percentComplete = 0;
+      act.actualFinishDate = undefined;
+    }
+
     this.markDirty();
     this.recalculateDates();
   }

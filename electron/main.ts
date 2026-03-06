@@ -803,21 +803,25 @@ function setupIPC(): void {
   });
 
   ipcMain.handle('mpp:convert-to-xml', async (_event, mppPath: string) => {
-    const xmlPath = mppPath + '.xml';
+    // Generate .xml and .json paths based on the .mpp path
+    const parsedPath = path.parse(mppPath);
+    const xmlPath = path.join(parsedPath.dir, parsedPath.name + '.xml');
+    const jsonPath = path.join(parsedPath.dir, parsedPath.name + '.json');
+
     const projectRoot = app.getAppPath();
     const scriptsDir = path.join(projectRoot, 'scripts/utils');
     const absoluteCp = `${scriptsDir}:${path.join(scriptsDir, '.mpp_venv/lib/python3.13/site-packages/mpxj/lib/*')}`;
 
     return new Promise((resolve) => {
-      console.log(`[IPC] Converting MPP: ${mppPath} using Java helper`);
-      exec(`java -cp "${absoluteCp}" MPPToXML "${mppPath}" "${xmlPath}"`, { cwd: scriptsDir }, (error, stdout, stderr) => {
+      console.log(`[IPC] Converting MPP: ${mppPath} to XML and JSON using Java helper`);
+      exec(`java -cp "${absoluteCp}" MPPConverter "${mppPath}"`, { cwd: scriptsDir }, (error, stdout, stderr) => {
         if (error) {
           console.error(`[IPC] MPP conversion error: ${error.message}`);
           console.error(`[IPC] Stderr: ${stderr}`);
           resolve({ success: false, error: stderr || error.message });
         } else {
-          console.log(`[IPC] MPP conversion success: ${xmlPath}`);
-          resolve({ success: true, xmlPath });
+          console.log(`[IPC] MPP conversion success: ${xmlPath}, ${jsonPath}`);
+          resolve({ success: true, xmlPath, jsonPath });
         }
       });
     });
