@@ -35,14 +35,22 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
           />
         </div>
         <div class="header-actions">
-           <button class="toolbar-btn" (click)="importProject()" title="Import MS Project (XML)">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-               <polyline points="17 8 12 3 7 8"/>
-               <line x1="12" y1="3" x2="12" y2="15"/>
-             </svg>
-             Import
-           </button>
+            <button class="toolbar-btn" (click)="importProject()" title="Import MS Project (XML/MPP)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Import
+            </button>
+            <button class="toolbar-btn" (click)="exportToXml()" title="Export MS Project XML">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export
+            </button>
            <button class="settings-btn" (click)="showSettings = true" title="Project Settings">
              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                <circle cx="12" cy="12" r="3"/>
@@ -1619,6 +1627,24 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
     this.markDirty();
     this.recalculateDates();
+  }
+
+  async exportToXml() {
+    const defaultName = (this.route.snapshot.queryParamMap.get('filePath') || 'export').split('/').pop()?.replace('.json', '') || 'my-project';
+    const { filePath } = await this.electron.showSaveDialog({
+      title: 'Export to MS Project XML',
+      defaultPath: `${defaultName}.xml`,
+      filters: [{ name: 'MS Project XML', extensions: ['xml'] }]
+    });
+
+    if (filePath) {
+      const result = await this.electron.exportMppXml(JSON.stringify(this.plan), filePath);
+      if (result.success) {
+        alert('Export successful: ' + filePath);
+      } else {
+        alert('Export failed: ' + result.error);
+      }
+    }
   }
 
   onActualFinishDateChange() {

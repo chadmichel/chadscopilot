@@ -323,6 +323,13 @@ function setupIPC(): void {
     }
   });
 
+  // Save dialog
+  ipcMain.handle('dialog:show-save', async (_event, options: any) => {
+    if (!mainWindow) return { filePath: undefined };
+    const result = await dialog.showSaveDialog(mainWindow, options);
+    return { filePath: result.canceled ? undefined : result.filePath };
+  });
+
   // --- Workspaces CRUD ---
   ipcMain.handle('db:get-workspaces', () => {
     if (!databaseService) return [];
@@ -825,6 +832,36 @@ function setupIPC(): void {
         }
       });
     });
+  });
+
+  ipcMain.handle('mpp:export-xml', async (_event, planJson: string, xmlPath: string) => {
+    const projectRoot = app.getAppPath();
+    const scriptsDir = path.join(projectRoot, 'scripts/utils');
+    const tempJsonPath = path.join(scriptsDir, `temp_export_${Date.now()}.json`);
+
+    try {
+      fs.writeFileSync(tempJsonPath, planJson, 'utf-8');
+      const absoluteCp = `${scriptsDir}:${path.join(scriptsDir, '.mpp_venv/lib/python3.13/site-packages/mpxj/lib/*')}`;
+
+      return new Promise((resolve) => {
+        const cmd = `java -cp "${absoluteCp}" MPPConverter --export "${tempJsonPath}" "${xmlPath}"`;
+        console.log(`[IPC] Exporting MPP XML: ${cmd}`);
+        exec(cmd, { cwd: scriptsDir }, (error, stdout, stderr) => {
+          if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+
+          if (error) {
+            console.error(`[IPC] MPP export error: ${error.message}`);
+            resolve({ success: false, error: stderr || error.message });
+          } else {
+            console.log(`[IPC] MPP export success: ${xmlPath}`);
+            resolve({ success: true, xmlPath });
+          }
+        });
+      });
+    } catch (err: any) {
+      if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+      return { success: false, error: err.message };
+    }
   });
 
   ipcMain.handle('fs:write-file', async (_event, filePath: string, content: string) => {

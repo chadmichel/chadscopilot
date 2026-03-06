@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFile: (filters?: { name: string; extensions: string[] }[]): Promise<string | null> =>
     ipcRenderer.invoke('dialog:select-file', filters),
 
+  showSaveDialog: (options: any): Promise<{ filePath: string | undefined }> =>
+    ipcRenderer.invoke('dialog:show-save', options),
+
   // --- Workspaces ---
   getWorkspaces: (): Promise<any[]> =>
     ipcRenderer.invoke('db:get-workspaces'),
@@ -217,6 +220,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   convertMppToXml: (mppPath: string): Promise<{ success: boolean; xmlPath?: string; error?: string }> =>
     ipcRenderer.invoke('mpp:convert-to-xml', mppPath),
+
+  exportMppXml: (planJson: string, xmlPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('mpp:export-xml', planJson, xmlPath),
 
   writeFile: (filePath: string, content: string): Promise<boolean> =>
     ipcRenderer.invoke('fs:write-file', filePath, content),
