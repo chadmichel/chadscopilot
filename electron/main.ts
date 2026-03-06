@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { app, BrowserWindow, ipcMain, dialog, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeImage, shell, screen } from 'electron';
 import { spawn, execSync, ChildProcess } from 'node:child_process';
 import path from 'path';
 import fs from 'node:fs';
@@ -21,6 +21,46 @@ import { RiderService } from './rider.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+interface WindowState {
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  isMaximized?: boolean;
+}
+
+function getWindowStatePath(): string {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function loadWindowState(): WindowState {
+  const defaultState = { width: 900, height: 700, isMaximized: false };
+  try {
+    if (!fs.existsSync(getWindowStatePath())) return defaultState;
+    const data = fs.readFileSync(getWindowStatePath(), 'utf-8');
+    const state = JSON.parse(data);
+
+    // Basic validation to ensure the window is somewhat visible
+    if (state.x !== undefined && state.y !== undefined) {
+      const point = { x: state.x, y: state.y };
+      const display = screen.getDisplayNearestPoint(point);
+      if (!display) return defaultState;
+    }
+
+    return state;
+  } catch (err) {
+    return defaultState;
+  }
+}
+
+function saveWindowState(bounds: WindowState): void {
+  try {
+    fs.writeFileSync(getWindowStatePath(), JSON.stringify(bounds));
+  } catch (err) {
+    console.error('Failed to save window state:', err);
+  }
+}
 
 // Set application name as early as possible (especially for macOS Dock/Menu)
 app.name = 'What is Done';
@@ -71,9 +111,14 @@ const uxProcesses = new Map<string, ChildProcess>();
 const designWatchers = new Map<string, fs.FSWatcher>();
 
 function createWindow(): void {
+  const windowState = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
+    x: windowState.x,
+    y: windowState.y,
+    width: windowState.width,
+    height: windowState.height,
+    show: false,
     minWidth: 400,
     minHeight: 300,
     webPreferences: {
@@ -85,6 +130,37 @@ function createWindow(): void {
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#1a1a1a',
   });
+
+  if (windowState.isMaximized) {
+    mainWindow.maximize();
+  }
+
+  mainWindow.show();
+
+  const saveState = () => {
+    if (!mainWindow) return;
+    const isMaximized = mainWindow.isMaximized();
+    if (!isMaximized) {
+      const bounds = mainWindow.getBounds();
+      windowState.x = bounds.x;
+      windowState.y = bounds.y;
+      windowState.width = bounds.width;
+      windowState.height = bounds.height;
+    }
+
+    saveWindowState({
+      x: windowState.x,
+      y: windowState.y,
+      width: windowState.width,
+      height: windowState.height,
+      isMaximized,
+    });
+  };
+
+  mainWindow.on('resize', saveState);
+  mainWindow.on('move', saveState);
+  mainWindow.on('maximize', saveState);
+  mainWindow.on('unmaximize', saveState);
 
   const isDev = !app.isPackaged;
   if (isDev) {
@@ -393,6 +469,94 @@ function setupIPC(): void {
     'github:get-org-projects',
     (_event, token: string, org: string) => {
       return gitHubService.getOrgProjects(token, org);
+    },
+  );
+
+  ipcMain.handle(
+    'github:get-org-repos',
+    (_event, token: string, org: string) => {
+      return gitHubService.getOrgRepos(token, org);
+    },
+  );
+
+  ipcMain.handle(
+    'github:sync-repo',
+    async (
+      _event,
+      token: string,
+      repoFullName: string,
+      toolId: string,
+      organization: string,
+    ) => {
+      if (!tasksService || !projectsService || !syncLogService) {
+        throw new Error('Services not initialized');
+      }
+
+      const [owner, repo] = repoFullName.split('/');
+      const projectTitle = repo;
+      const projectId = repoFullName; // Use full name as external ID for repos
+
+      const log = (level: string, message: string, detail = '') => {
+        console.log(`[RepoSync][${level}] ${message}${detail ? ': ' + detail : ''}`);
+        syncLogService!.add({ toolId, projectExternalId: projectId, projectTitle, level, message, detail });
+      };
+
+      log('info', 'Repo Sync started', `repo=${repoFullName}, org=${organization}`);
+
+      const items = await gitHubService.getRepoItems(token, owner, repo);
+      log('info', `GitHub API returned ${items.length} items (issues/PRs)`);
+
+      let created = 0;
+      let updated = 0;
+      for (const item of items) {
+        const externalId = item.id;
+        const existing = tasksService.getByExternalIdAndTool(externalId, toolId);
+
+        const mappedStatus = mapGitHubStatus(item.status);
+
+        const taskFields = {
+          title: item.title,
+          description: item.body || '',
+          externalId,
+          toolId,
+          status: mappedStatus,
+          notes: '',
+          workspaceId: '',
+          extra: JSON.stringify({
+            type: item.type,
+            url: item.url,
+            number: item.number,
+            githubRepo: repoFullName,
+          }),
+        };
+
+        if (existing) {
+          tasksService.update(existing.id, taskFields);
+          updated++;
+        } else {
+          tasksService.add(taskFields);
+          created++;
+        }
+      }
+
+      const existingProject = projectsService.getByExternalIdAndTool(projectId, toolId);
+      const now = new Date().toISOString();
+      if (existingProject) {
+        projectsService.update(existingProject.id, { lastSync: now });
+      } else {
+        projectsService.add({
+          name: projectTitle,
+          externalId: projectId,
+          toolId,
+          type: 'GithubRepo',
+          lastSync: now,
+          organizationId: organization,
+          organizationName: organization,
+        });
+      }
+
+      log('info', 'Repo Sync complete', `created=${created}, updated=${updated}, total=${items.length}`);
+      return { created, updated, total: items.length };
     },
   );
 
@@ -1117,7 +1281,12 @@ function setupIPC(): void {
 
   ipcMain.handle('analysis:run-full', async (_event, workspacePath: string, subFolder?: string) => {
     const analysisFolder = path.join(workspacePath, 'analysis');
+    const sendProgress = (progress: number, status: string) => {
+      _event.sender.send('analysis:progress', { progress, status });
+    };
+
     try {
+      sendProgress(5, 'Initializing folders...');
       if (!fs.existsSync(analysisFolder)) {
         await fs.promises.mkdir(analysisFolder, { recursive: true });
       }
@@ -1136,6 +1305,7 @@ function setupIPC(): void {
       };
 
       // 1. Technology Detection
+      sendProgress(15, 'Detecting Technologies...');
       const techFlags = [
         { file: 'package.json', name: 'Node.js/NPM' },
         { file: 'tsconfig.json', name: 'TypeScript' },
@@ -1152,6 +1322,7 @@ function setupIPC(): void {
       }
 
       // 2. Dependency Analysis (Node.js focus)
+      sendProgress(30, 'Analyzing Dependencies...');
       const pkgPath = path.join(workspacePath, 'package.json');
       if (fs.existsSync(pkgPath)) {
         try {
@@ -1162,6 +1333,7 @@ function setupIPC(): void {
       }
 
       // 3. SAST Scan (Recursive RegEx)
+      sendProgress(50, 'Security Scanning (SAST)...');
       const sastRules = [
         { name: 'Hardcoded Secret', regex: /(API_KEY|SECRET|PASSWORD|TOKEN)\s*[:=]\s*["'][^"']{8,}["']/i, severity: 'High' },
         { name: 'Unsafe Eval', regex: /\beval\s*\(/, severity: 'High' },
@@ -1201,15 +1373,30 @@ function setupIPC(): void {
       await walk(targetPath);
 
       // 4. Complexity (Lizard)
+      sendProgress(75, 'Running Complexity Analysis (Lizard)...');
       try {
         const { exec } = await import('node:child_process');
-        const lizardCmd = `lizard "${targetPath}"`;
+        // Exclude common heavy/non-code directories to prevent stalling/timeout
+        const exclusions = [
+          '*/node_modules/*',
+          '*/.git/*',
+          '*/dist/*',
+          '*/build/*',
+          '*/coverage/*',
+          '*/ios/*',
+          '*/android/*'
+        ].map(p => `-x "${p}"`).join(' ');
+
+        const lizardCmd = `lizard ${exclusions} "${targetPath}"`;
         console.log(`[IPC] Running lizard: ${lizardCmd}`);
-        const lizardOutput = await new Promise<string>((resolve, reject) => {
-          exec(lizardCmd, (err, stdout, stderr) => {
+
+        const lizardOutput = await new Promise<string>((resolve) => {
+          // Increase maxBuffer to 10MB and add a 5min timeout
+          exec(lizardCmd, { maxBuffer: 10 * 1024 * 1024, timeout: 300000 }, (err, stdout, stderr) => {
             if (err) {
+              const msg = err.killed ? 'Command timed out after 5 minutes' : (stderr || err.message);
               console.error('[IPC] Lizard exec error:', err, stderr);
-              resolve("Lizard analysis failed or not installed. Error: " + (stderr || err.message));
+              resolve("Lizard analysis failed or not installed. Error: " + msg);
             } else {
               resolve(stdout);
             }
@@ -1222,6 +1409,7 @@ function setupIPC(): void {
       }
 
       // 5. Generate HTML Report
+      sendProgress(95, 'Building Comprehensive Report...');
       const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -1440,6 +1628,17 @@ function setupIPC(): void {
   ipcMain.handle('time:update-notes', (_event, id: string, notes: string) => {
     if (!databaseService) throw new Error('Database service not initialized');
     return databaseService.updateTimeLogNotes(id, notes);
+  });
+
+  // --- Database Explorer (read-only) ---
+  ipcMain.handle('db:get-tables', () => {
+    if (!databaseService) return [];
+    return databaseService.getTableNames();
+  });
+
+  ipcMain.handle('db:query-table', (_event, tableName: string) => {
+    if (!databaseService) return { columns: [], rows: [] };
+    return databaseService.getTableRows(tableName);
   });
 }
 

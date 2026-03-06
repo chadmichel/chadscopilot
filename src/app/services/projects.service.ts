@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-export type ProjectType = 'GithubProject' | 'GithubIssues' | 'DevOps' | 'Jira';
+export type ProjectType = 'GithubProject' | 'GithubIssues' | 'DevOps' | 'Jira' | 'GithubRepo';
 
 export interface Project {
   id: string;

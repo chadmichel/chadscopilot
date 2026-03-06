@@ -8,6 +8,7 @@ import { ChatComponent } from '../chat/chat.component';
 import { ChatService } from '../chat/chat.service';
 import { WorkspaceService, Workspace } from '../services/workspace.service';
 import { PlanEngineService } from '../services/plan-engine.service';
+import { PlanImportService } from '../services/plan-import.service';
 import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
 
 @Component({
@@ -34,6 +35,14 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
           />
         </div>
         <div class="header-actions">
+           <button class="toolbar-btn" (click)="importProject()" title="Import MS Project (XML)">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+               <polyline points="17 8 12 3 7 8"/>
+               <line x1="12" y1="3" x2="12" y2="15"/>
+             </svg>
+             Import
+           </button>
            <button class="settings-btn" (click)="showSettings = true" title="Project Settings">
              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                <circle cx="12" cy="12" r="3"/>
@@ -1267,11 +1276,52 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private workspaceService: WorkspaceService,
     private chatService: ChatService,
-    private planEngine: PlanEngineService
+    private planEngine: PlanEngineService,
+    private planImport: PlanImportService
   ) {
+    this.workspaceService.loadWorkspaces();
     this.saveSubject.pipe(debounceTime(1000)).subscribe(() => {
       this.saveFile();
     });
+  }
+
+  async importProject(): Promise<void> {
+    const file = await this.chatService.selectFile([
+      { name: 'MS Project XML', extensions: ['xml'] },
+      { name: 'MS Project MPP', extensions: ['mpp'] }
+    ]);
+
+    if (!file) return;
+
+    if (file.toLowerCase().endsWith('.mpp')) {
+      alert('Direct .MPP parsing is coming soon. Please export your project to "MS Project XML" and import that for now.');
+      return;
+    }
+
+    const content = await this.chatService.readFile(file);
+    if (!content) {
+      alert('Failed to read file');
+      return;
+    }
+
+    try {
+      const importedData = this.planImport.parseMspdiXml(content);
+
+      // Basic merge/replace logic
+      if (confirm(`Imported project with ${importedData.activities.length} activities and ${importedData.resources.length} resources. Replace current plan?`)) {
+        this.plan = {
+          ...this.plan,
+          startDate: importedData.startDate,
+          resources: importedData.resources,
+          activities: importedData.activities
+        };
+        this.markDirty();
+        this.recalculateDates();
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Error parsing XML: ' + err.message);
+    }
   }
 
   async ngOnInit() {

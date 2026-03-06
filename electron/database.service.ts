@@ -12,6 +12,8 @@ export interface WorkspaceRow {
   taskToolId: string;
   taskToolExternalId: string;
   taskOrganization: string;
+  sourceHostToolId: string;
+  sourceHostRepoName: string;
   tools: string;
   extra: string;
   createdAt: string;
@@ -92,6 +94,21 @@ export interface DailySummaryRow {
   createdAt: string;
 }
 
+export interface PrRow {
+  id: string;
+  toolId: string;
+  repositoryName: string;
+  repositoryId: string;
+  prNumber: number;
+  timeToClose: number;
+  authorId: string;
+  authorName: string;
+  openDate: string;
+  closeDate: string;
+  commentCount: number;
+  linesOfCode: number;
+}
+
 export class DatabaseService {
   private db: DatabaseSync;
 
@@ -156,8 +173,9 @@ export class DatabaseService {
       )
     `);
 
-    // Migrate workspaces: add taskOrganization column
-    try { this.db.exec("ALTER TABLE workspaces ADD COLUMN taskOrganization TEXT DEFAULT ''"); } catch { /* already exists */ }
+    // Migrate workspaces: add sourceHostToolId, sourceHostRepoName columns
+    try { this.db.exec("ALTER TABLE workspaces ADD COLUMN sourceHostToolId TEXT DEFAULT ''"); } catch { /* already exists */ }
+    try { this.db.exec("ALTER TABLE workspaces ADD COLUMN sourceHostRepoName TEXT DEFAULT ''"); } catch { /* already exists */ }
 
     // Migrate tools: add organization column
     try { this.db.exec("ALTER TABLE tools ADD COLUMN organization TEXT DEFAULT ''"); } catch { /* already exists */ }
@@ -265,6 +283,24 @@ export class DatabaseService {
         createdAt TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+
+    // PRs table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS prs (
+        id TEXT PRIMARY KEY,
+        toolId TEXT DEFAULT '',
+        repositoryName TEXT DEFAULT '',
+        repositoryId TEXT DEFAULT '',
+        prNumber INTEGER DEFAULT 0,
+        timeToClose REAL DEFAULT 0,
+        authorId TEXT DEFAULT '',
+        authorName TEXT DEFAULT '',
+        openDate TEXT DEFAULT '',
+        closeDate TEXT DEFAULT '',
+        commentCount INTEGER DEFAULT 0,
+        linesOfCode INTEGER DEFAULT 0
+      )
+    `);
   }
 
   // --- Workspaces ---
@@ -272,7 +308,7 @@ export class DatabaseService {
   getAllWorkspaces(): WorkspaceRow[] {
     const stmt = this.db.prepare(
       `SELECT id, name, folderPath, description, editorToolId, taskToolId,
-              taskToolExternalId, taskOrganization, tools, extra, createdAt
+              taskToolExternalId, taskOrganization, sourceHostToolId, sourceHostRepoName, tools, extra, createdAt
        FROM workspaces ORDER BY createdAt DESC`
     );
     return stmt.all() as unknown as WorkspaceRow[];
@@ -287,14 +323,17 @@ export class DatabaseService {
     return {
       id, name, folderPath, createdAt,
       description: '', editorToolId: '', taskToolId: '',
-      taskToolExternalId: '', taskOrganization: '', tools: '[]', extra: '{}',
+      taskToolExternalId: '', taskOrganization: '',
+      sourceHostToolId: '', sourceHostRepoName: '',
+      tools: '[]', extra: '{}',
     };
   }
 
   updateWorkspace(id: string, fields: Partial<Omit<WorkspaceRow, 'id' | 'createdAt'>>): void {
     const allowed = [
       'name', 'folderPath', 'description', 'editorToolId',
-      'taskToolId', 'taskToolExternalId', 'taskOrganization', 'tools', 'extra',
+      'taskToolId', 'taskToolExternalId', 'taskOrganization',
+      'sourceHostToolId', 'sourceHostRepoName', 'tools', 'extra',
     ];
     const updates: string[] = [];
     const values: (string | number | null)[] = [];
@@ -359,6 +398,33 @@ export class DatabaseService {
       'INSERT INTO daily_summaries (date, summary) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET summary=excluded.summary'
     );
     stmt.run(date, summary);
+  }
+
+  // --- Database Explorer (read-only) ---
+
+  getTableNames(): string[] {
+    const stmt = this.db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    );
+    const rows = stmt.all() as unknown as { name: string }[];
+    return rows.map(r => r.name);
+  }
+
+  getTableRows(tableName: string): { columns: string[]; rows: Record<string, unknown>[] } {
+    // Validate table name to prevent SQL injection
+    const validTables = this.getTableNames();
+    if (!validTables.includes(tableName)) {
+      return { columns: [], rows: [] };
+    }
+
+    const colStmt = this.db.prepare(`PRAGMA table_info("${tableName}")`);
+    const colInfo = colStmt.all() as unknown as { name: string }[];
+    const columns = colInfo.map(c => c.name);
+
+    const dataStmt = this.db.prepare(`SELECT * FROM "${tableName}" LIMIT 1000`);
+    const rows = dataStmt.all() as unknown as Record<string, unknown>[];
+
+    return { columns, rows };
   }
 
   close(): void {

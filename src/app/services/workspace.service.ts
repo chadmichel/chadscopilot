@@ -28,6 +28,8 @@ export interface Workspace {
   taskToolId: string;
   taskToolExternalId: string;
   taskOrganization: string;
+  sourceHostToolId: string;
+  sourceHostRepoName: string;
   tools: string;
   extra: string;
   solutions?: EditorSolution[];
@@ -76,6 +78,8 @@ export class WorkspaceService {
           taskToolId: r.taskToolId || '',
           taskToolExternalId: r.taskToolExternalId || '',
           taskOrganization: r.taskOrganization || '',
+          sourceHostToolId: r.sourceHostToolId || '',
+          sourceHostRepoName: r.sourceHostRepoName || '',
           tools: r.tools || '[]',
           extra: r.extra || '{}',
           solutions: extra.solutions || [],
@@ -95,7 +99,9 @@ export class WorkspaceService {
     const workspace: Workspace = {
       id, name, folderPath,
       description: '', editorToolId: '', taskToolId: '',
-      taskToolExternalId: '', taskOrganization: '', tools: '[]', extra: '{}',
+      taskToolExternalId: '', taskOrganization: '',
+      sourceHostToolId: '', sourceHostRepoName: '',
+      tools: '[]', extra: '{}',
     };
     this.workspaces.push(workspace);
     return workspace;

@@ -32,7 +32,74 @@ export interface GitHubProjectItem {
   number: number | null;
 }
 
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  description: string;
+  updated_at: string;
+}
+
 export class GitHubService {
+  async getOrgRepos(token: string, org: string): Promise<GitHubRepo[]> {
+    try {
+      const response = await fetch(`https://api.github.com/orgs/${org}/repos?per_page=100&sort=updated`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'ChadsCopilot',
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json() as any[];
+      return data.map((repo) => ({
+        id: repo.id,
+        name: repo.name,
+        full_name: repo.full_name,
+        html_url: repo.html_url,
+        description: repo.description,
+        updated_at: repo.updated_at,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async getRepoItems(token: string, owner: string, repo: string): Promise<GitHubProjectItem[]> {
+    // Basic implementation to get issues and PRs for context
+    const allItems: GitHubProjectItem[] = [];
+    try {
+      const issuesResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?per_page=100&state=open`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'ChadsCopilot',
+        },
+      });
+
+      if (issuesResponse.ok) {
+        const issues = await issuesResponse.json() as any[];
+        for (const issue of issues) {
+          allItems.push({
+            id: String(issue.node_id || issue.id),
+            type: issue.pull_request ? 'PULL_REQUEST' : 'ISSUE',
+            title: issue.title,
+            body: issue.body || '',
+            status: issue.state,
+            url: issue.html_url,
+            number: issue.number,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch repo items', e);
+    }
+    return allItems;
+  }
+
   async checkConnectivity(token: string): Promise<ConnectivityResult> {
     try {
       const response = await fetch('https://api.github.com/user', {

@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
 import type { ProjectRow } from './database.service.js';
 
-export type ProjectType = 'GithubProject' | 'GithubIssues' | 'DevOps' | 'Jira';
+export type ProjectType = 'GithubProject' | 'GithubIssues' | 'DevOps' | 'Jira' | 'GithubRepo';
 
 export interface Project {
   id: string;

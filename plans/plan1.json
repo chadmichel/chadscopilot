@@ -1,0 +1,501 @@
+{
+  "startDate": "2026-03-05",
+  "resources": [
+    {
+      "id": "pm",
+      "name": "Project Manager",
+      "allocation": 1,
+      "daysOff": []
+    },
+    {
+      "id": "dev",
+      "name": "Developer",
+      "allocation": 1,
+      "daysOff": []
+    },
+    {
+      "id": "des",
+      "name": "Designer",
+      "allocation": 1,
+      "daysOff": []
+    }
+  ],
+  "activities": [
+    {
+      "id": "req",
+      "name": "Requirements Gathering",
+      "resourceId": "pm",
+      "resourceName": "Project Manager",
+      "durationDays": 3,
+      "priority": 5,
+      "dependsOn": [],
+      "color": "#1E90FF",
+      "percentComplete": 0,
+      "startDate": "2026-03-05",
+      "endDate": "2026-03-08",
+      "lateStartDate": "2026-03-05",
+      "lateFinishDate": "2026-03-10",
+      "float": 0,
+      "criticalPath": true
+    },
+    {
+      "id": "ui",
+      "name": "UI Design",
+      "resourceId": "des",
+      "resourceName": "Designer",
+      "durationDays": 4,
+      "priority": 4,
+      "dependsOn": [
+        "req"
+      ],
+      "color": "#32CD32",
+      "percentComplete": 0,
+      "startDate": "2026-03-08",
+      "endDate": "2026-03-14",
+      "lateStartDate": "2026-03-11",
+      "lateFinishDate": "2026-03-17",
+      "float": 1,
+      "criticalPath": false
+    },
+    {
+      "id": "be",
+      "name": "Backend Setup",
+      "resourceId": "dev",
+      "resourceName": "Developer",
+      "durationDays": 5,
+      "priority": 4,
+      "dependsOn": [
+        "req"
+      ],
+      "color": "#FFD700",
+      "percentComplete": 0,
+      "startDate": "2026-03-08",
+      "endDate": "2026-03-15",
+      "lateStartDate": "2026-03-10",
+      "lateFinishDate": "2026-03-17",
+      "float": 0,
+      "criticalPath": true
+    },
+    {
+      "id": "fe",
+      "name": "Frontend Development",
+      "resourceId": "dev",
+      "resourceName": "Developer",
+      "durationDays": 5,
+      "priority": 3,
+      "dependsOn": [
+        "ui",
+        "be"
+      ],
+      "color": "#FF69B4",
+      "percentComplete": 0,
+      "startDate": "2026-03-15",
+      "endDate": "2026-03-22",
+      "lateStartDate": "2026-03-17",
+      "lateFinishDate": "2026-03-24",
+      "float": 0,
+      "criticalPath": true
+    },
+    {
+      "id": "int",
+      "name": "Integration & Testing",
+      "resourceId": "pm",
+      "resourceName": "Project Manager",
+      "durationDays": 3,
+      "priority": 2,
+      "dependsOn": [
+        "fe"
+      ],
+      "color": "#8A2BE2",
+      "percentComplete": 0,
+      "startDate": "2026-03-22",
+      "endDate": "2026-03-27",
+      "lateStartDate": "2026-03-24",
+      "lateFinishDate": "2026-03-27",
+      "float": 0,
+      "criticalPath": true
+    },
+    {
+      "id": "launch",
+      "name": "Launch",
+      "resourceId": "pm",
+      "resourceName": "Project Manager",
+      "durationDays": 1,
+      "priority": 1,
+      "dependsOn": [
+        "int"
+      ],
+      "color": "#FF4500",
+      "percentComplete": 0,
+      "startDate": "2026-03-27",
+      "endDate": "2026-03-28",
+      "lateStartDate": "2026-03-27",
+      "lateFinishDate": "2026-03-28",
+      "float": 0,
+      "criticalPath": true
+    },
+    {
+      "id": "finish",
+      "name": "FINISH",
+      "resourceId": "",
+      "resourceName": "",
+      "durationDays": 0,
+      "startDate": "2026-03-28",
+      "endDate": "2026-03-29",
+      "dependsOn": [
+        "req",
+        "ui",
+        "be",
+        "fe",
+        "int",
+        "launch"
+      ],
+      "priority": -100,
+      "color": "#f44336",
+      "lateStartDate": "2026-03-28",
+      "lateFinishDate": "2026-03-29",
+      "float": 0,
+      "criticalPath": true
+    }
+  ],
+  "earnedValue": [
+    {
+      "date": "2026-03-05",
+      "projectedEarned": 1,
+      "projectedPercent": 4.76,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "req"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-06",
+      "projectedEarned": 2,
+      "projectedPercent": 9.52,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "req"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-07",
+      "projectedEarned": 3,
+      "projectedPercent": 14.29,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "req"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-08",
+      "projectedEarned": 3,
+      "projectedPercent": 14.29,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    },
+    {
+      "date": "2026-03-09",
+      "projectedEarned": 3,
+      "projectedPercent": 14.29,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    },
+    {
+      "date": "2026-03-10",
+      "projectedEarned": 5,
+      "projectedPercent": 23.81,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "ui",
+        "be"
+      ],
+      "resources": [
+        "des",
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-11",
+      "projectedEarned": 7,
+      "projectedPercent": 33.33,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "ui",
+        "be"
+      ],
+      "resources": [
+        "des",
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-12",
+      "projectedEarned": 9,
+      "projectedPercent": 42.86,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "ui",
+        "be"
+      ],
+      "resources": [
+        "des",
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-13",
+      "projectedEarned": 11,
+      "projectedPercent": 52.38,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "ui",
+        "be"
+      ],
+      "resources": [
+        "des",
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-14",
+      "projectedEarned": 12,
+      "projectedPercent": 57.14,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "be"
+      ],
+      "resources": [
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-15",
+      "projectedEarned": 12,
+      "projectedPercent": 57.14,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    },
+    {
+      "date": "2026-03-16",
+      "projectedEarned": 12,
+      "projectedPercent": 57.14,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    },
+    {
+      "date": "2026-03-17",
+      "projectedEarned": 13,
+      "projectedPercent": 61.9,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "fe"
+      ],
+      "resources": [
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-18",
+      "projectedEarned": 14,
+      "projectedPercent": 66.67,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "fe"
+      ],
+      "resources": [
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-19",
+      "projectedEarned": 15,
+      "projectedPercent": 71.43,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "fe"
+      ],
+      "resources": [
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-20",
+      "projectedEarned": 16,
+      "projectedPercent": 76.19,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "fe"
+      ],
+      "resources": [
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-21",
+      "projectedEarned": 17,
+      "projectedPercent": 80.95,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "fe"
+      ],
+      "resources": [
+        "dev"
+      ]
+    },
+    {
+      "date": "2026-03-22",
+      "projectedEarned": 17,
+      "projectedPercent": 80.95,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    },
+    {
+      "date": "2026-03-23",
+      "projectedEarned": 17,
+      "projectedPercent": 80.95,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    },
+    {
+      "date": "2026-03-24",
+      "projectedEarned": 18,
+      "projectedPercent": 85.71,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "int"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-25",
+      "projectedEarned": 19,
+      "projectedPercent": 90.48,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "int"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-26",
+      "projectedEarned": 20,
+      "projectedPercent": 95.24,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "int"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-27",
+      "projectedEarned": 21,
+      "projectedPercent": 100,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "launch"
+      ],
+      "resources": [
+        "pm"
+      ]
+    },
+    {
+      "date": "2026-03-28",
+      "projectedEarned": 21,
+      "projectedPercent": 100,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [
+        "finish"
+      ],
+      "resources": []
+    },
+    {
+      "date": "2026-03-29",
+      "projectedEarned": 21,
+      "projectedPercent": 100,
+      "actualEarned": 0,
+      "actualPercent": 0,
+      "activitiesFinished": [],
+      "activitiesWorked": [],
+      "resources": []
+    }
+  ],
+  "workWeek": [
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0
+  ],
+  "holidays": []
+}

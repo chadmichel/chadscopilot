@@ -15,6 +15,7 @@ import { UXDesignRunnerComponent } from './pages/ux-design-runner.component';
 import { TimeComponent } from './pages/time.component';
 import { BackupComponent } from './pages/backup.component';
 import { NoteEditorComponent } from './pages/note-editor.component';
+import { DatabaseComponent } from './pages/database.component';
 import { WorkspaceService } from './services/workspace.service';
 
 export const workspaceTitleResolver: ResolveFn<string> = (route: ActivatedRouteSnapshot) => {
@@ -44,4 +45,5 @@ export const routes: Routes = [
   { path: 'ux-design-runner', component: UXDesignRunnerComponent, title: 'UX Design Runner' },
   { path: 'time', component: TimeComponent, title: 'Time Tracker' },
   { path: 'backup', component: BackupComponent, title: 'Backup / Restore' },
+  { path: 'database', component: DatabaseComponent, title: 'Database' },
 ];

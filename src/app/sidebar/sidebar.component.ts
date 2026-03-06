@@ -47,6 +47,7 @@ export class SidebarComponent {
         items: [
           { label: 'Tools', route: '/tools', icon: 'tools' },
           { label: 'Preferences', route: '/preferences', icon: 'preferences' },
+          { label: 'Database', route: '/database', icon: 'database' },
           { label: 'Backup / Restore', route: '/backup', icon: 'backup' },
         ],
       },

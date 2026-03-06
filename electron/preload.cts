@@ -123,14 +123,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   githubGetOrgProjects: (token: string, org: string): Promise<{ id: string; title: string; number: number; url: string; closed: boolean }[]> =>
     ipcRenderer.invoke('github:get-org-projects', token, org),
 
+  githubGetOrgRepos: (token: string, org: string): Promise<any[]> =>
+    ipcRenderer.invoke('github:get-org-repos', token, org),
+
   githubSyncProject: (
     token: string, projectId: string, projectTitle: string,
     projectNumber: number, toolId: string, organization: string
   ): Promise<{ created: number; updated: number; total: number }> =>
     ipcRenderer.invoke('github:sync-project', token, projectId, projectTitle, projectNumber, toolId, organization),
 
+  githubSyncRepo: (token: string, repoFullName: string, toolId: string, organization: string): Promise<{ created: number; updated: number; total: number }> =>
+    ipcRenderer.invoke('github:sync-repo', token, repoFullName, toolId, organization),
+
   githubUnsyncProject: (projectExternalId: string, toolId: string): Promise<void> =>
     ipcRenderer.invoke('github:unsync-project', projectExternalId, toolId),
+
+  githubUnsyncRepo: (repoFullName: string, toolId: string): Promise<void> =>
+    ipcRenderer.invoke('github:unsync-project', repoFullName, toolId),
 
   githubUpdateItemStatus: (token: string, projectId: string, itemId: string, status: string): Promise<boolean> =>
     ipcRenderer.invoke('github:update-item-status', token, projectId, itemId, status),
@@ -266,6 +275,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analysisRunFull: (workspacePath: string, subFolder?: string): Promise<{ success: boolean; reportPath?: string; error?: string }> =>
     ipcRenderer.invoke('analysis:run-full', workspacePath, subFolder),
 
+  onAnalysisProgress: (callback: (data: { progress: number; status: string }) => void): (() => void) => {
+    const listener = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('analysis:progress', listener);
+    return () => ipcRenderer.removeListener('analysis:progress', listener);
+  },
+
   // --- Calendar ---
   calendarLogin: (): Promise<string | null> =>
     ipcRenderer.invoke('calendar:login'),
@@ -301,4 +316,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('shell:open-external', url),
+
+  // --- Database Explorer (read-only) ---
+  dbGetTables: (): Promise<string[]> =>
+    ipcRenderer.invoke('db:get-tables'),
+
+  dbQueryTable: (tableName: string): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> =>
+    ipcRenderer.invoke('db:query-table', tableName),
 });

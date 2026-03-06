@@ -730,9 +730,11 @@ interface Tab {
 
                 @if (isAnalyzing) {
                   <div class="analyzing-state">
-                    <div class="spinner"></div>
-                    <p>Performing comprehensive scan...</p>
-                    <span style="font-size: 11px; color: var(--app-text-muted);">Tech Detection • Complexity • Dependencies • SAST</span>
+                    <div style="width: 100%; height: 8px; background: var(--app-border); border-radius: 4px; margin-bottom: 12px; overflow: hidden;">
+                      <div [style.width.%]="analysisProgress" style="height: 100%; background: var(--theme-primary); transition: width 0.3s ease;"></div>
+                    </div>
+                    <p style="font-weight: 500; font-size: 14px; margin-bottom: 4px;">{{ analysisStatus }}</p>
+                    <span style="font-size: 11px; color: var(--app-text-muted);">{{ analysisProgress }}% Complete</span>
                   </div>
                 } @else if (analysisError) {
                   <div class="error-box" style="margin-top: 10px; margin-bottom: 10px; color: #ef4444; font-size: 12px;">
@@ -1688,6 +1690,9 @@ interface Tab {
         border: 1px solid var(--app-border);
         border-radius: 12px;
         width: 400px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
       }
       .dialog-header {
@@ -1722,6 +1727,8 @@ interface Tab {
       }
       .dialog-body {
         padding: 20px;
+        overflow-y: auto;
+        flex: 1;
       }
       .form-group {
         display: flex;
@@ -2249,6 +2256,8 @@ export class WorkspaceDetailComponent implements OnInit {
   analysisDeps: { python: boolean, lizard: boolean } | null = null;
   analysisError: string | null = null;
   lastAnalysisReportPath: string | null = null;
+  analysisProgress = 0;
+  analysisStatus = '';
 
   showAgentFlowDialog = false;
   editingAgentIndex: number | null = null;
@@ -2631,14 +2640,28 @@ export class WorkspaceDetailComponent implements OnInit {
     this.isAnalyzing = true;
     this.analysisError = null;
     this.lastAnalysisReportPath = null;
+    this.analysisProgress = 0;
+    this.analysisStatus = 'Starting...';
+
     const electron = (window as any).electronAPI;
-    const result = await electron.analysisRunFull(this.workspace.folderPath, this.analysisSubFolder);
-    this.isAnalyzing = false;
-    if (result.success) {
-      this.lastAnalysisReportPath = result.reportPath!;
-      await this.loadAnalysisReports();
-    } else {
-      this.analysisError = result.error;
+
+    // Listen for progress updates
+    const removeListener = electron.onAnalysisProgress((data: { progress: number; status: string }) => {
+      this.analysisProgress = data.progress;
+      this.analysisStatus = data.status;
+    });
+
+    try {
+      const result = await electron.analysisRunFull(this.workspace.folderPath, this.analysisSubFolder);
+      this.isAnalyzing = false;
+      if (result.success) {
+        this.lastAnalysisReportPath = result.reportPath!;
+        await this.loadAnalysisReports();
+      } else {
+        this.analysisError = result.error;
+      }
+    } finally {
+      removeListener();
     }
   }
 

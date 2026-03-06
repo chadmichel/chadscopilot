@@ -178,6 +178,37 @@ import { ProjectsService } from '../services/projects.service';
                 </select>
               </div>
             }
+
+            <div class="form-group border-top pt-3 mt-3">
+              <label>Source Host (GitHub)</label>
+              <select
+                [ngModel]="configWorkspace.sourceHostToolId"
+                (ngModelChange)="onSourceHostChange($event)"
+              >
+                <option value="">None</option>
+                @for (tool of taskTools; track tool.id) {
+                  @if (tool.toolType === 'repository') {
+                    <option [value]="tool.id">{{ tool.title }}</option>
+                  }
+                }
+              </select>
+            </div>
+
+            @if (configWorkspace.sourceHostToolId && configRepos.length > 0) {
+              <div class="form-group">
+                <label>Repository</label>
+                <select
+                  [ngModel]="configWorkspace.sourceHostRepoName"
+                  (ngModelChange)="configWorkspace.sourceHostRepoName = $event; configDirty = true"
+                >
+                  <option value="">None</option>
+                  @for (repo of configRepos; track repo.id) {
+                    <option [value]="repo.full_name">{{ repo.name }}</option>
+                  }
+                </select>
+              </div>
+            }
+
             <div class="modal-actions">
               <button class="cancel-btn" (click)="closeConfig()">Cancel</button>
               <button
@@ -293,6 +324,8 @@ import { ProjectsService } from '../services/projects.service';
         padding: 28px;
         width: 440px;
         max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
         animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -579,6 +612,7 @@ export class WorkspacesComponent implements OnInit {
   taskTools: Tool[] = [];
   configOrganizations: string[] = [];
   configProjects: { externalId: string; name: string }[] = [];
+  configRepos: any[] = [];
   configSolutions: EditorSolution[] = [];
 
   constructor(
@@ -660,6 +694,10 @@ export class WorkspacesComponent implements OnInit {
         await this.loadProjectsForOrg(workspace.taskToolId, workspace.taskOrganization);
       }
     }
+
+    if (workspace.sourceHostToolId) {
+      await this.loadReposForTool(workspace.sourceHostToolId);
+    }
   }
 
   async pickSolutionFolder(index: number): Promise<void> {
@@ -727,6 +765,21 @@ export class WorkspacesComponent implements OnInit {
     }
   }
 
+  async onSourceHostChange(toolId: string): Promise<void> {
+    if (!this.configWorkspace) return;
+    this.configWorkspace.sourceHostToolId = toolId;
+    this.configWorkspace.sourceHostRepoName = '';
+    this.configDirty = true;
+    this.configRepos = [];
+    if (toolId) {
+      await this.loadReposForTool(toolId);
+      // Auto-select if only one repo
+      if (this.configRepos.length === 1) {
+        this.configWorkspace.sourceHostRepoName = this.configRepos[0].full_name;
+      }
+    }
+  }
+
   private async loadOrganizationsForTool(toolId: string): Promise<void> {
     const projects = await this.projectsService.getByToolId(toolId);
     const orgs = new Set<string>();
@@ -746,6 +799,13 @@ export class WorkspacesComponent implements OnInit {
       .map(p => ({ externalId: p.externalId, name: p.name }));
   }
 
+  private async loadReposForTool(toolId: string): Promise<void> {
+    const projects = await this.projectsService.getByToolId(toolId);
+    this.configRepos = projects
+      .filter(p => p.type === 'GithubRepo')
+      .map(p => ({ id: p.id, name: p.name, full_name: p.externalId }));
+  }
+
   async saveConfig(): Promise<void> {
     if (!this.configWorkspace || !this.configDirty) return;
 
@@ -759,6 +819,8 @@ export class WorkspacesComponent implements OnInit {
       taskToolId: this.configWorkspace.taskToolId,
       taskOrganization: this.configWorkspace.taskOrganization,
       taskToolExternalId: this.configWorkspace.taskToolExternalId,
+      sourceHostToolId: this.configWorkspace.sourceHostToolId,
+      sourceHostRepoName: this.configWorkspace.sourceHostRepoName,
       extra: JSON.stringify({ solutions: activeSolutions })
     });
     this.closeConfig();

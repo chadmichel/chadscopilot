@@ -343,6 +343,44 @@ import { ToolSettingsService, Tool } from '../services/tool-settings.service';
             </div>
           }
 
+          <!-- Repos for this organization -->
+          @if (isGitHubTool() && tool.organization && toolRepos.length > 0) {
+            <div class="orgs-section">
+              <label>Repositories in {{ tool.organization }}</label>
+              <div class="orgs-list">
+                @for (repo of toolRepos; track repo.id) {
+                  <div class="project-row flat" [class.synced]="syncedRepoIds.has(repo.full_name)">
+                    <span class="project-name">{{ repo.name }}</span>
+                    @if (syncingRepoId === repo.full_name) {
+                      <span class="sync-status syncing">
+                        <span class="spinner"></span>
+                        Syncing...
+                      </span>
+                    } @else if (syncedRepoIds.has(repo.full_name)) {
+                      <span class="sync-status synced-label">Synced</span>
+                    }
+                    <button
+                      class="toggle-btn"
+                      [class.enabled]="syncedRepoIds.has(repo.full_name)"
+                      [disabled]="syncingRepoId === repo.full_name"
+                      (click)="toggleRepoSync(repo)"
+                    >
+                      <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                      </div>
+                    </button>
+                  </div>
+                }
+              </div>
+              @if (syncError) {
+                <div class="sync-error">{{ syncError }}</div>
+              }
+              @if (syncResultMessage) {
+                <div class="sync-success">{{ syncResultMessage }}</div>
+              }
+            </div>
+          }
+
           <!-- Prompt -->
           @if (showField('prompt')) {
             <div class="form-group">
@@ -1249,10 +1287,13 @@ export class ToolConfigureComponent implements OnInit {
   connectivityUser = '';
   connectivityError = '';
   toolProjects: any[] = [];
+  toolRepos: any[] = [];
 
   // Project sync
   syncedProjectIds = new Set<string>();
   syncingProjectId: string | null = null;
+  syncedRepoIds = new Set<string>();
+  syncingRepoId: string | null = null;
   syncError: string | null = null;
   syncResultMessage: string | null = null;
 
@@ -1294,7 +1335,11 @@ export class ToolConfigureComponent implements OnInit {
 
       if (this.tool && this.isGitHubTool()) {
         this.checkCopilotAuth();
-        this.loadProjects();
+        if (this.tool.toolType === 'project management') {
+          this.loadProjects();
+        } else if (this.tool.toolType === 'repository') {
+          this.loadRepos();
+        }
         this.loadSyncedProjects();
       }
     }
@@ -1446,12 +1491,24 @@ export class ToolConfigureComponent implements OnInit {
     this.toolProjects = (projects || []).filter((p: any) => !p.closed);
   }
 
+  async loadRepos(): Promise<void> {
+    if (!this.tool?.organization || !this.tool?.token) {
+      this.toolRepos = [];
+      return;
+    }
+    const electron = (window as any).electronAPI;
+    if (!electron?.githubGetOrgRepos) return;
+    const repos = await electron.githubGetOrgRepos(this.tool.token, this.tool.organization);
+    this.toolRepos = repos || [];
+  }
+
   async loadSyncedProjects(): Promise<void> {
     if (!this.tool) return;
     const electron = (window as any).electronAPI;
     if (!electron?.getProjectsByTool) return;
     const synced = await electron.getProjectsByTool(this.tool.id);
-    this.syncedProjectIds = new Set((synced || []).map((p: any) => p.externalId));
+    this.syncedProjectIds = new Set((synced || []).filter((p: any) => p.type === 'GithubProject').map((p: any) => p.externalId));
+    this.syncedRepoIds = new Set((synced || []).filter((p: any) => p.type === 'GithubRepo').map((p: any) => p.externalId));
   }
 
   async toggleSync(project: any): Promise<void> {
@@ -1502,7 +1559,48 @@ export class ToolConfigureComponent implements OnInit {
   }
 
   isSyncing(project: any): boolean {
-    return this.syncingProjectId === project.id;
+    return this.syncingProjectId === project.id || this.syncingRepoId === project.full_name;
+  }
+
+  async toggleRepoSync(repo: any): Promise<void> {
+    if (!this.tool) return;
+    const electron = (window as any).electronAPI;
+    if (!electron) return;
+
+    const repoFullName = repo.full_name;
+
+    if (this.syncedRepoIds.has(repoFullName)) {
+      await electron.githubUnsyncRepo(repoFullName, this.tool.id);
+      this.syncedRepoIds = new Set(this.syncedRepoIds);
+      this.syncedRepoIds.delete(repoFullName);
+    } else {
+      this.syncingRepoId = repoFullName;
+      this.syncError = null;
+      this.syncResultMessage = null;
+      try {
+        const result = await electron.githubSyncRepo(
+          this.tool.token,
+          repoFullName,
+          this.tool.id,
+          this.tool.organization
+        );
+        if (result?.error) {
+          this.syncError = result.error;
+        }
+        if (result?.total >= 0) {
+          this.syncedRepoIds = new Set(this.syncedRepoIds);
+          this.syncedRepoIds.add(repoFullName);
+          this.syncResultMessage = `Synced ${result?.total || 0} issues/PRs from ${repo.name}`;
+        }
+      } catch (err: any) {
+        this.syncError = err?.message || 'Sync failed';
+      } finally {
+        this.syncingRepoId = null;
+        if (this.showLogPanel) {
+          await this.loadSyncLogs();
+        }
+      }
+    }
   }
 
   async toggleLogPanel(): Promise<void> {

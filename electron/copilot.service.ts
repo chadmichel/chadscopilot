@@ -247,7 +247,20 @@ export class CopilotService {
     entry.callbacks = callbacks;
 
     try {
-      await entry.session.sendAndWait({ prompt: message });
+      try {
+        await entry.session.sendAndWait({ prompt: message });
+      } catch (err: any) {
+        // If session is lost, try one retry
+        if (err.message?.includes('Session not found')) {
+          console.log(`[Copilot] Session lost for ${workspaceId}, recreating...`);
+          this.sessions.delete(workspaceId);
+          entry = await this.getOrCreateSession(workspaceId, folderPath);
+          entry.callbacks = callbacks;
+          await entry.session.sendAndWait({ prompt: message });
+        } else {
+          throw err;
+        }
+      }
       callbacks.onComplete();
     } catch (err: unknown) {
       const errorMessage =
