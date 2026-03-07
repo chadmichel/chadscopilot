@@ -21,6 +21,7 @@ export interface PlanActivity {
     value?: number;
     percentComplete?: number; // 0-100
     actualFinishDate?: string; // YYYY-MM-DD
+    partialProgress?: { date: string; percentComplete: number }[];
 }
 
 export interface EarnedValueEntry {
@@ -41,4 +42,6 @@ export interface PlanData {
     earnedValue: EarnedValueEntry[];
     workWeek?: number[]; // [Sun, Mon, Tue, Wed, Thu, Fri, Sat] - values 0-1
     holidays?: string[]; // YYYY-MM-DD
+    hideValueColumn?: boolean;
+    durationLabel?: string;
 }

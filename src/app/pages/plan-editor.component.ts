@@ -94,7 +94,10 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
               <div class="form-group" style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                   <label>Holidays</label>
-                  <button class="toolbar-btn" style="padding: 2px 8px; font-size: 11px;" (click)="addHoliday()">+ Add</button>
+                  <div style="display: flex; gap: 4px;">
+                    <button class="toolbar-btn" style="padding: 2px 8px; font-size: 11px;" (click)="addCommonHolidays()" title="Add Christmas, Thanksgiving, etc. for this year">Add Common</button>
+                    <button class="toolbar-btn" style="padding: 2px 8px; font-size: 11px;" (click)="addHoliday()">+ Add</button>
+                  </div>
                 </div>
                 <div class="holidays-list">
                   @for (h of plan.holidays; track h; let i = $index) {
@@ -112,6 +115,18 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                   }
                 </div>
               </div>
+
+              <div class="form-group" style="margin-top: 20px;">
+                  <label for="durationLabel">Duration Column Label</label>
+                  <input id="durationLabel" type="text" class="form-input" [(ngModel)]="plan.durationLabel" placeholder="Duration" (ngModelChange)="markDirty()" />
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                  <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: normal; text-transform: none; color: var(--app-text);">
+                    <input type="checkbox" [(ngModel)]="plan.hideValueColumn" (ngModelChange)="markDirty(); recalculateDates()" />
+                    Hide Value Column (Assume Duration)
+                  </label>
+                </div>
             </div>
           </div>
         </div>
@@ -218,8 +233,10 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                           <th>Name</th>
                           <th>Resource</th>
                            <th style="width:70px">Priority</th>
-                           <th style="width:90px">Duration</th>
-                           <th style="width:70px">Value</th>
+                           <th style="width:90px">{{ plan.durationLabel || 'Duration' }}</th>
+                           @if (!plan.hideValueColumn) {
+                             <th style="width:70px">Value</th>
+                           }
                            <th style="width:130px">Start Date</th>
                            <th style="width:130px">End Date</th>
                            <th style="width:200px">Depends On</th>
@@ -242,7 +259,9 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                             </td>
                              <td><input class="cell-input" type="number" [(ngModel)]="act.priority" (ngModelChange)="markDirty()" /></td>
                              <td><input class="cell-input" type="number" [(ngModel)]="act.durationDays" (ngModelChange)="markDirty()" min="0" /></td>
-                             <td><input class="cell-input" type="number" [(ngModel)]="act.value" (ngModelChange)="markDirty()" placeholder="Auto" /></td>
+                             @if (!plan.hideValueColumn) {
+                               <td><input class="cell-input" type="number" [(ngModel)]="act.value" (ngModelChange)="markDirty()" placeholder="Auto" /></td>
+                             }
                             <td><span class="date-read-only">{{ act.startDate }}</span></td>
                             <td><span class="date-read-only">{{ act.endDate }}</span></td>
                             <td>
@@ -388,13 +407,37 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
 
             @if (activeTab === 'tracking') {
               <div class="tracking-container">
+                <div class="filters-bar" style="display: flex; gap: 16px; margin-bottom: 20px; padding: 12px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 11px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Resource:</label>
+                    <select class="cell-input" style="width: 150px;" [(ngModel)]="trackingFilterResource">
+                      <option value="">All Resources</option>
+                      @for (res of plan.resources; track res.id) {
+                        <option [value]="res.id">{{ res.name || 'Unnamed' }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 11px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Status:</label>
+                    <select class="cell-input" style="width: 150px;" [(ngModel)]="trackingFilterStatus">
+                      <option value="all">All Statuses</option>
+                      <option value="complete">Complete</option>
+                      <option value="partial">Partial</option>
+                      <option value="not-started">Not Started</option>
+                    </select>
+                  </div>
+                  <div style="flex: 1;"></div>
+                  <div style="font-size: 12px; color: var(--app-text-muted);">
+                    Showing <strong>{{ getVisibleActivities().length }}</strong> of {{ plan.activities.length - 1 }}
+                  </div>
+                </div>
                 <div class="table-wrapper">
                   <table class="data-table">
                     <thead>
                       <tr>
                         <th>Activity</th>
-                        <th style="width:150px">Status</th>
-                        <th style="width:200px">Actual Finish Date</th>
+                        <th style="width:280px">Status</th>
+                        <th style="width:180px">Actual Finish Date</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -402,11 +445,21 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                         <tr [class.is-complete]="!!act.actualFinishDate">
                           <td>{{ act.name }}</td>
                           <td>
-                            <button class="status-btn" 
-                                    [class.complete]="!!act.actualFinishDate"
-                                    (click)="toggleActivityComplete(act)">
-                              {{ !!act.actualFinishDate ? 'Completed' : 'Mark Complete' }}
-                            </button>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                              <div style="display: flex; gap: 6px;">
+                                <button class="status-btn" 
+                                        [class.complete]="!!act.actualFinishDate"
+                                        (click)="toggleActivityComplete(act)">
+                                  Complete
+                                </button>
+                                <button class="partial-btn" (click)="openPartialDialog(act)">
+                                  Partially Complete
+                                </button>
+                              </div>
+                              <span class="progress-badge" [class.is-done]="act.percentComplete === 100">
+                                {{ act.percentComplete || 0 }}%
+                              </span>
+                            </div>
                           </td>
                           <td>
                             <input class="cell-input" 
@@ -459,10 +512,52 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                 </div>
               </div>
             }
+      </div>
+    </div>
+
+    @if (showPartialDialog && currentPartialAct) {
+      <div class="dialog-overlay" (click)="showPartialDialog = false">
+        <div class="dialog" style="width: 450px;" (click)="$event.stopPropagation()">
+          <div class="dialog-header">
+            <h3>Partial Progress: {{ currentPartialAct.name }}</h3>
+            <button class="dialog-close" (click)="showPartialDialog = false">&times;</button>
+          </div>
+          <div class="dialog-body">
+            <p style="font-size: 13px; color: var(--app-text-muted); margin-bottom: 16px;">
+              Track incremental progress milestones. The latest date's percentage will be used as the overall activity status.
+            </p>
+            <div class="partial-rows" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+              @for (row of tempPartialRows; track $index) {
+                <div class="partial-row" style="display: flex; gap: 12px; align-items: center;">
+                  <div style="flex: 1;">
+                    <label style="font-size: 10px; text-transform: uppercase; color: var(--app-text-muted); display: block; margin-bottom: 4px;">Date</label>
+                    <input type="date" [(ngModel)]="row.date" class="cell-input" />
+                  </div>
+                  <div style="width: 80px;">
+                    <label style="font-size: 10px; text-transform: uppercase; color: var(--app-text-muted); display: block; margin-bottom: 4px;">% Done</label>
+                    <input type="number" [(ngModel)]="row.percentComplete" class="cell-input" min="0" max="100" />
+                  </div>
+                  <button class="remove-btn" (click)="removePartialRow($index)" style="margin-top: 18px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+            @if (tempPartialRows.length < 3) {
+              <button class="add-row-btn" (click)="addPartialRow()" style="width: 100%; padding: 10px; border: 1px dashed var(--app-border); background: transparent; color: var(--theme-primary); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;">
+                + Add Progress Row
+              </button>
+            }
+          </div>
+          <div class="dialog-footer" style="padding: 16px 20px; border-top: 1px solid var(--app-border); display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn-cancel" (click)="showPartialDialog = false">Cancel</button>
+            <button class="btn-confirm" (click)="savePartialProgress()">Save Progress</button>
           </div>
         </div>
       </div>
-    </div>
+    }
   `,
   styles: [`
     :host {
@@ -1237,6 +1332,37 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     .is-complete {
       background: color-mix(in srgb, var(--theme-primary), transparent 95%);
     }
+    .partial-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--app-border);
+      background: var(--app-background);
+      color: var(--theme-primary);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .partial-btn:hover {
+      background: color-mix(in srgb, var(--theme-primary), transparent 90%);
+      border-color: var(--theme-primary);
+    }
+    .progress-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 12px;
+      color: var(--app-text-muted);
+      min-width: 36px;
+      text-align: center;
+    }
+    .progress-badge.is-done {
+      background: var(--theme-primary);
+      color: white;
+      border-color: var(--theme-primary);
+    }
       /* Earned Value Chart */
     .ev-chart-container {
       flex: 1;
@@ -1312,7 +1438,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     activities: [],
     earnedValue: [],
     workWeek: [0, 1, 1, 1, 1, 1, 0],
-    holidays: []
+    holidays: this.getCommonHolidays(new Date().getFullYear()),
   };
   isDirty = false;
   showSettings = false;
@@ -1328,6 +1454,13 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   private ganttStartMs = 0;
   private chatSub?: Subscription;
   private saveSubject = new Subject<void>();
+
+  showPartialDialog = false;
+  currentPartialAct: PlanActivity | null = null;
+  tempPartialRows: { date: string; percentComplete: number }[] = [];
+
+  trackingFilterResource = '';
+  trackingFilterStatus: 'all' | 'complete' | 'partial' | 'not-started' = 'all';
 
   @HostListener('window:mousemove', ['$event'])
   onMouseMove(event: MouseEvent) {
@@ -1351,7 +1484,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
   getPlanContext = (): string => {
     const json = JSON.stringify(this.plan, null, 2);
-    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), color (hex string), optional "value" (numeric), "percentComplete" (0-100), and "actualFinishDate" (YYYY-MM-DD). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. Note: Activity properties "float" and "criticalPath" as well as the "earnedValue" array are automatically calculated and read-only; do not try to modify them. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies. Setting "actualFinishDate" is what calculates the "Actual Earned Value" in the project.`;
+    return `You are a project planning assistant. Here is the current plan:\n\`\`\`json\n${json}\n\`\`\`\n\nExplain what you are changing in plain text first, then ALWAYS end your response with the FULL updated plan JSON inside a single \`\`\`json code block. The JSON must have "startDate", "resources", "activities", "earnedValue", "workWeek", and "holidays" arrays. Activity start and end dates are automatically calculated. Each resource has: id, name, allocation (number 0-1), daysOff[]. Each activity has: id, name, resourceId, resourceName, durationDays, priority (higher is more important), dependsOn (string[] of activity ids), color (hex string), optional "value" (numeric), "percentComplete" (0-100), and "actualFinishDate" (YYYY-MM-DD). "workWeek" is an array of 7 numbers (0-1) for Sun-Sat. "holidays" is a string array of YYYY-MM-DD. "hideValueColumn" is a boolean that hides the Value column in the UI and forces calculations to use duration. "durationLabel" is an optional string to relabel the Duration column header. Do not try to modify read-only properties like "float", "criticalPath", or the "earnedValue" array. Also, an activity with id "finish" is automatically managed and should not be manually removed or edited in its dependencies. Setting "actualFinishDate" is what calculates the "Actual Earned Value" in the project.`;
   };
 
   private get electron() { return (window as any).electronAPI; }
@@ -1549,7 +1682,27 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   }
 
   getVisibleActivities(): PlanActivity[] {
-    return this.plan.activities.filter(a => a.id !== 'finish');
+    let activities = this.plan.activities.filter(a => a.id !== 'finish');
+
+    if (this.activeTab === 'tracking') {
+      // Apply Resource Filter
+      if (this.trackingFilterResource) {
+        activities = activities.filter(a => a.resourceId === this.trackingFilterResource);
+      }
+
+      // Apply Status Filter
+      if (this.trackingFilterStatus !== 'all') {
+        activities = activities.filter(a => {
+          const pct = a.percentComplete || 0;
+          if (this.trackingFilterStatus === 'complete') return pct === 100 && !!a.actualFinishDate;
+          if (this.trackingFilterStatus === 'partial') return pct > 0 && pct < 100;
+          if (this.trackingFilterStatus === 'not-started') return pct === 0 && !a.actualFinishDate;
+          return true;
+        });
+      }
+    }
+
+    return activities;
   }
 
   addActivity() {
@@ -1629,6 +1782,27 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     this.recalculateDates();
   }
 
+  addCommonHolidays() {
+    const year = this.plan.startDate ? new Date(this.plan.startDate).getFullYear() : new Date().getFullYear();
+    const common = this.getCommonHolidays(year);
+    const existing = new Set(this.plan.holidays || []);
+
+    let added = 0;
+    const currentHolidays = [...(this.plan.holidays || [])];
+    for (const h of common) {
+      if (!existing.has(h)) {
+        currentHolidays.push(h);
+        existing.add(h);
+        added++;
+      }
+    }
+
+    if (added > 0) {
+      this.plan.holidays = currentHolidays.sort();
+      this.markDirty();
+    }
+  }
+
   async exportToXml() {
     const defaultName = (this.route.snapshot.queryParamMap.get('filePath') || 'export').split('/').pop()?.replace('.json', '') || 'my-project';
     const { filePath } = await this.electron.showSaveDialog({
@@ -1645,6 +1819,44 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
         alert('Export failed: ' + result.error);
       }
     }
+  }
+
+  openPartialDialog(act: PlanActivity) {
+    this.currentPartialAct = act;
+    this.tempPartialRows = act.partialProgress ? JSON.parse(JSON.stringify(act.partialProgress)) : [];
+    this.showPartialDialog = true;
+  }
+
+  addPartialRow() {
+    if (this.tempPartialRows.length >= 3) return;
+    this.tempPartialRows.push({ date: new Date().toISOString().split('T')[0], percentComplete: 0 });
+  }
+
+  removePartialRow(index: number) {
+    this.tempPartialRows.splice(index, 1);
+  }
+
+  savePartialProgress() {
+    if (!this.currentPartialAct) return;
+    this.currentPartialAct.partialProgress = this.tempPartialRows;
+
+    // Update overall percent complete if rows exist
+    if (this.tempPartialRows.length > 0) {
+      const sorted = [...this.tempPartialRows].sort((a, b) => a.date.localeCompare(b.date));
+      const latest = sorted[sorted.length - 1];
+      this.currentPartialAct.percentComplete = latest.percentComplete;
+
+      // Auto-manage actualFinishDate based on percentage
+      if (latest.percentComplete === 100) {
+        this.currentPartialAct.actualFinishDate = latest.date;
+      } else {
+        this.currentPartialAct.actualFinishDate = undefined;
+      }
+    }
+
+    this.markDirty();
+    this.recalculateDates();
+    this.showPartialDialog = false;
   }
 
   onActualFinishDateChange() {
@@ -1830,5 +2042,41 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
       }
     });
     return ticks;
+  }
+
+  private getCommonHolidays(year: number): string[] {
+    const holidays: string[] = [];
+
+    // July 4th
+    holidays.push(`${year}-07-04`);
+
+    // Christmas
+    holidays.push(`${year}-12-25`);
+
+    // Memorial Day (Last Monday in May)
+    const memorialDay = new Date(year, 4, 31);
+    while (memorialDay.getDay() !== 1) memorialDay.setDate(memorialDay.getDate() - 1);
+    holidays.push(memorialDay.toISOString().split('T')[0]);
+
+    // Labor Day (First Monday in September)
+    const laborDay = new Date(year, 8, 1);
+    while (laborDay.getDay() !== 1) laborDay.setDate(laborDay.getDate() + 1);
+    holidays.push(laborDay.toISOString().split('T')[0]);
+
+    // Thanksgiving (4th Thursday in Nov)
+    const thanksgiving = new Date(year, 10, 1);
+    let count = 0;
+    while (count < 4) {
+      if (thanksgiving.getDay() === 4) count++;
+      if (count < 4) thanksgiving.setDate(thanksgiving.getDate() + 1);
+    }
+    holidays.push(thanksgiving.toISOString().split('T')[0]);
+
+    // Day after Thanksgiving
+    const dayAfter = new Date(thanksgiving);
+    dayAfter.setDate(dayAfter.getDate() + 1);
+    holidays.push(dayAfter.toISOString().split('T')[0]);
+
+    return holidays.sort();
   }
 }

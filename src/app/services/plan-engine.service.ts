@@ -246,7 +246,7 @@ export class PlanEngineService {
         let totalProjectValue = 0;
 
         plan.activities.forEach(act => {
-            const val = act.value ?? act.durationDays ?? 0;
+            const val = plan.hideValueColumn ? (act.durationDays ?? 0.1) : (act.value ?? act.durationDays ?? 0.1);
             totalProjectValue += val;
 
             if (!act.startDate || !act.endDate) return;
@@ -307,7 +307,8 @@ export class PlanEngineService {
 
             plan.activities.forEach(a => {
                 if (a.actualFinishDate === dateStr) {
-                    cumulativeActualValue += (a.value ?? a.durationDays ?? 0);
+                    const val = plan.hideValueColumn ? (a.durationDays ?? 0.1) : (a.value ?? a.durationDays ?? 0.1);
+                    cumulativeActualValue += val;
                 }
             });
 
