@@ -227,6 +227,25 @@ export class CalendarService {
         }
     }
 
+    async syncAllAccounts(): Promise<void> {
+        try {
+            const pca = this.createPCA();
+            const accounts = await pca.getTokenCache().getAllAccounts();
+            console.log(`[CalendarService] Auto-syncing ${accounts.length} accounts`);
+            for (const account of accounts) {
+                if (account.homeAccountId) {
+                    try {
+                        await this.syncEvents(account.homeAccountId);
+                    } catch (e) {
+                        console.error(`[CalendarService] Failed to sync account ${account.username}:`, e);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[CalendarService] syncAllAccounts failed:', err);
+        }
+    }
+
     getEvents(userId: string) {
         return this.db.prepare('SELECT * FROM calendars WHERE userId = ? ORDER BY start ASC').all(userId);
     }

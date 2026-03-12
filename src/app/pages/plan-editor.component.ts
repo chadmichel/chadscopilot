@@ -133,7 +133,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       }
 
       <div class="builder-body">
-        <div class="agent-side">
+        <div class="agent-side" [style.width.px]="agentSideWidth">
           <app-chat
             [workspaceId]="'plan-' + workspaceId"
             [folderPath]="workspace?.folderPath || ''"
@@ -142,6 +142,8 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
             (fileSelected)="importProject($event)">
           </app-chat>
         </div>
+
+        <div class="resizer-v" [class.resizing]="isResizingAgent" (mousedown)="startResizingAgent($event)"></div>
 
         <div class="editor-side">
           <div class="side-tabs">
@@ -179,6 +181,28 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                     </svg>
                     Reset Tracking
                   </button>
+                </div>
+
+                <div class="activities-filters" style="display: flex; gap: 12px; margin-bottom: 8px; padding: 10px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Resource:</label>
+                    <select class="cell-input" style="width: 140px; font-size: 12px;" [(ngModel)]="activityFilterResource">
+                      <option value="">All</option>
+                      @for (res of plan.resources; track res.id) {
+                        <option [value]="res.id">{{ res.name || 'Unnamed' }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Priority:</label>
+                    <input type="number" class="cell-input" style="width: 60px; font-size: 12px;" [(ngModel)]="activityFilterPriority" placeholder="All" />
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Duration:</label>
+                    <input type="number" class="cell-input" style="width: 60px; font-size: 12px;" [(ngModel)]="activityFilterDuration" placeholder="All" />
+                  </div>
+                  <div style="flex: 1;"></div>
+                  <button class="toolbar-btn" style="padding: 4px 8px; font-size: 10px;" (click)="activityFilterResource = ''; activityFilterPriority = null; activityFilterDuration = null;">Clear</button>
                 </div>
 
                 <div class="resources-section" [style.height.px]="resourcesHeight">
@@ -354,6 +378,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                                     [style.background-color]="act.color || '#4db6ac'"
                                     [style.border-color]="act.criticalPath ? '#f44336' : (act.color || '#4db6ac')"
                                     [class.critical-bar]="act.criticalPath"
+                                    (click)="openActivityDetail(act)"
                                     [attr.title]="act.name + ' (' + act.startDate + ' to ' + act.endDate + ') - Float: ' + act.float + 'd'">
                               <span class="gantt-bar-text">{{ act.name }} ({{ act.durationDays }}d)</span>
                             </div>
@@ -436,6 +461,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                     <thead>
                       <tr>
                         <th>Activity</th>
+                        <th style="width:150px">Resource</th>
                         <th style="width:280px">Status</th>
                         <th style="width:180px">Actual Finish Date</th>
                       </tr>
@@ -444,6 +470,9 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                       @for (act of getVisibleActivities(); track act.id) {
                         <tr [class.is-complete]="!!act.actualFinishDate">
                           <td>{{ act.name }}</td>
+                          <td>
+                             <div style="font-size: 12px; font-weight: 500;">{{ act.resourceName || '--' }}</div>
+                          </td>
                           <td>
                             <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                               <div style="display: flex; gap: 6px;">
@@ -478,6 +507,31 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
 
             @if (activeTab === 'ev-chart') {
               <div class="ev-chart-container">
+                <div class="chart-filters" style="margin-bottom: 24px; padding: 16px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 12px;">
+                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <label style="font-size: 11px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Include Resources in Chart:</label>
+                      <div style="display: flex; gap: 8px;">
+                        <button class="toolbar-btn" style="padding: 2px 8px; font-size: 10px;" (click)="selectAllEvResources()">All</button>
+                        <button class="toolbar-btn" style="padding: 2px 8px; font-size: 10px;" (click)="evFilterResources = []">None</button>
+                      </div>
+                    </div>
+                    <div class="resource-tags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                      @for (res of plan.resources; track res.id) {
+                        <button class="tag-btn" 
+                                [class.active]="evFilterResources.includes(res.id)"
+                                (click)="toggleEvResource(res.id)">
+                          {{ res.name || 'Unnamed' }}
+                        </button>
+                      }
+                      <button class="tag-btn" 
+                              [class.active]="evFilterResources.includes('unassigned')"
+                              (click)="toggleEvResource('unassigned')">
+                        Unassigned
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div class="chart-legend">
                   <div class="legend-item">
                     <span class="legend-color" style="background: var(--theme-primary)"></span>
@@ -512,8 +566,10 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                 </div>
               </div>
             }
+        </div>
       </div>
     </div>
+  </div>
 
     @if (showPartialDialog && currentPartialAct) {
       <div class="dialog-overlay" (click)="showPartialDialog = false">
@@ -554,6 +610,84 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
           <div class="dialog-footer" style="padding: 16px 20px; border-top: 1px solid var(--app-border); display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn-cancel" (click)="showPartialDialog = false">Cancel</button>
             <button class="btn-confirm" (click)="savePartialProgress()">Save Progress</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (showDetailDialog && currentDetailAct) {
+      <div class="dialog-overlay" (click)="showDetailDialog = false">
+        <div class="dialog" style="width: 500px;" (click)="$event.stopPropagation()">
+          <div class="dialog-header">
+            <h3>Activity Details</h3>
+            <button class="dialog-close" (click)="showDetailDialog = false">&times;</button>
+          </div>
+          <div class="dialog-body">
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div class="form-group">
+                <label>Name</label>
+                <input class="form-input" [(ngModel)]="currentDetailAct.name" />
+              </div>
+
+              <div style="display: flex; gap: 16px;">
+                <div class="form-group" style="flex: 1;">
+                  <label>Resource</label>
+                  <select class="form-input" [(ngModel)]="currentDetailAct.resourceId">
+                    <option value="">-- None --</option>
+                    @for (res of plan.resources; track res.id) {
+                      <option [value]="res.id">{{ res.name }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group" style="width: 100px;">
+                  <label>Duration (d)</label>
+                  <input type="number" class="form-input" [(ngModel)]="currentDetailAct.durationDays" min="0" />
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 16px;">
+                <div class="form-group" style="flex: 1;">
+                  <label>Priority</label>
+                  <input type="number" class="form-input" [(ngModel)]="currentDetailAct.priority" />
+                </div>
+                @if (!plan.hideValueColumn) {
+                  <div class="form-group" style="flex: 1;">
+                    <label>Value</label>
+                    <input type="number" class="form-input" [(ngModel)]="currentDetailAct.value" />
+                  </div>
+                }
+                <div class="form-group">
+                  <label>Color</label>
+                  <input type="color" [(ngModel)]="currentDetailAct.color" class="color-picker" style="width: 100%; height: 38px;" />
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 16px;">
+                <div class="form-group" style="flex: 1;">
+                  <label>Status (% Complete)</label>
+                  <input type="number" class="form-input" [(ngModel)]="currentDetailAct.percentComplete" min="0" max="100" />
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label>Actual Finish Date</label>
+                  <input type="date" class="form-input" [(ngModel)]="currentDetailAct.actualFinishDate" />
+                </div>
+              </div>
+
+              <div style="padding: 12px; background: var(--app-background); border-radius: 8px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <span style="color: var(--app-text-muted);">Calculated Start:</span>
+                  <span style="font-family: monospace; font-weight: 600;">{{ currentDetailAct.startDate }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: var(--app-text-muted);">Calculated End:</span>
+                  <span style="font-family: monospace; font-weight: 600;">{{ currentDetailAct.endDate }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dialog-footer" style="padding: 16px 20px; border-top: 1px solid var(--app-border); display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn-cancel" (click)="showDetailDialog = false">Cancel</button>
+            <button class="btn-confirm" (click)="saveActivityDetail()">Save Changes</button>
           </div>
         </div>
       </div>
@@ -671,13 +805,26 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     }
 
     .agent-side {
-      width: 400px;
       flex-shrink: 0;
       border-right: 1px solid var(--app-border);
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
+      min-width: 200px;
+    }
+
+    .resizer-v {
+      width: 4px;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 0.2s;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .resizer-v:hover, .resizer-v.resizing {
+      background: var(--theme-primary);
     }
 
     app-chat {
@@ -1002,7 +1149,7 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     .gantt-bar-col {
       flex: 1;
       position: relative;
-      height: 28px;
+      height: 48px; /* Increased from 28px */
       background: var(--app-surface);
       border-radius: 4px;
     }
@@ -1051,19 +1198,21 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
 
     .gantt-bar {
       position: absolute;
-      top: 4px;
-      height: 20px;
+      top: 6px;
+      height: 36px; /* Increased from 20px */
       background: color-mix(in srgb, var(--theme-primary), transparent 20%);
       border: 1px solid var(--theme-primary);
-      border-radius: 4px;
+      border-radius: 6px;
       min-width: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: left 0.2s, width 0.2s;
       overflow: hidden;
-      white-space: nowrap;
+      white-space: normal; /* Allow wrap */
+      padding: 0 4px;
       z-index: 1;
+      cursor: pointer;
     }
     
     .gantt-bar:hover {
@@ -1075,7 +1224,11 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       font-size: 10px;
       font-weight: 700;
       color: white;
-      white-space: nowrap;
+      line-height: 1.1;
+      text-align: center;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
     }
 
@@ -1303,6 +1456,28 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       white-space: nowrap;
     }
 
+    .tag-btn {
+      padding: 6px 14px;
+      background: var(--app-background);
+      color: var(--app-text-muted);
+      border: 1px solid var(--app-border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tag-btn:hover {
+      border-color: var(--theme-primary);
+      color: var(--app-text);
+    }
+    .tag-btn.active {
+      background: var(--theme-primary);
+      color: white;
+      border-color: var(--theme-primary);
+      box-shadow: 0 4px 12px rgba(var(--theme-primary-rgb, 0,0,0), 0.3);
+    }
+
     /* Earned Value tab */
     .ev-container, .tracking-container {
       flex: 1;
@@ -1462,17 +1637,38 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   trackingFilterResource = '';
   trackingFilterStatus: 'all' | 'complete' | 'partial' | 'not-started' = 'all';
 
+  activityFilterResource = '';
+  activityFilterPriority: number | null = null;
+  activityFilterDuration: number | null = null;
+
+  agentSideWidth = 400;
+  isResizingAgent = false;
+
+  showDetailDialog = false;
+  currentDetailAct: PlanActivity | null = null;
+
+  evFilterResources: string[] = []; // Array of selected resource IDs
+
   @HostListener('window:mousemove', ['$event'])
   onMouseMove(event: MouseEvent) {
     if (this.isResizingResources) {
       const deltaY = event.clientY - this.resizeStartY;
       this.resourcesHeight = Math.max(80, this.resizeStartHeight + deltaY);
     }
+    if (this.isResizingAgent) {
+      this.agentSideWidth = Math.max(200, Math.min(window.innerWidth - 300, event.clientX));
+    }
   }
 
   @HostListener('window:mouseup')
   onMouseUp() {
     this.isResizingResources = false;
+    this.isResizingAgent = false;
+  }
+
+  startResizingAgent(event: MouseEvent) {
+    this.isResizingAgent = true;
+    event.preventDefault();
   }
 
   startResizingResources(event: MouseEvent) {
@@ -1480,6 +1676,22 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     this.resizeStartY = event.clientY;
     this.resizeStartHeight = this.resourcesHeight;
     event.preventDefault();
+  }
+
+  toggleEvResource(id: string) {
+    const idx = this.evFilterResources.indexOf(id);
+    if (idx === -1) {
+      this.evFilterResources.push(id);
+    } else {
+      this.evFilterResources.splice(idx, 1);
+    }
+  }
+
+  selectAllEvResources() {
+    this.evFilterResources = [
+      ...this.plan.resources.map(r => r.id),
+      'unassigned'
+    ];
   }
 
   getPlanContext = (): string => {
@@ -1627,6 +1839,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
           holidays: parsed.holidays || [],
         };
         this.isDirty = false;
+        this.selectAllEvResources();
         this.recalculateDates();
       } catch {
         // invalid JSON file
@@ -1699,6 +1912,16 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
           if (this.trackingFilterStatus === 'not-started') return pct === 0 && !a.actualFinishDate;
           return true;
         });
+      }
+    } else if (this.activeTab === 'activities') {
+      if (this.activityFilterResource) {
+        activities = activities.filter(a => a.resourceId === this.activityFilterResource);
+      }
+      if (this.activityFilterPriority !== null) {
+        activities = activities.filter(a => a.priority === this.activityFilterPriority);
+      }
+      if (this.activityFilterDuration !== null) {
+        activities = activities.filter(a => a.durationDays === this.activityFilterDuration);
       }
     }
 
@@ -1864,6 +2087,23 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     this.recalculateDates();
   }
 
+  openActivityDetail(act: PlanActivity) {
+    this.currentDetailAct = JSON.parse(JSON.stringify(act)); // Edit a copy
+    this.showDetailDialog = true;
+  }
+
+  saveActivityDetail() {
+    if (!this.currentDetailAct) return;
+    const index = this.plan.activities.findIndex(a => a.id === this.currentDetailAct!.id);
+    if (index !== -1) {
+      this.plan.activities[index] = this.currentDetailAct;
+      this.onResourceSelect(this.plan.activities[index]);
+      this.markDirty();
+      this.recalculateDates();
+    }
+    this.showDetailDialog = false;
+  }
+
   getAvailableDependencies(act: PlanActivity): PlanActivity[] {
     return this.plan.activities.filter(a => a.id !== act.id && a.id !== 'finish' && !act.dependsOn.includes(a.id));
   }
@@ -1997,13 +2237,86 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     const height = 400;
     const points: string[] = [];
 
+    // Filter logic for multi-resource selection
+    let dataEntries = evs;
+    
+    // Check if we are filtering. If all project resources + unassigned are selected, we can skip complex filter.
+    // However, it's safer to always filter if anything is NOT selected.
+    const allIds = [...this.plan.resources.map(r => r.id), 'unassigned'];
+    const isFiltering = this.evFilterResources.length < allIds.length;
+
+    if (isFiltering) {
+      const activities = this.plan.activities.filter(a => {
+        const rid = a.resourceId || 'unassigned';
+        return this.evFilterResources.includes(rid);
+      });
+      
+      const totalVal = activities.reduce((sum, a) => sum + (this.plan.hideValueColumn ? (a.durationDays || 0.1) : (a.value ?? a.durationDays ?? 0.1)), 0);
+      
+      if (totalVal === 0) return ''; // No activities for selected resources
+
+      // Calculate cumulative values per date
+      let cumulativeProjected = 0;
+      let cumulativeActual = 0;
+      
+      const dailyProjected = new Map<string, number>();
+      activities.forEach(act => {
+        const val = this.plan.hideValueColumn ? (act.durationDays || 0.1) : (act.value ?? act.durationDays ?? 0.1);
+        if (!act.startDate || !act.endDate) return;
+
+        const startMs = new Date(act.startDate).getTime();
+        const endMs = new Date(act.endDate).getTime();
+        const dayMs = 24 * 60 * 60 * 1000;
+        
+        const workDays: string[] = [];
+        let tempMs = startMs;
+        const workWeek = this.plan.workWeek || [0, 1, 1, 1, 1, 1, 0];
+        const resource = this.plan.resources.find(r => r.id === act.resourceId);
+
+        while (tempMs < endMs) {
+          const d = new Date(tempMs);
+          const isoDate = d.toISOString().split('T')[0];
+          const dayOfWeek = d.getDay();
+          let isWorkDay = workWeek[dayOfWeek] > 0;
+          if (this.plan.holidays?.includes(isoDate)) isWorkDay = false;
+          if (resource?.daysOff?.includes(isoDate)) isWorkDay = false;
+          if (isWorkDay) workDays.push(isoDate);
+          tempMs += dayMs;
+        }
+
+        if (workDays.length > 0) {
+          const valPerDay = val / workDays.length;
+          workDays.forEach(d => dailyProjected.set(d, (dailyProjected.get(d) || 0) + valPerDay));
+        } else {
+          const finishDateStr = new Date(endMs - dayMs).toISOString().split('T')[0];
+          dailyProjected.set(finishDateStr, (dailyProjected.get(finishDateStr) || 0) + val);
+        }
+      });
+
+      dataEntries = evs.map(entry => {
+        cumulativeProjected += dailyProjected.get(entry.date) || 0;
+        
+        // Sum actuals for selected activities on this date
+        activities.forEach(a => {
+          if (a.actualFinishDate === entry.date) {
+            cumulativeActual += (this.plan.hideValueColumn ? (a.durationDays || 0.1) : (a.value ?? a.durationDays ?? 0.1));
+          }
+        });
+
+        return {
+          ...entry,
+          projectedPercent: (cumulativeProjected / totalVal) * 100,
+          actualPercent: (cumulativeActual / totalVal) * 100
+        };
+      });
+    }
+
     // For actuals, we only want to draw up to the last entry that has an actual percentage or is not in the future relative to "today"
-    // However, our data structure has actualPercent for every entry (defaulting to 0).
-    // Let's draw it as long as there is any activity in the "activitiesWorked" or "activitiesFinished" OR we have a non-zero actual.
     let lastValidIdx = -1;
     if (type === 'actual') {
-      for (let i = evs.length - 1; i >= 0; i--) {
-        if (evs[i].actualPercent > 0 || evs[i].activitiesWorked.length > 0 || evs[i].activitiesFinished.length > 0) {
+      for (let i = dataEntries.length - 1; i >= 0; i--) {
+        const ent = dataEntries[i];
+        if (ent.actualPercent > 0 || ent.activitiesWorked?.length > 0 || ent.activitiesFinished?.length > 0) {
           lastValidIdx = i;
           break;
         }
@@ -2011,12 +2324,12 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
       if (lastValidIdx === -1) return '';
     }
 
-    evs.forEach((ev, i) => {
+    dataEntries.forEach((ev, i) => {
       if (type === 'actual' && i > lastValidIdx) return;
 
-      const x = (i / (evs.length - 1)) * width;
+      const x = (i / (dataEntries.length - 1)) * width;
       const percent = type === 'projected' ? ev.projectedPercent : ev.actualPercent;
-      const y = height - (percent / 100) * height;
+      const y = height - (Math.min(100, percent) / 100) * height;
       points.push(`${x},${y}`);
     });
 

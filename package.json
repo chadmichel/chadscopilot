@@ -1,8 +1,9 @@
 {
   "name": "what-is-done",
   "productName": "What is Done",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Desktop chat application powered by GitHub Copilot SDK, built with Electron and Angular",
+  "author": "Chad Michel",
   "main": "dist-electron/main.js",
   "private": true,
   "type": "module",
@@ -13,7 +14,11 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "watch:electron": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
     "build": "ng build && tsc -p tsconfig.electron.json",
-    "build:prod": "ng build --configuration production && tsc -p tsconfig.electron.json"
+    "build:prod": "ng build --configuration production && tsc -p tsconfig.electron.json",
+    "clean": "rm -rf dist release dist-electron",
+    "make:mac": "npm run clean && npm run build:prod && electron-builder --mac",
+    "make:win": "npm run clean && npm run build:prod && electron-builder --win",
+    "check-space": "df -h . | awk 'NR==2 {print \"Available Space: \" $4}'"
   },
   "dependencies": {
     "@angular/animations": "^19.0.0",
@@ -40,8 +45,55 @@
     "@angular/compiler-cli": "^19.0.0",
     "concurrently": "^9.0.0",
     "electron": "^40.6.0",
+    "electron-builder": "^26.8.1",
     "electron-reload": "^2.0.0-alpha.1",
     "typescript": "~5.6.0",
     "wait-on": "^8.0.0"
+  },
+  "build": {
+    "appId": "com.chadmichel.whatisdone",
+    "productName": "What is Done",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist/chadscopilot/browser/**/*",
+      "package.json",
+      "icon.png"
+    ],
+    "mac": {
+      "target": [
+        "zip",
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "icon.png"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.png"
+    }
   }
 }

@@ -31,9 +31,13 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
         </div>
         <div class="header-right" style="-webkit-app-region: no-drag;">
           <div class="save-status" [class.dirty]="isDirty">
-            {{ isDirty ? 'Unsaved changes' : 'All changes saved' }}
+            @if (isSaving) {
+              Saving...
+            } @else {
+              {{ isDirty ? 'Unsaved changes' : 'All changes saved' }}
+            }
           </div>
-          <button class="save-btn" (click)="saveNote()" [disabled]="!isDirty">Save</button>
+          <button class="save-btn" (click)="saveNote()" [disabled]="!isDirty || isSaving">Save</button>
           <button class="dialog-close" (click)="closeWindow()" style="margin-left: 12px; background: transparent; border: none; color: var(--app-text-muted); cursor: pointer;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -326,6 +330,8 @@ export class NoteEditorComponent implements OnInit, OnDestroy {
   renderedContent: SafeHtml = '';
   activeTab: 'markdown' | 'preview' = 'markdown';
   isDirty: boolean = false;
+  isSaving: boolean = false;
+  private autoSaveInterval: any;
 
   agentWidth: number = 400;
   private isResizing = false;
@@ -343,10 +349,25 @@ export class NoteEditorComponent implements OnInit, OnDestroy {
       this.noteName = this.filePath.split('/').pop()?.replace('.md', '') || 'Untitled Note';
       await this.loadWorkspace();
       await this.loadNoteContent();
+      this.startAutoSave();
     });
   }
 
-  ngOnDestroy() { }
+  startAutoSave() {
+    if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
+    this.autoSaveInterval = setInterval(() => {
+      if (this.isDirty && !this.isSaving) {
+        console.log('[NoteEditor] Auto-saving changes...');
+        this.saveNote();
+      }
+    }, 10000);
+  }
+
+  ngOnDestroy() {
+    if (this.autoSaveInterval) {
+      clearInterval(this.autoSaveInterval);
+    }
+  }
 
   async loadWorkspace() {
     await this.workspaceService.getWorkspaces();
@@ -385,12 +406,14 @@ export class NoteEditorComponent implements OnInit, OnDestroy {
   }
 
   async saveNote() {
-    if (!this.isDirty) return;
+    if (!this.isDirty || this.isSaving) return;
+    this.isSaving = true;
     const electron = (window as any).electronAPI;
     const success = await electron.writeFile(this.filePath, this.noteContent);
     if (success) {
       this.isDirty = false;
     }
+    this.isSaving = false;
   }
 
   closeWindow() {

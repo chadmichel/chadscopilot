@@ -19,11 +19,15 @@ export class TimeService {
         this.isTracking = true;
         console.log('[TimeService] Starting background tracking (every 5 minutes)');
 
-        // Initial check
-        this.syncMeetingsToLogs().then(() => this.trackNow());
+        // Initial check: Sync with Microsoft Graph first, then process local logs
+        this.calendarService.syncAllAccounts().then(() => {
+            return this.syncMeetingsToLogs().then(() => this.trackNow());
+        });
 
         this.intervalId = setInterval(() => {
-            this.syncMeetingsToLogs().then(() => this.trackNow());
+            this.calendarService.syncAllAccounts().then(() => {
+                return this.syncMeetingsToLogs().then(() => this.trackNow());
+            });
         }, 5 * 60 * 1000); // 5 minutes
     }
 
