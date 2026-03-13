@@ -123,6 +123,12 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
 
                 <div class="form-group" style="margin-top: 20px;">
                   <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: normal; text-transform: none; color: var(--app-text);">
+                    <input type="checkbox" [(ngModel)]="plan.autoCalculate" (ngModelChange)="markDirty(); recalculateDates()" />
+                    Auto-calculate Dates (Recalculate on every change)
+                  </label>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                  <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: normal; text-transform: none; color: var(--app-text);">
                     <input type="checkbox" [(ngModel)]="plan.hideValueColumn" (ngModelChange)="markDirty(); recalculateDates()" />
                     Hide Value Column (Assume Duration)
                   </label>
@@ -183,27 +189,6 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                   </button>
                 </div>
 
-                <div class="activities-filters" style="display: flex; gap: 12px; margin-bottom: 8px; padding: 10px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; align-items: center;">
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Resource:</label>
-                    <select class="cell-input" style="width: 140px; font-size: 12px;" [(ngModel)]="activityFilterResource">
-                      <option value="">All</option>
-                      @for (res of plan.resources; track res.id) {
-                        <option [value]="res.id">{{ res.name || 'Unnamed' }}</option>
-                      }
-                    </select>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Priority:</label>
-                    <input type="number" class="cell-input" style="width: 60px; font-size: 12px;" [(ngModel)]="activityFilterPriority" placeholder="All" />
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Duration:</label>
-                    <input type="number" class="cell-input" style="width: 60px; font-size: 12px;" [(ngModel)]="activityFilterDuration" placeholder="All" />
-                  </div>
-                  <div style="flex: 1;"></div>
-                  <button class="toolbar-btn" style="padding: 4px 8px; font-size: 10px;" (click)="activityFilterResource = ''; activityFilterPriority = null; activityFilterDuration = null;">Clear</button>
-                </div>
 
                 <div class="resources-section" [style.height.px]="resourcesHeight">
                   <div class="section-label">Resources ({{plan.resources.length}})</div>
@@ -249,7 +234,30 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                 <div class="resizer-h" [class.resizing]="isResizingResources" (mousedown)="startResizingResources($event)"></div>
 
                 <div class="activities-section">
-                  <div class="section-label">Activities ({{plan.activities.length}})</div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div class="section-label" style="margin-bottom: 0;">Activities ({{plan.activities.length}})</div>
+                    
+                    <div class="activities-filters" style="display: flex; gap: 12px; padding: 6px 12px; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 8px; align-items: center;">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Resource:</label>
+                        <select class="cell-input" style="width: 120px; font-size: 11px; height: 28px;" [(ngModel)]="activityFilterResource">
+                          <option value="">All</option>
+                          @for (res of plan.resources; track res.id) {
+                            <option [value]="res.id">{{ res.name || 'Unnamed' }}</option>
+                          }
+                        </select>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Priority:</label>
+                        <input type="number" class="cell-input" style="width: 50px; font-size: 11px; height: 28px;" [(ngModel)]="activityFilterPriority" placeholder="All" />
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase;">Duration:</label>
+                        <input type="number" class="cell-input" style="width: 50px; font-size: 11px; height: 28px;" [(ngModel)]="activityFilterDuration" placeholder="All" />
+                      </div>
+                      <button class="toolbar-btn" style="padding: 2px 8px; font-size: 10px; height: 24px;" (click)="activityFilterResource = ''; activityFilterPriority = null; activityFilterDuration = null;">Clear</button>
+                    </div>
+                  </div>
                   <div class="table-wrapper">
                     <table class="data-table">
                       <thead>
@@ -339,9 +347,22 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
             }
 
             @if (activeTab === 'gantt') {
-              <div class="gantt-container">
+              <div class="gantt-container" [class.orientation-vertical]="ganttOrientation === 'vertical'">
                 <div class="gantt-toolbar">
                   <div class="zoom-controls">
+                    <label>Orientation</label>
+                    <div class="toggle-group" style="display: flex; gap: 4px; margin-right: 16px;">
+                      <button class="nav-btn" [class.active]="ganttOrientation === 'horizontal'" (click)="ganttOrientation = 'horizontal'" title="Horizontal View">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="9" width="18" height="6" rx="1"/>
+                        </svg>
+                      </button>
+                      <button class="nav-btn" [class.active]="ganttOrientation === 'vertical'" (click)="ganttOrientation = 'vertical'" title="Vertical View">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="9" y="3" width="6" height="18" rx="1"/>
+                        </svg>
+                      </button>
+                    </div>
                     <label>Zoom</label>
                     <input type="range" min="100" max="3000" step="100" [(ngModel)]="ganttZoom" />
                     <span class="zoom-label">{{ ganttZoom }}%</span>
@@ -351,41 +372,44 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                 @if (plan.activities.length > 0) {
                   <div class="gantt-scroll-area">
                     <div class="gantt-header-row">
-                      <div class="gantt-label-col">Resource</div>
-                      <div class="gantt-bar-col" [style.min-width.px]="8 * ganttZoom">
+                      <div class="gantt-label-col">{{ ganttOrientation === 'horizontal' ? 'Resource' : '' }}</div>
+                      <div class="gantt-bar-col" [style.min-width.px]="ganttOrientation === 'horizontal' ? 8 * ganttZoom : 'auto'" [style.min-height.px]="ganttOrientation === 'vertical' ? 8 * ganttZoom : 'auto'">
                         <div class="gantt-date-labels">
                           @for (tick of getGanttTicks(); track tick.dateSpace) {
-                            <div class="gantt-date-tick" [style.left.%]="tick.dateSpace">
+                            <div class="gantt-date-tick" 
+                                 [style.left.%]="ganttOrientation === 'horizontal' ? tick.dateSpace : 0"
+                                 [style.top.%]="ganttOrientation === 'vertical' ? tick.dateSpace : 0">
                               {{ tick.label }}
                             </div>
                           }
                         </div>
                       </div>
                     </div>
-                    @for (row of getGanttRows(); track row.resourceName) {
-                      <div class="gantt-row">
-                        <div class="gantt-label-col">{{ row.resourceName }}</div>
-                        <div class="gantt-bar-col" [style.min-width.px]="8 * ganttZoom">
-                          <div class="gantt-grid-lines">
-                            @for (tick of getGanttTicks(); track tick.dateSpace) {
-                              <div class="gantt-v-line" [style.left.%]="tick.dateSpace"></div>
+                    <div class="gantt-body">
+                      @for (row of getGanttRows(); track row.resourceName) {
+                        <div class="gantt-row">
+                          <div class="gantt-label-col clickable-resource" (click)="openResourceTasks(row.resourceName, row.activities)">{{ row.resourceName }}</div>
+                          <div class="gantt-bar-col" [style.min-width.px]="ganttOrientation === 'horizontal' ? 8 * ganttZoom : 'auto'" [style.min-height.px]="ganttOrientation === 'vertical' ? 8 * ganttZoom : 'auto'">
+                            <div class="gantt-grid-lines">
+                              @for (tick of getGanttTicks(); track tick.dateSpace) {
+                                <div class="gantt-v-line" 
+                                     [style.left.%]="ganttOrientation === 'horizontal' ? tick.dateSpace : 0"
+                                     [style.top.%]="ganttOrientation === 'vertical' ? tick.dateSpace : 0"></div>
+                              }
+                            </div>
+                            @for (act of row.activities; track act.id) {
+                              <div class="gantt-bar"
+                                   [ngStyle]="getGanttBarStyles(act)"
+                                   [class.critical-bar]="act.criticalPath"
+                                   (click)="openActivityDetail(act)"
+                                   [attr.title]="act.name + ' (' + act.startDate + ' to ' + act.endDate + ') - Float: ' + act.float + 'd'">
+                                <span class="gantt-bar-text">{{ act.name }} ({{ act.durationDays }}d)</span>
+                              </div>
                             }
                           </div>
-                          @for (act of row.activities; track act.id) {
-                            <div class="gantt-bar"
-                              [style.left.%]="getBarLeft(act)"
-                              [style.width.%]="getBarWidth(act)"
-                                    [style.background-color]="act.color || '#4db6ac'"
-                                    [style.border-color]="act.criticalPath ? '#f44336' : (act.color || '#4db6ac')"
-                                    [class.critical-bar]="act.criticalPath"
-                                    (click)="openActivityDetail(act)"
-                                    [attr.title]="act.name + ' (' + act.startDate + ' to ' + act.endDate + ') - Float: ' + act.float + 'd'">
-                              <span class="gantt-bar-text">{{ act.name }} ({{ act.durationDays }}d)</span>
-                            </div>
-                          }
                         </div>
-                      </div>
-                    }
+                      }
+                    </div>
                   </div>
                 } @else {
                   <div class="empty-state">No activities to display. Add activities in the Activities tab.</div>
@@ -410,8 +434,8 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                         </tr>
                       </thead>
                       <tbody>
-                        @for (ev of plan.earnedValue; track ev.date) {
-                          <tr>
+                        @for (ev of plan.earnedValue; track ev.date; let i = $index) {
+                          <tr class="clickable-row" (click)="openEVDetails(i)">
                             <td>{{ ev.date }}</td>
                             <td>{{ ev.projectedPercent }}%</td>
                             <td>{{ ev.projectedEarned }}</td>
@@ -463,7 +487,8 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                         <th>Activity</th>
                         <th style="width:150px">Resource</th>
                         <th style="width:280px">Status</th>
-                        <th style="width:180px">Actual Finish Date</th>
+                        <th style="width:140px">Actual Start</th>
+                        <th style="width:140px">Actual Finish</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -489,6 +514,12 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                                 {{ act.percentComplete || 0 }}%
                               </span>
                             </div>
+                          </td>
+                          <td>
+                            <input class="cell-input" 
+                                   type="date" 
+                                   [(ngModel)]="act.actualStartDate" 
+                                   (ngModelChange)="markDirty()" />
                           </td>
                           <td>
                             <input class="cell-input" 
@@ -562,14 +593,31 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
                     
                     <!-- Actual Line -->
                     <path [attr.d]="getEVChartPath('actual')" class="chart-line-actual" />
+
+                    <!-- Interaction Layer -->
+                    @if (plan.earnedValue.length > 1) {
+                      @for (ev of plan.earnedValue; track ev.date; let i = $index) {
+                        <rect 
+                          [attr.x]="(i / (plan.earnedValue.length - 1)) * 800 - (800 / (plan.earnedValue.length - 1) / 2)"
+                          y="0"
+                          [attr.width]="800 / (plan.earnedValue.length - 1)"
+                          height="400"
+                          fill="transparent"
+                          style="cursor: pointer;"
+                          (click)="openEVDetails(i)"
+                          class="chart-interaction-rect">
+                          <title>{{ ev.date }} - Click for details</title>
+                        </rect>
+                      }
+                    }
                   </svg>
                 </div>
               </div>
             }
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
     @if (showPartialDialog && currentPartialAct) {
       <div class="dialog-overlay" (click)="showPartialDialog = false">
@@ -664,13 +712,18 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
 
               <div style="display: flex; gap: 16px;">
                 <div class="form-group" style="flex: 1;">
-                  <label>Status (% Complete)</label>
-                  <input type="number" class="form-input" [(ngModel)]="currentDetailAct.percentComplete" min="0" max="100" />
+                  <label>Actual Start Date</label>
+                  <input type="date" class="form-input" [(ngModel)]="currentDetailAct.actualStartDate" />
                 </div>
                 <div class="form-group" style="flex: 1;">
                   <label>Actual Finish Date</label>
                   <input type="date" class="form-input" [(ngModel)]="currentDetailAct.actualFinishDate" />
                 </div>
+              </div>
+
+              <div class="form-group">
+                <label>Status (% Complete)</label>
+                <input type="number" class="form-input" [(ngModel)]="currentDetailAct.percentComplete" min="0" max="100" />
               </div>
 
               <div style="padding: 12px; background: var(--app-background); border-radius: 8px; font-size: 13px;">
@@ -688,6 +741,136 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
           <div class="dialog-footer" style="padding: 16px 20px; border-top: 1px solid var(--app-border); display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn-cancel" (click)="showDetailDialog = false">Cancel</button>
             <button class="btn-confirm" (click)="saveActivityDetail()">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (showEVDetailDialog && currentEVDetail) {
+      <div class="dialog-overlay" (click)="showEVDetailDialog = false">
+        <div class="dialog" style="width: 500px;" (click)="$event.stopPropagation()">
+          <div class="dialog-header">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <h3 style="margin: 0;">Changes for {{ currentEVDetail.date }}</h3>
+              <div style="display: flex; gap: 4px;">
+                <button class="nav-btn" (click)="navigateEV(-1)" [disabled]="currentEVIndex <= 0" title="Previous Day">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M15 18l-6-6 6-6"/>
+                  </svg>
+                </button>
+                <button class="nav-btn" (click)="navigateEV(1)" [disabled]="!plan.earnedValue || currentEVIndex >= plan.earnedValue.length - 1" title="Next Day">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <button class="dialog-close" (click)="showEVDetailDialog = false">&times;</button>
+          </div>
+          <div class="dialog-body" style="max-height: 500px; overflow: auto;">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              
+              <!-- Planned Contribution -->
+              <section>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                  <span style="width: 12px; height: 12px; border-radius: 3px; background: var(--theme-primary);"></span>
+                  <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: var(--app-text);">Planned Work</h4>
+                </div>
+                <div class="detail-list" style="display: flex; flex-direction: column; gap: 6px;">
+                  @for (item of currentEVDetail.plannedContributions; track item.id) {
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--app-background); border: 1px solid var(--app-border); border-radius: 6px;">
+                      <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 13px; font-weight: 600;">{{ item.name }}</span>
+                        <span style="font-size: 11px; color: var(--app-text-muted);">Resource: {{ item.resourceName || '--' }}</span>
+                      </div>
+                      <div style="text-align: right;">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--theme-primary);">+{{ item.valueContribution | number:'1.1-2' }}%</span>
+                      </div>
+                    </div>
+                  }
+                  @if (currentEVDetail.plannedContributions.length === 0) {
+                    <div style="font-size: 12px; color: var(--app-text-muted); text-align: center; padding: 10px;">No work planned for this day.</div>
+                  }
+                </div>
+              </section>
+
+              <!-- Earned Contribution -->
+              <section>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                  <span style="width: 12px; height: 12px; border-radius: 3px; background: #f44336;"></span>
+                  <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: var(--app-text);">Earned Value (Finished)</h4>
+                </div>
+                <div class="detail-list" style="display: flex; flex-direction: column; gap: 6px;">
+                  @for (item of currentEVDetail.earnedContributions; track item.id) {
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--app-background); border: 1px solid var(--app-border); border-radius: 6px;">
+                      <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 13px; font-weight: 600;">{{ item.name }}</span>
+                        <span style="font-size: 11px; color: var(--app-text-muted);">Resource: {{ item.resourceName || '--' }}</span>
+                      </div>
+                      <div style="text-align: right;">
+                        <span style="font-size: 12px; font-weight: 700; color: #f44336;">+{{ item.valueContribution | number:'1.1-2' }}%</span>
+                      </div>
+                    </div>
+                  }
+                  @if (currentEVDetail.earnedContributions.length === 0) {
+                    <div style="font-size: 12px; color: var(--app-text-muted); text-align: center; padding: 10px;">No activities finished on this day.</div>
+                  }
+                </div>
+              </section>
+
+              <div style="margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--app-border); display: flex; justify-content: space-between;">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 11px; color: var(--app-text-muted); text-transform: uppercase;">Total Projected</span>
+                  <span style="font-size: 16px; font-weight: 700; color: var(--app-text);">{{ currentEVDetail.projectedTotalPercent | number:'1.1-1' }}%</span>
+                </div>
+                <div style="display: flex; flex-direction: column; text-align: right;">
+                  <span style="font-size: 11px; color: var(--app-text-muted); text-transform: uppercase;">Total Actual</span>
+                  <span style="font-size: 16px; font-weight: 700; color: var(--app-text);">{{ currentEVDetail.actualTotalPercent | number:'1.1-1' }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dialog-footer" style="padding: 16px 20px; border-top: 1px solid var(--app-border); display: flex; justify-content: flex-end;">
+            <button class="btn-confirm" (click)="showEVDetailDialog = false">Close</button>
+          </div>
+        </div>
+      </div>
+    }
+    @if (showResourceTasksDialog && currentResourceTasks) {
+      <div class="dialog-overlay" (click)="showResourceTasksDialog = false">
+        <div class="dialog" style="width: 700px;" (click)="$event.stopPropagation()">
+          <div class="dialog-header">
+            <h3>Tasks for {{ currentResourceName }}</h3>
+            <button class="dialog-close" (click)="showResourceTasksDialog = false">&times;</button>
+          </div>
+          <div class="dialog-body" style="max-height: 500px; overflow-y: auto; padding: 0;">
+            <table class="data-table">
+              <thead style="position: sticky; top: 0; background: var(--app-surface); z-index: 1;">
+                <tr>
+                  <th style="text-align: left; padding: 12px 16px;">Task Name</th>
+                  <th style="width: 100px; text-align: left; padding: 12px 16px;">Start Date</th>
+                  <th style="width: 100px; text-align: left; padding: 12px 16px;">End Date</th>
+                  <th style="width: 80px; text-align: right; padding: 12px 16px;">Dur.</th>
+                  <th style="width: 100px; text-align: left; padding: 12px 16px;">Act. Start</th>
+                  <th style="width: 100px; text-align: left; padding: 12px 16px;">Act. Finish</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (task of currentResourceTasks; track task.id) {
+                  <tr>
+                    <td style="padding: 12px 16px;">{{ task.name }}</td>
+                    <td style="padding: 12px 16px; font-family: monospace; font-size: 11px;">{{ task.startDate }}</td>
+                    <td style="padding: 12px 16px; font-family: monospace; font-size: 11px;">{{ task.endDate }}</td>
+                    <td style="padding: 12px 16px; text-align: right;">{{ task.durationDays }}d</td>
+                    <td style="padding: 12px 16px; font-family: monospace; font-size: 11px; color: var(--theme-primary);">{{ task.actualStartDate || '-' }}</td>
+                    <td style="padding: 12px 16px; font-family: monospace; font-size: 11px; color: var(--theme-primary);">{{ task.actualFinishDate || '-' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="dialog-footer">
+            <button class="btn-confirm" (click)="showResourceTasksDialog = false">Close</button>
           </div>
         </div>
       </div>
@@ -944,7 +1127,34 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     }
     .toolbar-btn-secondary:hover {
       opacity: 1;
+      border-style: solid;
       background: color-mix(in srgb, var(--theme-primary), transparent 95%);
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: var(--app-background);
+      border: 1px solid var(--app-border);
+      color: var(--app-text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 0;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: var(--app-surface);
+      border-color: var(--theme-primary);
+      color: var(--theme-primary);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
     }
 
     .section-label {
@@ -983,6 +1193,17 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       padding: 4px 6px;
       border-bottom: 1px solid var(--app-border);
       vertical-align: middle;
+    }
+
+    .clickable-row {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .clickable-row:hover {
+      background: var(--app-surface);
+    }
+    .clickable-row:active {
+      background: color-mix(in srgb, var(--theme-primary), transparent 90%);
     }
 
     .cell-input {
@@ -1218,6 +1439,108 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
     .gantt-bar:hover {
       z-index: 10;
       background: var(--theme-primary);
+    }
+
+    /* Vertical Orientation */
+    .orientation-vertical .gantt-scroll-area {
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: auto;
+      padding: 0;
+      position: relative;
+    }
+    .orientation-vertical .gantt-header-row {
+      display: flex;
+      flex-direction: column;
+      width: 80px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--app-border);
+      background: var(--app-surface);
+      position: sticky;
+      left: 0;
+      z-index: 20;
+      margin: 0;
+      padding: 0;
+      border-bottom: none;
+    }
+    .orientation-vertical .gantt-body {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+    }
+    .orientation-vertical .gantt-row {
+      display: flex;
+      flex-direction: column;
+      width: 140px;
+      flex-shrink: 0;
+      margin: 0;
+      border-right: 1px solid var(--app-border);
+      border-bottom: none;
+      min-width: auto;
+      align-items: stretch;
+      min-height: 100%;
+    }
+    .orientation-vertical .gantt-label-col {
+      width: 100%;
+      height: 48px;
+      position: sticky;
+      top: 0;
+      left: auto;
+      z-index: 10;
+      background: var(--app-surface);
+      border-bottom: 1px solid var(--app-border);
+      border-right: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      font-size: 11px;
+    }
+    .orientation-vertical .gantt-header-row .gantt-label-col {
+      height: 48px;
+      background: var(--app-surface);
+      border-bottom: 1px solid var(--app-border);
+      z-index: 25;
+    }
+    .orientation-vertical .gantt-bar-col {
+      width: 100%;
+      border-radius: 0;
+      background: transparent;
+      flex: 1;
+    }
+    .orientation-vertical .gantt-date-labels {
+      height: 100%;
+      width: 100%;
+    }
+    .orientation-vertical .gantt-date-tick {
+      left: 0;
+      width: 100%;
+      transform: translateY(-50%);
+      text-align: right;
+      padding-right: 8px;
+      font-size: 9px;
+    }
+    .orientation-vertical .gantt-v-line {
+      top: auto;
+      bottom: auto;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 1px;
+    }
+    .orientation-vertical .gantt-bar {
+      left: 10%;
+      width: 80%;
+      flex-direction: column;
+      padding: 4px 2px;
+      transition: top 0.2s, height 0.2s;
+    }
+    .orientation-vertical .gantt-bar-text {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      white-space: nowrap;
+      font-size: 10px;
     }
 
     .gantt-bar-text {
@@ -1456,6 +1779,182 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       white-space: nowrap;
     }
 
+    .clickable-resource {
+      cursor: pointer;
+      color: var(--theme-primary);
+      text-decoration: underline;
+      text-decoration-color: transparent;
+      transition: all 0.2s;
+    }
+    .clickable-resource:hover {
+      text-decoration-color: var(--theme-primary);
+      background: color-mix(in srgb, var(--theme-primary), transparent 95%);
+    }
+
+    /* Dialog and Form Styling */
+    .dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .dialog {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .dialog-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--app-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dialog-header h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--app-text);
+      letter-spacing: -0.5px;
+    }
+
+    .dialog-close {
+      background: transparent;
+      border: none;
+      color: var(--app-text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 50%;
+      height: 32px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .dialog-close:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--app-text);
+    }
+
+    .dialog-body {
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .form-input {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: var(--app-text);
+      transition: all 0.2s;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .form-input:focus {
+      border-color: var(--theme-primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary), transparent 85%);
+    }
+
+    .color-picker {
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1.5px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .dialog-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--app-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn-cancel {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .btn-confirm {
+      padding: 10px 24px;
+      border-radius: 10px;
+      border: none;
+      background: var(--theme-primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-primary), transparent 70%);
+    }
+
+    .btn-confirm:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px color-mix(in srgb, var(--theme-primary), transparent 60%);
+    }
+
     .tag-btn {
       padding: 6px 14px;
       background: var(--app-background);
@@ -1503,6 +2002,9 @@ import { PlanData, PlanActivity, PlanResource } from '../models/plan.model';
       background: var(--theme-primary);
       color: white;
       border-color: var(--theme-primary);
+    }
+    .chart-interaction-rect:hover {
+      fill: rgba(255, 255, 255, 0.05);
     }
     .is-complete {
       background: color-mix(in srgb, var(--theme-primary), transparent 95%);
@@ -1614,6 +2116,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     earnedValue: [],
     workWeek: [0, 1, 1, 1, 1, 1, 0],
     holidays: this.getCommonHolidays(new Date().getFullYear()),
+    autoCalculate: true,
   };
   isDirty = false;
   showSettings = false;
@@ -1621,6 +2124,7 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
   ganttMinDate = '';
   ganttMaxDate = '';
   ganttZoom = 100;
+  ganttOrientation: 'horizontal' | 'vertical' = 'horizontal';
   resourcesHeight = 200;
   isResizingResources = false;
   private resizeStartY = 0;
@@ -1646,8 +2150,22 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
 
   showDetailDialog = false;
   currentDetailAct: PlanActivity | null = null;
+  
+  showResourceTasksDialog = false;
+  currentResourceTasks: PlanActivity[] = [];
+  currentResourceName = '';
 
   evFilterResources: string[] = []; // Array of selected resource IDs
+
+  showEVDetailDialog = false;
+  currentEVIndex = -1;
+  currentEVDetail: {
+    date: string;
+    plannedContributions: { id: string, name: string, resourceName: string, valueContribution: number }[];
+    earnedContributions: { id: string, name: string, resourceName: string, valueContribution: number }[];
+    projectedTotalPercent: number;
+    actualTotalPercent: number;
+  } | null = null;
 
   @HostListener('window:mousemove', ['$event'])
   onMouseMove(event: MouseEvent) {
@@ -1765,7 +2283,8 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
           ...this.plan,
           startDate: importedData.startDate,
           resources: importedData.resources,
-          activities: importedData.activities
+          activities: importedData.activities,
+          autoCalculate: false // Disable auto-calculate on import by default
         };
         this.markDirty();
         this.recalculateDates();
@@ -2092,6 +2611,12 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     this.showDetailDialog = true;
   }
 
+  openResourceTasks(resourceName: string, activities: PlanActivity[]) {
+    this.currentResourceName = resourceName;
+    this.currentResourceTasks = activities;
+    this.showResourceTasksDialog = true;
+  }
+
   saveActivityDetail() {
     if (!this.currentDetailAct) return;
     const index = this.plan.activities.findIndex(a => a.id === this.currentDetailAct!.id);
@@ -2169,6 +2694,31 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
     const end = new Date(act.endDate).getTime();
     const w = ((end - start) / this.ganttRangeMs) * 100;
     return Math.max(w, 1);
+  }
+
+  getGanttBarStyles(act: PlanActivity): any {
+    const leftOrTop = this.getBarLeft(act);
+    const widthOrHeight = this.getBarWidth(act);
+    
+    if (this.ganttOrientation === 'vertical') {
+      return {
+        'top': leftOrTop + '%',
+        'height': widthOrHeight + '%',
+        'left': '10%',
+        'width': '80%',
+        'background-color': act.color || '#4db6ac',
+        'border-color': act.criticalPath ? '#f44336' : (act.color || '#4db6ac'),
+        'position': 'absolute'
+      };
+    } else {
+      return {
+        'left': leftOrTop + '%',
+        'width': widthOrHeight + '%',
+        'background-color': act.color || '#4db6ac',
+        'border-color': act.criticalPath ? '#f44336' : (act.color || '#4db6ac'),
+        'position': 'absolute'
+      };
+    }
   }
 
   getGanttRows() {
@@ -2355,6 +2905,142 @@ export class PlanEditorComponent implements OnInit, OnDestroy {
       }
     });
     return ticks;
+  }
+
+  openEVDetails(index: number) {
+    const evs = this.plan.earnedValue || [];
+    if (index < 0 || index >= evs.length) return;
+
+    const entry = evs[index];
+    const allIds = [...this.plan.resources.map(r => r.id), 'unassigned'];
+    const isFiltering = this.evFilterResources.length < allIds.length;
+
+    // Filter focus
+    const filteredActivities = this.plan.activities.filter(a => {
+      const rid = a.resourceId || 'unassigned';
+      return isFiltering ? this.evFilterResources.includes(rid) : true;
+    });
+
+    const totalVal = filteredActivities.reduce((sum, a) => sum + (this.plan.hideValueColumn ? (a.durationDays || 0.1) : (a.value ?? a.durationDays ?? 0.1)), 0);
+    if (totalVal === 0) return;
+
+    // Planned contributions for this day
+    const planned: any[] = [];
+    filteredActivities.forEach(act => {
+      if (!act.startDate || !act.endDate) return;
+      const startMs = new Date(act.startDate).getTime();
+      const endMs = new Date(act.endDate).getTime();
+      const dayMs = 24 * 60 * 60 * 1000;
+      const workDays: string[] = [];
+      let tempMs = startMs;
+      const workWeek = this.plan.workWeek || [0, 1, 1, 1, 1, 1, 0];
+      const resource = this.plan.resources.find(r => r.id === act.resourceId);
+
+      while (tempMs < endMs) {
+        const d = new Date(tempMs);
+        const isoDate = d.toISOString().split('T')[0];
+        const dayOfWeek = d.getDay();
+        let isWorkDay = workWeek[dayOfWeek] > 0;
+        if (this.plan.holidays?.includes(isoDate)) isWorkDay = false;
+        if (resource?.daysOff?.includes(isoDate)) isWorkDay = false;
+        if (isWorkDay) workDays.push(isoDate);
+        tempMs += dayMs;
+      }
+
+      const val = this.plan.hideValueColumn ? (act.durationDays || 0.1) : (act.value ?? act.durationDays ?? 0.1);
+      if (workDays.includes(entry.date)) {
+        planned.push({
+          id: act.id,
+          name: act.name,
+          resourceName: act.resourceName,
+          valueContribution: (val / workDays.length / totalVal) * 100
+        });
+      } else if (workDays.length === 0) {
+        // Milestone or non-work day?
+        const finishDateStr = new Date(endMs - dayMs).toISOString().split('T')[0];
+        if (finishDateStr === entry.date) {
+           planned.push({
+             id: act.id,
+             name: act.name,
+             resourceName: act.resourceName,
+             valueContribution: (val / totalVal) * 100
+           });
+        }
+      }
+    });
+
+    // Earned contributions (finished on this day)
+    const earned: any[] = [];
+    filteredActivities.forEach(act => {
+      if (act.actualFinishDate === entry.date) {
+        const val = this.plan.hideValueColumn ? (act.durationDays || 0.1) : (act.value ?? act.durationDays ?? 0.1);
+        earned.push({
+          id: act.id,
+          name: act.name,
+          resourceName: act.resourceName,
+          valueContribution: (val / totalVal) * 100
+        });
+      }
+    });
+
+    // We need to calculate cumulative percentages up to this day for the summary
+    let cumulativeProjectedVal = 0;
+    let cumulativeActualVal = 0;
+
+    for(let i = 0; i <= index; i++) {
+        const d = evs[i].date;
+        filteredActivities.forEach(act => {
+           const val = this.plan.hideValueColumn ? (act.durationDays || 0.1) : (act.value ?? act.durationDays ?? 0.1);
+           if (!act.startDate || !act.endDate) return;
+           const startMs = new Date(act.startDate).getTime();
+           const endMs = new Date(act.endDate).getTime();
+           const dayMs = 24 * 60 * 60 * 1000;
+           let workDaysCount = 0;
+           let isOnThisDay = false;
+           let tempMs = startMs;
+           const workWeek = this.plan.workWeek || [0, 1, 1, 1, 1, 1, 0];
+           const resource = this.plan.resources.find(r => r.id === act.resourceId);
+           while(tempMs < endMs) {
+               const dayISO = new Date(tempMs).toISOString().split('T')[0];
+               const dayOfWeek = new Date(tempMs).getDay();
+               let isWD = workWeek[dayOfWeek] > 0;
+               if (this.plan.holidays?.includes(dayISO)) isWD = false;
+               if (resource?.daysOff?.includes(dayISO)) isWD = false;
+               if(isWD) {
+                   workDaysCount++;
+                   if(dayISO === d) isOnThisDay = true;
+               }
+               tempMs += dayMs;
+           }
+           if (workDaysCount > 0 && isOnThisDay) {
+               cumulativeProjectedVal += (val / workDaysCount);
+           } else if (workDaysCount === 0) {
+               const finishDateStr = new Date(endMs - dayMs).toISOString().split('T')[0];
+               if(finishDateStr === d) cumulativeProjectedVal += val;
+           }
+
+           if (act.actualFinishDate === d) {
+               cumulativeActualVal += val;
+           }
+        });
+    }
+
+    this.currentEVIndex = index;
+    this.currentEVDetail = {
+      date: entry.date,
+      plannedContributions: planned.sort((a,b) => b.valueContribution - a.valueContribution),
+      earnedContributions: earned.sort((a,b) => b.valueContribution - a.valueContribution),
+      projectedTotalPercent: (cumulativeProjectedVal / totalVal) * 100,
+      actualTotalPercent: (cumulativeActualVal / totalVal) * 100
+    };
+    this.showEVDetailDialog = true;
+  }
+
+  navigateEV(delta: number) {
+    const nextIndex = this.currentEVIndex + delta;
+    if (this.plan.earnedValue && nextIndex >= 0 && nextIndex < this.plan.earnedValue.length) {
+      this.openEVDetails(nextIndex);
+    }
   }
 
   private getCommonHolidays(year: number): string[] {

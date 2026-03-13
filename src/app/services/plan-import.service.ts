@@ -64,6 +64,7 @@ export class PlanImportService {
             const durationStr = this.getTagValue(node, 'Duration');
             const start = this.getTagValue(node, 'Start');
             const finish = this.getTagValue(node, 'Finish');
+            const actualStart = this.getTagValue(node, 'ActualStart');
             const actualFinish = this.getTagValue(node, 'ActualFinish');
 
             // Skip project summary (UID 0), summaries (parents), and deleted/null/inactive tasks
@@ -98,6 +99,7 @@ export class PlanImportService {
                 startDate: start ? start.split('T')[0] : '',
                 endDate: finish ? finish.split('T')[0] : '',
                 dependsOn: dependsOn,
+                actualStartDate: actualStart ? actualStart.split('T')[0] : undefined,
                 actualFinishDate: actualFinish ? actualFinish.split('T')[0] : undefined,
                 value: durationDays * 10,
                 priority: 50,
@@ -200,7 +202,8 @@ export class PlanImportService {
                     startDate: t.start ? t.start.split('T')[0] : '',
                     endDate: t.finish ? t.finish.split('T')[0] : '',
                     dependsOn: dependsOn,
-                    actualFinishDate: t.actual_finish ? t.actual_finish.split('T')[0] : undefined,
+                    actualStartDate: (t.actual_start || t.actualStart) ? (t.actual_start || t.actualStart).split('T')[0] : undefined,
+                    actualFinishDate: (t.actual_finish || t.actualFinish) ? (t.actual_finish || t.actualFinish).split('T')[0] : undefined,
                     value: durationDays * 10,
                     priority: 50,
                     float: 0,

@@ -11,7 +11,9 @@ export class PlanEngineService {
         const projectBaseDate = new Date(plan.startDate);
         if (isNaN(projectBaseDate.getTime())) return;
 
-        this.runForwardPass(plan);
+        if (plan.autoCalculate !== false) {
+            this.runForwardPass(plan);
+        }
 
         // Calculate Project End Date
         let projectEndMs = projectBaseDate.getTime();

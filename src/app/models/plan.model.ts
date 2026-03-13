@@ -21,6 +21,7 @@ export interface PlanActivity {
     value?: number;
     percentComplete?: number; // 0-100
     actualFinishDate?: string; // YYYY-MM-DD
+    actualStartDate?: string; // YYYY-MM-DD
     partialProgress?: { date: string; percentComplete: number }[];
 }
 
@@ -44,4 +45,5 @@ export interface PlanData {
     holidays?: string[]; // YYYY-MM-DD
     hideValueColumn?: boolean;
     durationLabel?: string;
+    autoCalculate?: boolean;
 }
